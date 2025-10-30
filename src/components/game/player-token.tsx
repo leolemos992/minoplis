@@ -30,7 +30,7 @@ export function PlayerToken({ player, size = 8 }: { player: Player, size?: numbe
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         title={player.name}
     >
-        <TotemIcon className="h-full w-full" />
+        <TotemIcon className="h-full w-full" stroke="white" strokeWidth={1.5} />
     </motion.div>
   );
 }

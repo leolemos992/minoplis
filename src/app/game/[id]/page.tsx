@@ -176,27 +176,27 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                     gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr',
                 }}
             >
-                <div className="bg-muted flex flex-col items-center justify-between border-black border-[1.5px] relative p-4" style={{ gridArea: 'center'}}>
-                    <div className="w-full flex justify-center items-start">
+                <div className="bg-muted flex flex-col items-center justify-center border-black border-[1.5px] relative p-4" style={{ gridArea: 'center'}}>
+                    <div className="w-full flex justify-center items-start absolute top-4 sm:top-8">
                          <Logo className="text-3xl sm:text-5xl" />
                     </div>
                     
                     <motion.div
-                        className="absolute w-[30%] h-[18%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[10%] left-[5%]"
+                        className="absolute w-[30%] h-[18%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[25%] left-[5%]"
                         animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
                         <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[30%] h-[18%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[10%] right-[5%]"
+                        className="absolute w-[30%] h-[18%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 top-[25%] right-[5%]"
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
                         <Box className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
                     </motion.div>
 
-                    <div className="w-full max-w-xs scale-90 sm:scale-100">
+                    <div className="w-full max-w-xs scale-90 sm:scale-100 absolute bottom-4 sm:bottom-8">
                       {children}
                     </div>
 

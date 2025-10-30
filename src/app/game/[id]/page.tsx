@@ -1017,7 +1017,7 @@ export default function GamePage({
 
   // Effect to determine start order
   useEffect(() => {
-    if (gameStatus === 'rolling-to-start' && Object.keys(rollsToStart).length === players.length) {
+    if (gameStatus === 'rolling-to-start' && players.length > 0 && Object.keys(rollsToStart).length === players.length) {
         let sortedPlayers = [...players];
         let tie = false;
 

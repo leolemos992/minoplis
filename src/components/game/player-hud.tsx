@@ -29,7 +29,7 @@ export function PlayerHud({ player }: PlayerHudProps) {
                 <Wallet className="h-5 w-5" />
                 <span>Dinheiro</span>
             </div>
-            <span>${player.money.toLocaleString()}</span>
+            <span>R${player.money.toLocaleString()}</span>
         </div>
         <Separator/>
         <div>

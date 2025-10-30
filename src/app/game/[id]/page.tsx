@@ -31,8 +31,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'go-to-jail': return <Zap className={size} />;
         case 'community-chest': return <Users className={size} />;
         case 'chance': return <HelpCircle className={size} />;
-        case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>$200</p></div>;
-        case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>$100</p></div>;
+        case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
+        case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
         case 'railroad': return <Train className={size} />
         case 'utility': 
             if(space.name.includes("Elétrica")) return <Zap className={size} />
@@ -71,7 +71,7 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
              <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
                 {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
              </div>
          </div>
        )
@@ -85,7 +85,7 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
              <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
                 {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
              </div>
          </div>
        )
@@ -96,12 +96,10 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
         return (
          <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row-reverse")}>
              {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
-                <div className="-rotate-90">
-                    {getIcon(space, "w-6 h-6")}
-                    <span className="font-bold px-1 leading-tight block">{space.name}</span>
-                    {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
-                </div>
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] -rotate-90">
+                {getIcon(space, "w-6 h-6")}
+                <span className="font-bold px-1 leading-tight block">{space.name}</span>
+                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
              </div>
          </div>
        )
@@ -112,12 +110,10 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
          return (
          <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row")}>
              {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
-                 <div className="rotate-90">
-                    {getIcon(space, "w-6 h-6")}
-                    <span className="font-bold px-1 leading-tight block">{space.name}</span>
-                    {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
-                </div>
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] rotate-90">
+                {getIcon(space, "w-6 h-6")}
+                <span className="font-bold px-1 leading-tight block">{space.name}</span>
+                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
              </div>
          </div>
        )

@@ -50,7 +50,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any) => void }) => {
+const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void }) => {
     const isProperty = 'price' in space;
     const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors";
     const rotationClasses: { [key: number]: string } = {
@@ -106,7 +106,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
     // Corners
     if ([0, 10, 20, 30].includes(index)) {
         return (
-            <div className={cn(baseClasses, "z-10")} style={{ gridArea: `space-${index}` }} onClick={() => onSpaceClick(space)}>
+            <div className={cn(baseClasses, "z-10")} style={{ gridArea: `space-${index}` }} onClick={() => onSpaceClick(space, index)}>
                  <div className={cn("flex flex-col items-center justify-center h-full w-full", cornerTextRotation[index] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
@@ -117,14 +117,14 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
     }
 
     return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])} onClick={() => onSpaceClick(space)}>
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])} onClick={() => onSpaceClick(space, index)}>
             {content}
             {children && <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{children}</div>}
          </div>
     )
 };
 
-const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick: (space: any) => void }) => {
+const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick: (space: any, index: number) => void }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -384,13 +384,22 @@ export default function GamePage({
       }
   }
 
+  // DEBUG: Move player by clicking on a space
+  const handleDebugMove = (space: any, index: number) => {
+    setPlayer(p => ({ ...p, position: index }));
+    handleLandedOnSpace(index);
+    if ('price' in space) {
+        setSelectedSpace(space);
+    }
+  };
+
 
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-          <GameBoard players={[player]} onSpaceClick={setSelectedSpace}/>
+          <GameBoard players={[player]} onSpaceClick={handleDebugMove}/>
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />

@@ -27,7 +27,7 @@ export default function CreateBoardPage() {
             <div className="grid w-full items-center gap-4">
               <div className="flex flex-col space-y-1.5">
                 <Label htmlFor="name">Nome do Jogo</Label>
-                <Input id="name" placeholder="ex: 'Meu Tabuleiro Incrível'" defaultValue="Corrida no Centro" />
+                <Input id="name" placeholder="ex: 'Meu Tabuleiro Incrível'" defaultValue="MINOPLIS" />
               </div>
             </div>
           </form>

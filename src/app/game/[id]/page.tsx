@@ -63,14 +63,12 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
         )
     }
     
-    const contentWrapperClasses = "flex-1 flex flex-col justify-between items-center text-center p-1 text-[9px] w-full h-full";
-    
-    // Top Row
+    // Top Row (21-29)
     if (index > 20 && index < 30) {
        return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex flex-col-reverse")}>
-             {isProperty && <div className={cn("h-5 w-full flex-shrink-0", colorClasses[(space as Property).color])} />}
-             <div className={cn(contentWrapperClasses, "justify-center")}>
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-col-reverse")}>
+             {isProperty && <div className={cn("h-5 w-full", colorClasses[(space as Property).color])} />}
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
                 {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
                 {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
@@ -79,12 +77,12 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
        )
     }
 
-    // Bottom Row
+    // Bottom Row (1-9)
     if (index > 0 && index < 10) {
         return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex flex-col")}>
-             {isProperty && <div className={cn("h-5 w-full flex-shrink-0", colorClasses[(space as Property).color])} />}
-             <div className={cn(contentWrapperClasses, "justify-center")}>
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-col")}>
+             {isProperty && <div className={cn("h-5 w-full", colorClasses[(space as Property).color])} />}
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
                 {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
                 {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
@@ -93,29 +91,33 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
        )
     }
 
-    // Left Row
+    // Left Row (11-19)
     if (index > 10 && index < 20) {
         return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex flex-row-reverse")}>
-             {isProperty && <div className={cn("w-5 h-full flex-shrink-0", colorClasses[(space as Property).color])} />}
-             <div className={cn(contentWrapperClasses, "justify-center -rotate-90")}>
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row-reverse")}>
+             {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
+                <div className="-rotate-90">
+                    {getIcon(space, "w-6 h-6")}
+                    <span className="font-bold px-1 leading-tight block">{space.name}</span>
+                    {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+                </div>
              </div>
          </div>
        )
     }
 
-    // Right Row
+    // Right Row (31-39)
     if (index > 30 && index < 40) {
          return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex flex-row")}>
-             {isProperty && <div className={cn("w-5 h-full flex-shrink-0", colorClasses[(space as Property).color])} />}
-             <div className={cn(contentWrapperClasses, "justify-center rotate-90")}>
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row")}>
+             {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
+             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
+                 <div className="rotate-90">
+                    {getIcon(space, "w-6 h-6")}
+                    <span className="font-bold px-1 leading-tight block">{space.name}</span>
+                    {isProperty && <span className="font-normal mt-1">${(space as Property).price}</span>}
+                </div>
              </div>
          </div>
        )
@@ -189,7 +191,7 @@ export default function GamePage({
   return (
     <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
       <div className="lg:col-span-3">
-        <h1 className="text-2xl font-bold mb-4">Jogo: Corrida no Centro</h1>
+        <h1 className="text-2xl font-bold mb-4">Jogo: MINOPLIS</h1>
         <GameBoard />
       </div>
       <aside className="lg:col-span-1 space-y-8">

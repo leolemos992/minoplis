@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Header } from '@/components/header';
 
 export const metadata: Metadata = {
-  title: 'Localopoly',
+  title: 'MINOPLIS',
   description: 'Uma versão moderna dos jogos de tabuleiro clássicos.',
 };
 

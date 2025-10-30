@@ -41,7 +41,7 @@ export const characters: Character[] = [
 export const mockGames: Omit<Game, 'board'>[] = [
     {
         id: '1',
-        name: "Corrida no Centro",
+        name: "MINOPLIS",
         players: [],
         currentPlayerId: 'player-1',
         status: 'waiting',

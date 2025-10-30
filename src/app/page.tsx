@@ -18,9 +18,8 @@ export default function Home() {
                   <Logo />
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                  O clássico jogo de troca de propriedades, reinventado. Crie
-                  seus próprios tabuleiros, escolha personagens únicos e leve
-                  seus amigos à falência.
+                  O clássico jogo de tabuleiro, adaptado para a galera do Bahia
+                  Palace. O verdadeiro e único MINOPOLIS
                 </p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">

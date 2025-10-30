@@ -242,12 +242,13 @@ export default function GamePage({
 }) {
   const { user } = useUser();
   const firestore = useFirestore();
+  const gameId = params.id;
 
   // Firestore data
-  const gameRef = useMemoFirebase(() => firestore ? doc(firestore, 'games', params.id) : null, [firestore, params.id]);
+  const gameRef = useMemoFirebase(() => firestore && gameId ? doc(firestore, 'games', gameId) : null, [firestore, gameId]);
   const { data: gameData } = useDoc(gameRef);
   
-  const playersRef = useMemoFirebase(() => firestore ? collection(firestore, 'games', params.id, 'players') : null, [firestore, params.id]);
+  const playersRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, 'games', gameId, 'players') : null, [firestore, gameId]);
   const { data: playersData } = useCollection<Player>(playersRef);
   
   // States derived from URL or props
@@ -1027,7 +1028,7 @@ export default function GamePage({
         <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
             <h2 className="text-2xl font-bold">Aguardando jogadores...</h2>
             <p className="text-muted-foreground">O jogo '{gameName}' começará em breve.</p>
-            <p className="mt-4">ID do Jogo: <code className="bg-muted p-1 rounded-md">{params.id}</code></p>
+            <p className="mt-4">ID do Jogo: <code className="bg-muted p-1 rounded-md">{gameId}</code></p>
         </div>
     )
   }
@@ -1196,4 +1197,5 @@ export default function GamePage({
     
 
     
+
 

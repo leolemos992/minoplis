@@ -236,6 +236,7 @@ export default function GamePage({
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
   const gameName = searchParams.get('gameName') || 'MINOPOLIS';
+  const numOpponents = parseInt(searchParams.get('numOpponents') || '1', 10);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -268,36 +269,39 @@ export default function GamePage({
     const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
     setChanceDeck(shuffle(chanceCards));
     setCommunityChestDeck(shuffle(communityChestCards));
-
+  
     const humanPlayer: Player = {
-        id: 'player-1',
-        name: playerName,
-        money: 1500,
-        properties: [],
-        mortgagedProperties: [],
-        houses: {},
-        position: 0,
-        color: colorId,
-        totem: totemId,
-        getOutOfJailFreeCards: 0,
-        inJail: false,
+      id: 'player-1',
+      name: playerName,
+      money: 1500,
+      properties: [],
+      mortgagedProperties: [],
+      houses: {},
+      position: 0,
+      color: colorId,
+      totem: totemId,
+      getOutOfJailFreeCards: 0,
+      inJail: false,
     };
-    
-     const aiPlayer: Player = {
-        id: 'player-2',
-        name: 'IA-Bot',
-        money: 1500,
-        properties: [],
-        mortgagedProperties: [],
-        houses: {},
-        position: 0,
-        color: 'red',
-        totem: 'boot',
-        getOutOfJailFreeCards: 0,
-        inJail: false,
-    };
-    
-    setPlayers([humanPlayer, aiPlayer]);
+  
+    const botColors = ['red', 'green', 'yellow', 'purple', 'orange'].filter(c => c !== colorId);
+    const botTotems = ['boot', 'cat', 'ship', 'rocket', 'dog'].filter(t => t !== totemId);
+  
+    const aiPlayers: Player[] = Array.from({ length: numOpponents }, (_, i) => ({
+      id: `player-${i + 2}`,
+      name: `IA-Bot ${i + 1}`,
+      money: 1500,
+      properties: [],
+      mortgagedProperties: [],
+      houses: {},
+      position: 0,
+      color: botColors[i % botColors.length],
+      totem: botTotems[i % botTotems.length],
+      getOutOfJailFreeCards: 0,
+      inJail: false,
+    }));
+  
+    setPlayers([humanPlayer, ...aiPlayers]);
     setCurrentPlayerIndex(0);
     setHasRolled(false);
     setGameLog([]);
@@ -305,7 +309,7 @@ export default function GamePage({
     setAuctionState(null);
     addLog(`O jogo ${gameName} começou!`);
     addLog(`É a vez de ${humanPlayer.name}.`);
-  }, [playerName, totemId, colorId, gameName, addLog]);
+  }, [playerName, totemId, colorId, gameName, addLog, numOpponents]);
 
   // Initialize game
   useEffect(() => {
@@ -843,7 +847,7 @@ export default function GamePage({
     if (!fromPlayer || !toPlayer) return;
 
     // Simple AI logic for now
-    if (toPlayer.id.startsWith('player-2')) {
+    if (toPlayer.id.startsWith('player-')) { // target any bot
         const valueToAI = offer.propertiesTo.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyTo;
         const valueFromAI = offer.propertiesFrom.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyFrom;
 
@@ -943,9 +947,9 @@ export default function GamePage({
 
     // AI Logic for auction
     const currentAuctionPlayerId = auctionState.playersInAuction[auctionState.turnIndex];
-    if (currentAuctionPlayerId === 'player-2') { // AI's turn to bid
-        const aiPlayer = players.find(p => p.id === 'player-2');
-        if (!aiPlayer) return;
+    if (currentAuctionPlayerId?.startsWith('player-')) { // AI's turn to bid
+        const aiPlayer = players.find(p => p.id === currentAuctionPlayerId);
+        if (!aiPlayer || aiPlayer.id === 'player-1') return;
 
         const property = auctionState.property;
         const currentBid = auctionState.currentBid;
@@ -955,17 +959,17 @@ export default function GamePage({
         
         setTimeout(() => {
           if (aiPlayer.money > nextBid && nextBid < valueToAI) {
-              handleAuctionBid('player-2', nextBid);
+              handleAuctionBid(aiPlayer.id, nextBid);
           } else {
-              handleAuctionPass('player-2');
+              handleAuctionPass(aiPlayer.id);
           }
         }, 1500);
     }
 
   }, [auctionState, endAuction, players]);
 
-  const handleAiLogic = () => {
-    if (!player || !player.id.startsWith('player-2')) return;
+  const handleAiLogic = (aiPlayer: Player) => {
+    if (!aiPlayer) return;
 
     // 1. Build houses if possible
     const colorGroups = boardSpaces.reduce((acc, space) => {
@@ -978,44 +982,44 @@ export default function GamePage({
 
     for (const color in colorGroups) {
       const groupProperties = colorGroups[color];
-      const ownedGroupProperties = groupProperties.filter(id => player.properties.includes(id));
+      const ownedGroupProperties = groupProperties.filter(id => aiPlayer.properties.includes(id));
 
       // Check if AI owns the full set
       if (ownedGroupProperties.length === groupProperties.length) {
         // AI owns the full set, let's build
         for (const propId of ownedGroupProperties) {
           const property = boardSpaces.find(s => 'id' in s && s.id === propId) as Property;
-          const houseCount = player.houses[propId] || 0;
-          if (property.houseCost && player.money > property.houseCost * 2 && houseCount < 5) {
+          const houseCount = aiPlayer.houses[propId] || 0;
+          if (property.houseCost && aiPlayer.money > property.houseCost * 2 && houseCount < 5) {
             // Simple logic: build one house if we have more than double the cost
-            updatePlayer(player.id, p => ({
+            updatePlayer(aiPlayer.id, p => ({
               money: p.money - property.houseCost!,
               houses: { ...p.houses, [propId]: (p.houses[propId] || 0) + 1 }
             }));
-            addLog(`${player.name} construiu uma casa em ${property.name}.`);
+            addLog(`${aiPlayer.name} construiu uma casa em ${property.name}.`);
           }
         }
       }
     }
 
     // 2. Unmortgage properties if it has enough money
-    if (player.mortgagedProperties.length > 0 && player.money > 1000) { // Arbitrary high cash amount
-        const propToUnmortgageId = player.mortgagedProperties[0];
+    if (aiPlayer.mortgagedProperties.length > 0 && aiPlayer.money > 1000) { // Arbitrary high cash amount
+        const propToUnmortgageId = aiPlayer.mortgagedProperties[0];
         const property = boardSpaces.find(p => 'id' in p && p.id === propToUnmortgageId) as Property;
         const unmortgageCost = (property.price / 2) * 1.1;
-        if (player.money > unmortgageCost + 500) { // Keep a buffer
-             updatePlayer(player.id, p => ({
+        if (aiPlayer.money > unmortgageCost + 500) { // Keep a buffer
+             updatePlayer(aiPlayer.id, p => ({
                 money: p.money - unmortgageCost,
                 mortgagedProperties: p.mortgagedProperties.filter(id => id !== propToUnmortgageId)
             }));
-            addLog(`${player.name} pagou a hipoteca de ${property.name}.`);
+            addLog(`${aiPlayer.name} pagou a hipoteca de ${property.name}.`);
         }
     }
   };
 
   useEffect(() => {
-    if (gameOver || auctionState) return;
-    if (player && player.id.startsWith('player-2') && !hasRolled) {
+    if (gameOver || auctionState || !player) return;
+    if (player.id !== 'player-1' && !hasRolled) {
       // AI's turn
       setTimeout(() => {
         const dice1 = Math.floor(Math.random() * 6) + 1;
@@ -1024,7 +1028,7 @@ export default function GamePage({
       }, 1000); // Wait 1 sec before AI rolls
 
       setTimeout(() => {
-        handleAiLogic();
+        handleAiLogic(player);
         handleEndTurn();
       }, 4000); // AI thinks and ends turn after 4 seconds
     }

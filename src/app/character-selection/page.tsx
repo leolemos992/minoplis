@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Palette, Sparkles, Wand2 } from 'lucide-react';
-import {
-  suggestCharacter,
-  type CharacterSuggestionOutput,
-} from '@/ai/flows/character-suggestion';
-import { useToast } from '@/hooks/use-toast';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowRight, Palette, Users } from 'lucide-react';
 
 const playerColors = [
   { id: 'red', name: 'Vermelho', class: 'bg-red-500' },
@@ -37,45 +30,16 @@ const playerColors = [
 
 export default function CharacterSelectionPage() {
   const searchParams = useSearchParams();
-  const { toast } = useToast();
   const gameId = searchParams.get('gameId');
   const gameName = searchParams.get('gameName');
 
   const [playerName, setPlayerName] = useState('');
   const [selectedTotem, setSelectedTotem] = useState(totems[0].id);
   const [selectedColor, setSelectedColor] = useState(playerColors[0].id);
-
-  const [playingStyle, setPlayingStyle] = useState('');
-  const [suggestion, setSuggestion] = useState<CharacterSuggestionOutput | null>(null);
-  const [isPending, startTransition] = useTransition();
-
+  const [numOpponents, setNumOpponents] = useState('1');
 
   const totem = totems.find(t => t.id === selectedTotem);
   const TotemIcon = totem ? totem.icon : null;
-
-  const handleSuggestCharacter = () => {
-    if (!playingStyle) {
-      toast({
-        variant: 'destructive',
-        title: 'Estilo de Jogo Vazio',
-        description: 'Por favor, descreva seu estilo de jogo.',
-      });
-      return;
-    }
-    startTransition(async () => {
-      const result = await suggestCharacter({ playingStyle });
-      if (result) {
-        setSuggestion(result);
-        setPlayerName(result.suggestedCharacter);
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Erro da IA',
-          description: 'Não foi possível gerar uma sugestão. Tente novamente.',
-        });
-      }
-    });
-  };
 
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
@@ -83,63 +47,19 @@ export default function CharacterSelectionPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Crie seu Jogador</CardTitle>
           <CardDescription>
-            Escolha seu nome, totem e cor para entrar no jogo. Ou deixe a IA
-            sugerir um personagem com base no seu estilo!
+            Escolha seu nome, totem e cor para entrar no jogo.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2">
           <div className="space-y-6">
-            <Card className="bg-muted/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Sparkles className="text-primary" />
-                  Sugestão com IA
-                </CardTitle>
-                <CardDescription>
-                  Descreva seu estilo de jogo para uma sugestão de personagem com
-                  humor satírico.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="playing-style">Seu Estilo de Jogo</Label>
-                  <Textarea
-                    id="playing-style"
-                    placeholder="Ex: 'Sou agressivo e gosto de falir meus amigos' ou 'Sempre dou azar nos dados'"
-                    value={playingStyle}
-                    onChange={(e) => setPlayingStyle(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <Button
-                  onClick={handleSuggestCharacter}
-                  disabled={isPending}
-                  className="w-full"
-                >
-                  <Wand2 className="mr-2 h-4 w-4" />
-                  {isPending ? 'Gerando...' : 'Sugerir Personagem'}
-                </Button>
-              </CardContent>
-            </Card>
-
             <div className="space-y-2">
               <Label htmlFor="name">Nome do Jogador</Label>
-              {isPending ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Input
-                  id="name"
-                  placeholder="Ex: 'Jogador Audacioso'"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                />
-              )}
-               {isPending && <Skeleton className="h-4 w-3/4 mt-2" />}
-               {suggestion && !isPending && (
-                <p className="text-sm text-muted-foreground pt-1">
-                  {suggestion.characterDescription}
-                </p>
-              )}
+              <Input
+                id="name"
+                placeholder="Ex: 'Jogador Audacioso'"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+              />
             </div>
 
             <div className="space-y-4">
@@ -167,6 +87,25 @@ export default function CharacterSelectionPage() {
                 ))}
               </RadioGroup>
             </div>
+            
+            <div className="space-y-4">
+              <Label className="flex items-center gap-2">
+                <Users /> Oponentes
+              </Label>
+              <RadioGroup
+                value={numOpponents}
+                onValueChange={setNumOpponents}
+                className="flex gap-4"
+              >
+                {[1, 2, 3].map((num) => (
+                   <div key={num} className="flex items-center space-x-2">
+                    <RadioGroupItem value={String(num)} id={`opponents-${num}`} />
+                    <Label htmlFor={`opponents-${num}`}>{num}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
           </div>
 
           <div className="flex flex-col items-center justify-center space-y-6 rounded-lg bg-muted/50 p-8">
@@ -212,7 +151,7 @@ export default function CharacterSelectionPage() {
             <Link
               href={`/game/${gameId}?playerName=${encodeURIComponent(
                 playerName
-              )}&totem=${selectedTotem}&color=${selectedColor}&gameName=${encodeURIComponent(
+              )}&totem=${selectedTotem}&color=${selectedColor}&numOpponents=${numOpponents}&gameName=${encodeURIComponent(
                 gameName || 'MINOPOLIS'
               )}`}
             >

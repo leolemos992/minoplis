@@ -9,19 +9,38 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, Gamepad, Hourglass, RefreshCw, Users } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { PlusCircle, Gamepad, Hourglass, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { Game } from '@/lib/definitions';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+
+// ID do administrador com permissão para apagar todas as salas.
+const ADMIN_UID = 'EriuHWriY4hTNWKG5jC1buQn9Or2';
 
 export default function MultiplayerLobbyPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  // Query for games that are waiting for players
+  const isAdmin = user?.uid === ADMIN_UID;
+
+  // Query para buscar jogos que estão aguardando jogadores.
   const gamesQuery = useMemoFirebase(
     () =>
       firestore
@@ -41,17 +60,65 @@ export default function MultiplayerLobbyPage() {
       setWaitingGames(games);
     } catch (error) {
       console.error("Error refreshing games:", error);
-      // TODO: Show a toast notification for the error
     } finally {
       setIsRefreshing(false);
     }
   }, [gamesQuery, setWaitingGames]);
 
+  const handleDeleteAllGames = async () => {
+    if (!firestore || !isAdmin) return;
+    setIsDeletingAll(true);
+    
+    try {
+        const allGamesQuery = query(collection(firestore, 'games'));
+        const gamesSnapshot = await getDocs(allGamesQuery);
+        const batch = writeBatch(firestore);
+
+        gamesSnapshot.docs.forEach(gameDoc => {
+            batch.delete(gameDoc.ref);
+        });
+
+        await batch.commit();
+        // A atualização em tempo real do useCollection deve limpar a lista.
+        console.log("Todas as salas foram apagadas com sucesso.");
+    } catch (error) {
+        console.error("Erro ao apagar todas as salas:", error);
+        // Idealmente, um toast seria mostrado aqui.
+    } finally {
+        setIsDeletingAll(false);
+    }
+  };
+
+
   return (
     <div className="container py-12">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Lobby Multiplayer</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+           {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isDeletingAll}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                   {isDeletingAll ? 'Apagando...' : 'Apagar Todas as Salas'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Tens a certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação é irreversível e irá apagar permanentemente todas as salas de jogo existentes para todos os jogadores.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAllGames} className={cn(buttonVariants({variant: "destructive"}))}>
+                    Sim, apagar tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button onClick={handleRefresh} variant="outline" disabled={isRefreshing}>
             <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
             Atualizar
@@ -69,7 +136,7 @@ export default function MultiplayerLobbyPage() {
         <CardHeader>
           <CardTitle>Jogos Disponíveis</CardTitle>
           <CardDescription>
-            Entre em um jogo que está aguardando jogadores ou crie o seu.
+            Entre num jogo que está a aguardar por jogadores ou crie o seu.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,7 +157,7 @@ export default function MultiplayerLobbyPage() {
                     <div>
                       <h3 className="font-semibold">{game.name}</h3>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className='flex items-center gap-1'><Hourglass className="h-3 w-3" /> {game.status}</span>
+                        <span className='flex items-center gap-1'><Hourglass className="h-3 w-3" /> A aguardar jogadores</span>
                       </div>
                     </div>
                   </div>

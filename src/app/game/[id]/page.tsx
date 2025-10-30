@@ -115,7 +115,10 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
                 {(isProperty || space.type === 'income-tax' || space.type === 'luxury-tax') && 
                     <span className="font-normal mt-1">
-                        R${space.type === 'income-tax' ? '200' : (space.type === 'luxury-tax' ? '100' : (space as Property).price)}
+                        {space.type === 'income-tax' ? '10%' :
+                         space.type === 'luxury-tax' ? 'R$100' :
+                         `R$${(space as Property).price}`
+                        }
                     </span>
                 }
             </div>

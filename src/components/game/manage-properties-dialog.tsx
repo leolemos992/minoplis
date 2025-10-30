@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Home, Hotel, Minus, Plus, Banknote, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 
 interface ManagePropertiesDialogProps {
@@ -48,8 +47,6 @@ export function ManagePropertiesDialog({
   onMortgage,
   onUnmortgage,
 }: ManagePropertiesDialogProps) {
-  const { toast } = useToast();
-
   const groupedProperties = useMemo(() => {
     const groups: { [color: string]: Property[] } = {};
     player.properties.forEach(id => {
@@ -89,7 +86,8 @@ export function ManagePropertiesDialog({
   const handleSellClick = (property: Property) => {
       const currentHouses = player.houses[property.id] || 0;
       if (currentHouses === 0) {
-          toast({ variant: 'destructive', title: 'Sem construções', description: 'Não há nada para vender nesta propriedade.' });
+          // Toast removed, parent component handles notifications
+          console.error('Sem construções para vender');
           return;
       }
       onSell(property.id, 1);
@@ -98,7 +96,8 @@ export function ManagePropertiesDialog({
   const handleMortgageClick = (property: Property) => {
       const houseCount = player.houses[property.id] || 0;
       if (houseCount > 0) {
-          toast({ variant: 'destructive', title: 'Venda as construções primeiro', description: 'Você deve vender todas as casas/hotéis antes de hipotecar.' });
+          // Toast removed
+          console.error('Venda as construções primeiro');
           return;
       }
       onMortgage(property.id);

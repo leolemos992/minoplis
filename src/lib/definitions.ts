@@ -75,3 +75,9 @@ export type AuctionState = {
   playersInAuction: string[];
   turnIndex: number;
 };
+
+export type Notification = {
+    id: string;
+    message: string;
+    variant: 'default' | 'destructive';
+}

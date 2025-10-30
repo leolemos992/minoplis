@@ -25,7 +25,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
 interface TradeDialogProps {
   isOpen: boolean;
@@ -88,7 +87,6 @@ export function TradeDialog({
   otherPlayers,
   onProposeTrade,
 }: TradeDialogProps) {
-  const { toast } = useToast();
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | undefined>(otherPlayers[0]?.id);
   
   const [playerOffer, setPlayerOffer] = useState<{ properties: string[], money: number }>({ properties: [], money: 0 });
@@ -98,13 +96,15 @@ export function TradeDialog({
 
   const handlePropose = () => {
     if (!selectedPlayer) {
-      toast({ variant: 'destructive', title: 'Nenhum jogador selecionado', description: 'Você precisa selecionar um jogador para negociar.' });
-      return;
+        // Toast removed
+        console.error('Nenhum jogador selecionado');
+        return;
     }
     
     if (playerOffer.properties.length === 0 && opponentOffer.properties.length === 0 && playerOffer.money === 0 && opponentOffer.money === 0) {
-      toast({ variant: 'destructive', title: 'Oferta vazia', description: 'Você precisa oferecer ou pedir algo.' });
-      return;
+        // Toast removed
+        console.error('Oferta vazia');
+        return;
     }
 
     onProposeTrade({

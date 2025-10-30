@@ -7,18 +7,18 @@ import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState, Notification } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
-import { useToast } from '@/hooks/use-toast';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { TradeDialog } from '@/components/game/trade-dialog';
 import { AuctionDialog } from '@/components/game/auction-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
+import { GameNotifications } from '@/components/game/game-notifications';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -149,7 +149,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged 
     )
 };
 
-const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile, children }: { players: Player[]; onSpaceClick: (space: any, index: number) => void; mortgagedProperties: string[]; animateCardPile: 'chance' | 'community-chest' | null; children: React.ReactNode }) => {
+const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile, notifications, children }: { players: Player[]; onSpaceClick: (space: any, index: number) => void; mortgagedProperties: string[]; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; children: React.ReactNode }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -178,27 +178,32 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                     gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr',
                 }}
             >
-                <div className="bg-muted flex flex-col items-center justify-center border-black border-[1.5px] relative p-4" style={{ gridArea: 'center'}}>
-                    <div className="w-full flex justify-center items-start absolute top-4 sm:top-8">
+                <div className="bg-muted flex flex-col items-center justify-between border-black border-[1.5px] relative p-4" style={{ gridArea: 'center'}}>
+                    <div className="w-full flex justify-center items-start pt-2 sm:pt-4">
                          <Logo className="text-3xl sm:text-5xl" />
                     </div>
-                    
-                    <motion.div
-                        className="absolute w-[30%] h-[18%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[35%] left-[10%]"
-                        animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 10 }}
-                    >
-                        <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
-                    </motion.div>
-                     <motion.div
-                        className="absolute w-[30%] h-[18%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 top-[35%] right-[10%]"
-                        animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 10 }}
-                     >
-                        <Box className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
-                    </motion.div>
 
-                    <div className="w-full max-w-xs scale-90 sm:scale-100 absolute bottom-4 sm:bottom-8">
+                    <GameNotifications notifications={notifications} />
+                    
+                    <div className="flex justify-center items-center gap-8">
+                        <motion.div
+                            className="w-[30%] h-[18%] sm:w-32 sm:h-20 bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12"
+                            animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                        >
+                            <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
+                        </motion.div>
+                         <motion.div
+                            className="w-[30%] h-[18%] sm:w-32 sm:h-20 bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12"
+                            animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                         >
+                            <Box className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
+                        </motion.div>
+                    </div>
+
+
+                    <div className="w-full max-w-xs scale-90 sm:scale-100">
                       {children}
                     </div>
 
@@ -231,7 +236,6 @@ export default function GamePage({
   params: { id: string };
 }) {
   const searchParams = useSearchParams();
-  const { toast } = useToast();
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
@@ -258,8 +262,18 @@ export default function GamePage({
   
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
 
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
   const player = players[currentPlayerIndex];
+
+  const addNotification = useCallback((message: string, variant: 'default' | 'destructive' = 'default') => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, message, variant }]);
+    setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
 
   const addLog = useCallback((message: string) => {
     setGameLog(prev => [{ message, timestamp: new Date() }, ...prev]);
@@ -305,6 +319,7 @@ export default function GamePage({
     setCurrentPlayerIndex(0);
     setHasRolled(false);
     setGameLog([]);
+    setNotifications([]);
     setGameOver(null);
     setAuctionState(null);
     addLog(`O jogo ${gameName} começou!`);
@@ -332,7 +347,7 @@ export default function GamePage({
     if (!bankruptPlayer) return;
 
     addLog(`${bankruptPlayer.name} foi à falência!`);
-    toast({ variant: 'destructive', title: 'Falência!', description: `${bankruptPlayer.name} foi removido do jogo.` });
+    addNotification(`${bankruptPlayer.name} foi removido do jogo.`, 'destructive');
 
     if (creditor) {
       addLog(`${creditor.name} recebe todos os ativos de ${bankruptPlayer.name}.`);
@@ -349,7 +364,7 @@ export default function GamePage({
 
     setPlayers(prev => prev.filter(p => p.id !== bankruptPlayerId));
 
-  }, [players, addLog, toast, updatePlayer]);
+  }, [players, addLog, addNotification, updatePlayer]);
 
 
   const makePayment = useCallback((payerId: string, receiverId: string | null, amount: number) => {
@@ -374,18 +389,14 @@ export default function GamePage({
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
         addLog(`${p.name} foi para a prisão.`);
+        addNotification('Você foi para a prisão!', 'destructive');
         return { position: JAIL_POSITION, inJail: true };
     });
-    toast({
-        variant: "destructive",
-        title: "Encrenca!",
-        description: "Você foi para a prisão!"
-    });
-  }, [JAIL_POSITION, toast, updatePlayer, addLog]);
+  }, [JAIL_POSITION, addNotification, updatePlayer, addLog]);
 
   const startAuction = useCallback((property: Property) => {
       addLog(`${property.name} foi a leilão!`);
-      toast({ title: "Leilão!", description: `${property.name} está sendo leiloado.` });
+      addNotification(`${property.name} está sendo leiloado.`);
       const playersInAuction = players.map(p => p.id);
       setAuctionState({
           property,
@@ -394,7 +405,7 @@ export default function GamePage({
           playersInAuction,
           turnIndex: 0
       });
-  }, [players, addLog, toast]);
+  }, [players, addLog, addNotification]);
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
@@ -403,7 +414,7 @@ export default function GamePage({
     addLog(`${player.name} parou em ${space.name}.`);
 
     if (space.type === 'jail' && !player.inJail) {
-        toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
+        addNotification("Você está apenas visitando a prisão.");
         return;
     }
 
@@ -414,7 +425,7 @@ export default function GamePage({
         
         if (owner && owner.id !== player.id) {
             if (owner.mortgagedProperties.includes(property.id)) {
-                 toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então ${player.name} não paga aluguel.` });
+                 addNotification(`${owner.name} hipotecou ${property.name}, sem aluguel.`);
                  addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
                  return;
             }
@@ -434,7 +445,7 @@ export default function GamePage({
 
             if(rentAmount > 0) {
                  if (makePayment(player.id, owner.id, rentAmount)) {
-                    toast({ variant: 'destructive', title: `Aluguel!`, description: `${player.name} pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
+                    addNotification(`${player.name} pagou R$${rentAmount} a ${owner.name}.`, 'destructive');
                     addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
                 }
             }
@@ -482,19 +493,19 @@ export default function GamePage({
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(player.money * 0.1);
         if (makePayment(player.id, null, taxAmount)) {
-            toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$${taxAmount} de Imposto de Renda.` });
+            addNotification(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
             addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
         }
     } else if (space.type === 'luxury-tax') {
         if(makePayment(player.id, null, 100)) {
-            toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$100 de Taxa das Blusinhas.` });
+            addNotification(`${player.name} pagou R$100 de Taxa das Blusinhas.`, 'destructive');
             addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
         }
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
     }
 
-  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction]);
+  }, [player, players, addNotification, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     if (!player) return;
@@ -560,29 +571,28 @@ export default function GamePage({
     applyCardAction(cardToExecute);
   
     const { action } = cardToExecute;
-    let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
+    let notification: { message: string, variant?: 'destructive'} | null = null;
      switch (action.type) {
         case 'money':
-          toastInfo = {
-            title: cardToExecute.type === 'chance' ? 'Sorte!' : 'Baú Comunitário',
-            description: `${player.name} ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
-            variant: action.amount! < 0 ? 'destructive' : undefined,
-          };
+            notification = {
+                message: `${player.name} ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!)}`,
+                variant: action.amount! < 0 ? 'destructive' : undefined,
+            };
           break;
         case 'go_to_jail':
-            toastInfo = { variant: "destructive", title: 'Que azar!', description: `${player.name} foi para a prisão!` };
+            notification = { message: `${player.name} foi para a prisão!`, variant: "destructive" };
             break;
         case 'get_out_of_jail':
-            toastInfo = { title: 'Sorte Grande!', description: `${player.name} recebeu uma carta para sair da prisão!` };
+            notification = { message: `${player.name} recebeu uma carta para sair da prisão!` };
             break;
      }
 
-    if (toastInfo) {
-      setTimeout(() => toast(toastInfo!), 100);
+    if (notification) {
+      setTimeout(() => addNotification(notification!.message, notification!.variant), 100);
     }
     
     setCardToExecute(null);
-  }, [cardToExecute, applyCardAction, toast, player]);
+  }, [cardToExecute, applyCardAction, addNotification, player]);
 
 
   const handleDiceRoll = (dice1: number, dice2: number, fromCard = false) => {
@@ -590,14 +600,18 @@ export default function GamePage({
     setHasRolled(true);
     setLastDiceRoll([dice1, dice2]);
     addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
+    
+    if (player.id === 'player-1' && !player.inJail) {
+        addNotification(`Você rolou ${dice1 + dice2}.`);
+    }
 
     if (player.inJail) {
         if (dice1 === dice2) {
             updatePlayer(player.id, { inJail: false });
-            toast({ title: "Sorte!", description: "Você rolou dados duplos e saiu da prisão!" });
+            addNotification("Você rolou dados duplos e saiu da prisão!");
             addLog(`${player.name} saiu da prisão rolando dados duplos.`);
         } else {
-            toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
+            addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
         }
         // Rolling dice in jail (even if you don't get out) counts as your move
         return;
@@ -615,10 +629,7 @@ export default function GamePage({
         if (newPosition < currentPosition && !fromCard) {
             updatedPlayer.money = prevPlayer.money + 200;
             setTimeout(() => {
-                toast({
-                    title: "Você passou pelo início!",
-                    description: `Você coletou R$200.`,
-                });
+                addNotification(`Você coletou R$200.`);
             }, 100);
             addLog(`${player.name} passou pelo início e coletou R$200.`);
         }
@@ -651,18 +662,11 @@ export default function GamePage({
         money: prev.money - property.price,
         properties: [...prev.properties, property.id],
       }));
-      toast({
-        title: "Propriedade Comprada!",
-        description: `Você comprou ${property.name}.`,
-      });
+      addNotification(`Você comprou ${property.name}.`);
       addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
       setSelectedSpace(null);
     } else {
-        toast({
-            variant: "destructive",
-            title: "Dinheiro insuficiente!",
-            description: `Você não tem dinheiro para comprar ${property.name}.`,
-        });
+        addNotification(`Você não tem dinheiro para comprar ${property.name}.`, 'destructive');
     }
   };
   
@@ -676,10 +680,7 @@ export default function GamePage({
 
     if (makePayment(player.id, null, 50)) {
         updatePlayer(player.id, { inJail: false });
-        toast({
-            title: "Você pagou a fiança!",
-            description: "Você está livre da prisão."
-        });
+        addNotification("Você pagou a fiança e está livre!");
         addLog(`${player.name} pagou R$50 de fiança e saiu da prisão.`);
     }
   }
@@ -711,28 +712,20 @@ export default function GamePage({
     const ownedPropertiesInGroup = propertiesInGroup.filter(p => 'id' in p && player.properties.includes(p.id));
 
     if (ownedPropertiesInGroup.length !== propertiesInGroup.length) {
-      toast({
-        variant: "destructive",
-        title: "Grupo incompleto",
-        description: `Você precisa possuir todas as propriedades da cor ${property.color} para construir.`
-      });
+      addNotification(`Você precisa possuir todas as propriedades da cor para construir.`, "destructive");
       return;
     }
 
     const cost = property.houseCost * amount;
     if (player.money < cost) {
-      toast({
-        variant: "destructive",
-        title: "Dinheiro insuficiente!",
-        description: "Você não tem dinheiro para construir."
-      });
+      addNotification("Você não tem dinheiro para construir.", "destructive");
       return;
     }
   
     updatePlayer(player.id, p => {
       const currentHouses = p.houses[propertyId] || 0;
       if (currentHouses + amount > 5) {
-         toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
+         addNotification('Você já construiu um hotel nesta propriedade.', 'destructive');
         return p;
       }
       const newHouses = currentHouses + amount;
@@ -750,10 +743,7 @@ export default function GamePage({
       }
     });
 
-    toast({
-      title: "Construção realizada!",
-      description: `Você construiu ${amount} casa(s) em ${property.name}.`
-    });
+    addNotification(`Você construiu ${amount} casa(s) em ${property.name}.`);
   };
 
   const handleSell = (propertyId: string, amount: number) => {
@@ -763,7 +753,7 @@ export default function GamePage({
 
     const currentHouses = player.houses[propertyId] || 0;
     if (currentHouses < amount) {
-        toast({ variant: 'destructive', title: 'Venda inválida', description: 'Você não tem construções suficientes para vender.'});
+        addNotification('Você não tem construções suficientes para vender.', 'destructive');
         return;
     }
 
@@ -787,10 +777,7 @@ export default function GamePage({
       }
     });
 
-    toast({
-      title: "Venda realizada!",
-      description: `Você vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`
-    });
+    addNotification(`Você vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`);
   };
 
   const handleMortgage = (propertyId: string) => {
@@ -807,10 +794,7 @@ export default function GamePage({
         }
     });
 
-    toast({
-        title: "Propriedade Hipotecada!",
-        description: `Você hipotecou ${property.name} e recebeu R$${mortgageValue}.`
-    });
+    addNotification(`Você hipotecou ${property.name} e recebeu R$${mortgageValue}.`);
   };
 
   const handleUnmortgage = (propertyId: string) => {
@@ -820,11 +804,7 @@ export default function GamePage({
 
     const unmortgageCost = (property.price / 2) * 1.1; // 10% interest
     if (player.money < unmortgageCost) {
-        toast({
-            variant: "destructive",
-            title: "Dinheiro insuficiente!",
-            description: `Você precisa de R$${unmortgageCost.toFixed(2)} para pagar a hipoteca de ${property.name}.`
-        });
+        addNotification(`Você precisa de R$${unmortgageCost.toFixed(2)} para pagar a hipoteca.`, "destructive");
         return;
     }
 
@@ -835,10 +815,7 @@ export default function GamePage({
             mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
         }
     });
-     toast({
-        title: "Hipoteca Paga!",
-        description: `Você pagou a hipoteca de ${property.name}.`
-    });
+     addNotification(`Você pagou a hipoteca de ${property.name}.`);
   };
 
   const handleProposeTrade = (offer: TradeOffer) => {
@@ -861,10 +838,10 @@ export default function GamePage({
                 money: p.money + offer.moneyTo - offer.moneyFrom,
                 properties: [...p.properties.filter(id => !offer.propertiesFrom.includes(id)), ...offer.propertiesTo],
             }));
-            toast({ title: 'Troca Aceita!', description: `${toPlayer.name} aceitou sua proposta.`});
+            addNotification(`${toPlayer.name} aceitou sua proposta.`);
             addLog(`${fromPlayer.name} e ${toPlayer.name} realizaram uma troca.`);
         } else {
-             toast({ variant: 'destructive', title: 'Troca Recusada', description: `${toPlayer.name} recusou sua proposta.`});
+             addNotification(`${toPlayer.name} recusou sua proposta.`, 'destructive');
              addLog(`${toPlayer.name} recusou uma proposta de troca de ${fromPlayer.name}.`);
         }
     }
@@ -876,7 +853,7 @@ export default function GamePage({
 
     const bidder = players.find(p => p.id === playerId);
     if (!bidder || bidder.money < bidAmount) {
-        toast({ variant: "destructive", title: "Lance inválido", description: "Você não tem dinheiro suficiente." });
+        addNotification("Você não tem dinheiro suficiente.", "destructive");
         return;
     }
 
@@ -919,7 +896,7 @@ export default function GamePage({
         const winner = players.find(p => p.id === auctionState.highestBidderId);
         if (winner) {
             addLog(`${winner.name} venceu o leilão de ${auctionState.property.name} por R$${auctionState.currentBid}!`);
-            toast({ title: "Leilão Encerrado!", description: `${winner.name} arrematou ${auctionState.property.name}!` });
+            addNotification(`${winner.name} arrematou ${auctionState.property.name}!`);
             updatePlayer(winner.id, p => ({
                 money: p.money - auctionState.currentBid,
                 properties: [...p.properties, auctionState.property.id],
@@ -927,10 +904,10 @@ export default function GamePage({
         }
     } else {
         addLog(`Ninguém deu lance por ${auctionState.property.name}. A propriedade continua do banco.`);
-        toast({ title: "Leilão Encerrado", description: "A propriedade não foi arrematada." });
+        addNotification("A propriedade não foi arrematada.");
     }
     setAuctionState(null);
-  }, [auctionState, players, addLog, toast, updatePlayer]);
+  }, [auctionState, players, addLog, addNotification, updatePlayer]);
   
   useEffect(() => {
     if (!auctionState) return;
@@ -1053,6 +1030,7 @@ export default function GamePage({
             onSpaceClick={handleDebugMove} 
             mortgagedProperties={humanPlayer ? humanPlayer.mortgagedProperties : []} 
             animateCardPile={animateCardPile} 
+            notifications={notifications}
           >
             <GameActions 
                 onDiceRoll={handleDiceRoll} 

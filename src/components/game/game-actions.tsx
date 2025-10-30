@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dices, Handshake, Building, Gavel, CheckSquare } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface GameActionsProps {
@@ -63,7 +62,6 @@ function DiceIcon({ value }: { value: number }) {
 
 
 export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties, isTurnActive, hasRolled }: GameActionsProps) {
-  const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -86,14 +84,6 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
         const finalD2 = Math.floor(Math.random() * 6) + 1;
         setDice([finalD1, finalD2]);
         onDiceRoll(finalD1, finalD2);
-        if (!isPlayerInJail) {
-            toast({
-            title: 'Você Rolou!',
-            description: `Você rolou um ${finalD1} e um ${finalD2} para um total de ${
-                finalD1 + finalD2
-            }.`,
-            });
-        }
       }, 1000);
 
       return () => {
@@ -101,7 +91,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
         clearTimeout(stopTimeout);
       };
     }
-  }, [isRolling, onDiceRoll, toast, isPlayerInJail]);
+  }, [isRolling, onDiceRoll, isPlayerInJail]);
 
   const canEndTurn = isTurnActive && hasRolled;
 

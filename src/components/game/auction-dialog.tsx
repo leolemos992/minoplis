@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Gavel, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { PropertyCard } from './property-card';
 import { Avatar } from '../ui/avatar';
 import { totems } from '@/lib/game-data';
@@ -46,7 +45,6 @@ export function AuctionDialog({
   onBid,
   onPass,
 }: AuctionDialogProps) {
-  const { toast } = useToast();
   const [bidAmount, setBidAmount] = useState(0);
 
   useEffect(() => {
@@ -67,12 +65,13 @@ export function AuctionDialog({
   const handleBid = () => {
     if (!humanPlayer) return;
     if (bidAmount <= currentBid) {
-      toast({ variant: 'destructive', title: 'Lance inválido', description: `Seu lance deve ser maior que R$${currentBid}.` });
+      // Maybe use a toast here in the future
+      console.error(`Seu lance deve ser maior que R$${currentBid}.`);
       return;
     }
     if (humanPlayer.money < bidAmount) {
-      toast({ variant: 'destructive', title: 'Dinheiro insuficiente', description: 'Você não tem fundos para este lance.' });
-      return;
+        console.error('Você não tem fundos para este lance.');
+        return;
     }
     onBid(humanPlayer.id, bidAmount);
   };

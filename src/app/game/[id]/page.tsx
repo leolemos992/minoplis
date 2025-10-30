@@ -6,7 +6,7 @@ import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/gam
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -34,7 +34,7 @@ const colorClasses: { [key: string]: string } = {
 const getIcon = (space: any, size = "w-8 h-8") => {
     switch(space.type) {
         case 'go': return <Home className={size} />;
-        case 'jail': return <Building className={size} />;
+        case 'jail': return <Gavel className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
         case 'community-chest': return <ShieldAlert className={cn(size, "text-red-600")} />;
@@ -188,10 +188,21 @@ export default function GamePage({
     color: colorId,
     totem: totemId,
     getOutOfJailFreeCards: 0,
+    inJail: false,
   });
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
+  const JAIL_POSITION = boardSpaces.findIndex(s => s.type === 'jail');
+
+  const goToJail = () => {
+    setPlayer(p => ({...p, position: JAIL_POSITION, inJail: true}));
+    toast({
+        variant: "destructive",
+        title: "Encrenca!",
+        description: "Você foi para a prisão!"
+    });
+  }
 
   const applyCardAction = useCallback((card: GameCard) => {
     setPlayer(prevPlayer => {
@@ -220,10 +231,13 @@ export default function GamePage({
                   toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
               }
               newPlayerState.position = newPosition;
+              // A ação de sacar outra carta/pagar aluguel acontece em handleLandedOnSpace
+              setTimeout(() => handleLandedOnSpace(newPosition, true), 500);
           }
           break;
         case 'go_to_jail':
-          newPlayerState.position = boardSpaces.findIndex(s => s.type === 'jail');
+          newPlayerState.position = JAIL_POSITION;
+          newPlayerState.inJail = true;
            toast({
             variant: "destructive",
             title: 'Que azar!',
@@ -253,11 +267,17 @@ export default function GamePage({
       }
       return newPlayerState;
     });
-  }, [toast]);
+  }, [toast, JAIL_POSITION]);
 
-  const handleLandedOnSpace = useCallback((spaceIndex: number) => {
+  const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
     if (!space) return;
+
+    // Se o jogador está apenas visitando a prisão, nada acontece
+    if (space.type === 'jail' && !player.inJail) {
+        toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
+        return;
+    }
 
     const isProperty = 'price' in space;
     if(isProperty) {
@@ -278,14 +298,26 @@ export default function GamePage({
         setPlayer(p => ({...p, money: p.money - 100}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Imposto de Luxo." });
     } else if (space.type === 'go-to-jail') {
-        setPlayer(p => ({...p, position: boardSpaces.findIndex(s => s.type === 'jail')}));
-        toast({ variant: "destructive", title: "Encrenca!", description: "Você foi para a prisão!" });
+        goToJail();
     }
 
-  }, [player.properties, toast]);
+  }, [player.properties, player.inJail, toast, goToJail]);
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
+    
+    // Lógica da Prisão
+    if (player.inJail) {
+        if (dice1 === dice2) {
+            setPlayer(p => ({...p, inJail: false}));
+            toast({ title: "Sorte!", description: "Você rolou dados duplos e saiu da prisão!" });
+        } else {
+            toast({ title: " azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
+        }
+        return;
+    }
+    
+    // Lógica normal de rolagem
     const total = dice1 + dice2;
     let newPosition = 0;
     setPlayer(prevPlayer => {
@@ -329,6 +361,22 @@ export default function GamePage({
     }
   };
 
+  const handlePayBail = () => {
+    if (player.inJail && player.money >= 50) {
+        setPlayer(p => ({...p, money: p.money - 50, inJail: false}));
+        toast({
+            title: "Você pagou a fiança!",
+            description: "Você está livre da prisão."
+        });
+    } else {
+         toast({
+            variant: "destructive",
+            title: "Dinheiro insuficiente!",
+            description: "Você não tem R$50 para pagar a fiança.",
+        });
+    }
+  }
+
   const closeCardDialog = () => {
       if (drawnCard) {
           applyCardAction(drawnCard);
@@ -346,7 +394,12 @@ export default function GamePage({
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />
-          <GameActions onDiceRoll={handleDiceRoll} />
+          <GameActions 
+            onDiceRoll={handleDiceRoll} 
+            isPlayerInJail={player.inJail}
+            onPayBail={handlePayBail}
+            canPayBail={player.money >= 50}
+          />
           <GameControls />
         </aside>
       </div>

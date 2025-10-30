@@ -16,6 +16,7 @@ export type Player = {
   color: string;
   totem: string;
   getOutOfJailFreeCards: number;
+  inJail: boolean;
 };
 
 export type Property = {

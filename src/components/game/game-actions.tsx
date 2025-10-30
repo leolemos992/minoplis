@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dices, Handshake, Building } from 'lucide-react';
+import { Dices, Handshake, Building, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface GameActionsProps {
   onDiceRoll: (dice1: number, dice2: number) => void;
+  onPayBail?: () => void;
+  isPlayerInJail: boolean;
+  canPayBail: boolean;
 }
 
 function DiceIcon({ value }: { value: number }) {
@@ -55,7 +58,7 @@ function DiceIcon({ value }: { value: number }) {
 }
 
 
-export function GameActions({ onDiceRoll }: GameActionsProps) {
+export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail }: GameActionsProps) {
   const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
@@ -79,12 +82,14 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
         const finalD2 = Math.floor(Math.random() * 6) + 1;
         setDice([finalD1, finalD2]);
         onDiceRoll(finalD1, finalD2);
-        toast({
-          title: 'Você Rolou!',
-          description: `Você rolou um ${finalD1} e um ${finalD2} para um total de ${
-            finalD1 + finalD2
-          }.`,
-        });
+        if (!isPlayerInJail) {
+            toast({
+            title: 'Você Rolou!',
+            description: `Você rolou um ${finalD1} e um ${finalD2} para um total de ${
+                finalD1 + finalD2
+            }.`,
+            });
+        }
       }, 1000);
 
       return () => {
@@ -92,7 +97,7 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
         clearTimeout(stopTimeout);
       };
     }
-  }, [isRolling, onDiceRoll, toast]);
+  }, [isRolling, onDiceRoll, toast, isPlayerInJail]);
 
   return (
     <Card>
@@ -113,14 +118,26 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
           disabled={isRolling}
         >
           <Dices className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
-          {isRolling ? 'Rolando...' : 'Rolar Dados'}
+          {isRolling ? 'Rolando...' : (isPlayerInJail ? 'Tentar Rolar Duplos' : 'Rolar Dados')}
         </Button>
+        {isPlayerInJail && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="group w-full"
+            onClick={onPayBail}
+            disabled={!canPayBail}
+          >
+            <Gavel className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
+            Pagar Fiança (R$50)
+          </Button>
+        )}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="group w-full">
+          <Button variant="outline" className="group w-full" disabled={isPlayerInJail}>
             <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Negociar
           </Button>
-          <Button variant="outline" className="group w-full">
+          <Button variant="outline" className="group w-full" disabled={isPlayerInJail}>
             <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Gerenciar
           </Button>

@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import type { Player } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Wallet, Landmark } from 'lucide-react';
+import { Wallet, Landmark, Shield } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { PlayerToken } from './player-token';
+import { Badge } from '../ui/badge';
 
 const playerColors: { [key: string]: { border: string, text: string, bg: string } } = {
   red: { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-500' },
@@ -46,6 +47,7 @@ export function PlayerHud({ player }: PlayerHudProps) {
             </div>
             <div>
                 <CardTitle>{player.name}</CardTitle>
+                {player.inJail && <Badge variant="destructive" className="mt-1">Na Prisão</Badge>}
             </div>
         </div>
       </CardHeader>
@@ -57,6 +59,20 @@ export function PlayerHud({ player }: PlayerHudProps) {
             </div>
             <span>R${formattedMoney}</span>
         </div>
+        
+        {player.getOutOfJailFreeCards > 0 && (
+             <>
+             <Separator/>
+                <div className="flex items-center justify-between text-sm font-semibold">
+                    <div className="flex items-center gap-2 text-blue-600">
+                        <Shield className="h-5 w-5" />
+                        <span>Cartas "Sair da Prisão"</span>
+                    </div>
+                    <span>{player.getOutOfJailFreeCards}</span>
+                </div>
+            </>
+        )}
+
         <Separator/>
         <div>
             <div className="flex items-center gap-2 font-semibold mb-2">

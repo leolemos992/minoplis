@@ -227,7 +227,7 @@ export default function GamePage({
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
-  const gameName = searchParams.get('gameName') || 'MINOPLIS';
+  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -271,21 +271,7 @@ export default function GamePage({
         inJail: false,
     };
     
-    // Add a dummy opponent for rent testing
-    const opponent: Player = {
-        id: 'opponent-1',
-        name: 'Oponente',
-        money: 1500,
-        properties: ['poco-fundo', 'guarani', 'railroad-1'],
-        mortgagedProperties: [],
-        houses: {'poco-fundo': 1},
-        position: -1, // Off-board
-        color: 'red',
-        totem: 'dog',
-        getOutOfJailFreeCards: 0,
-        inJail: false,
-    };
-    setPlayers([initialPlayer, opponent]);
+    setPlayers([initialPlayer]);
     addLog(`O jogo ${gameName} começou!`);
   }, [playerName, totemId, colorId, gameName, addLog]);
 

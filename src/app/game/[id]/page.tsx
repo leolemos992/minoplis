@@ -6,7 +6,7 @@ import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/gam
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -42,8 +42,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'go-to-jail': return <Zap className={size} />;
         case 'community-chest': return <Box className={cn(size, "text-yellow-600")} />;
         case 'chance': return <HelpCircle className={cn(size, "text-blue-600")} />;
-        case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
-        case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
+        case 'income-tax': return <CircleDollarSign className={size} />;
+        case 'luxury-tax': return <CircleDollarSign className={size} />;
         case 'railroad': return <Train className={size} />
         case 'utility': 
             if(space.name.includes("CELESC")) return <Zap className={size} />
@@ -113,7 +113,11 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
             )}>
                  {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
+                {(isProperty || space.type === 'income-tax' || space.type === 'luxury-tax') && 
+                    <span className="font-normal mt-1">
+                        R${space.type === 'income-tax' ? '200' : (space.type === 'luxury-tax' ? '100' : (space as Property).price)}
+                    </span>
+                }
             </div>
         </>
     );
@@ -287,7 +291,7 @@ export default function GamePage({
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
     } else if (space.type === 'luxury-tax') {
         setPlayer(p => ({...p, money: p.money - 100}));
-        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Imposto de Luxo." });
+        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
     } else if (space.type === 'go-to-jail') {
         goToJail();
     }

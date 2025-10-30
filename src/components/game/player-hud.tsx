@@ -8,7 +8,7 @@ import { Wallet, Landmark } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 interface PlayerHudProps {
-    player: Player;
+    player: Omit<Player, 'character'>;
 }
 
 export function PlayerHud({ player }: PlayerHudProps) {
@@ -23,12 +23,10 @@ export function PlayerHud({ player }: PlayerHudProps) {
       <CardHeader>
         <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-primary">
-                <AvatarImage src={player.character.image} alt={player.character.name} data-ai-hint={player.character.imageHint} />
-                <AvatarFallback>{player.character.name.substring(0, 2)}</AvatarFallback>
+                <AvatarFallback>{player.name.substring(0, 2)}</AvatarFallback>
             </Avatar>
             <div>
                 <CardTitle>{player.name}</CardTitle>
-                <CardDescription>como {player.character.name}</CardDescription>
             </div>
         </div>
       </CardHeader>

@@ -1,8 +1,6 @@
-
-
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { characters, boardSpaces } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
@@ -94,9 +92,6 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
                  {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
                 {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
-                {'ruler' in space && (
-                    <span className="text-[8px] italic mt-0.5">({(space as any).ruler})</span>
-                )}
             </div>
         </>
     );
@@ -162,20 +157,10 @@ export default function GamePage({
 }: {
   params: { id: string };
 }) {
-  const searchParams = useSearchParams();
-  const characterId = searchParams.get('character');
-  const selectedCharacter = characters.find(
-    (c) => c.id === characterId
-  );
-
-  if (!selectedCharacter) {
-    notFound();
-  }
 
   const mockPlayer = {
     id: 'player-1',
     name: 'Jogador 1',
-    character: selectedCharacter,
     money: 1500,
     properties: [],
     position: 0,
@@ -195,5 +180,3 @@ export default function GamePage({
     </div>
   );
 }
-
-    

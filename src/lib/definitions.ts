@@ -10,7 +10,6 @@ export type Character = {
 export type Player = {
   id: string;
   name: string;
-  character: Character;
   money: number;
   properties: string[];
   position: number;
@@ -19,9 +18,7 @@ export type Player = {
 
 export type Property = {
   id: string;
-  name: string; // Country Name
-  ruler?: string; // Ruler Name
-  rulerDescription?: string; // Ruler's quirky law
+  name: string; // Brusque Location
   price: number;
   rent: number[];
   color: string;

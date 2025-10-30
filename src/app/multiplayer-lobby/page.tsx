@@ -20,33 +20,43 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw } from 'lucide-react';
+import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, deleteDoc, getDocs, writeBatch, or } from 'firebase/firestore';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import type { Game } from '@/lib/definitions';
 
 export default function MultiplayerLobbyPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Updated query to fetch 'waiting' and 'rolling-to-start' games
   const gamesQuery = useMemoFirebase(
     () =>
-      firestore
+      firestore && user
         ? query(
             collection(firestore, 'games'),
             or(
               where('status', '==', 'waiting'),
-              where('status', '==', 'rolling-to-start')
+              where('status', '==', 'rolling-to-start'),
+              where('hostId', '==', user.uid)
             )
           )
         : null,
-    [firestore]
+    [firestore, user]
   );
   
-  const { data: ongoingGames, isLoading, setData: setOngoingGames } = useCollection(gamesQuery);
+  const { data: allGames, isLoading, setData: setOngoingGames } = useCollection<Game>(gamesQuery);
+
+  const ongoingGames = useMemo(() => {
+    if (!allGames) return [];
+    if (!user) return allGames.filter(g => g.status === 'waiting' || g.status === 'rolling-to-start');
+    
+    // Show games that are joinable OR that the user hosts
+    return allGames.filter(g => (g.status === 'waiting' || g.status === 'rolling-to-start') || g.hostId === user.uid);
+  }, [allGames, user]);
+
 
   const handleRefresh = useCallback(async () => {
     if (!gamesQuery) return;
@@ -133,7 +143,10 @@ export default function MultiplayerLobbyPage() {
                   className="flex items-center justify-between rounded-lg border p-4"
                 >
                   <div className="flex items-center gap-4">
-                    <Gamepad className="h-8 w-8 text-primary" />
+                    {game.status !== 'waiting' && game.status !== 'rolling-to-start' 
+                      ? <AlertTriangle className="h-8 w-8 text-orange-500" />
+                      : <Gamepad className="h-8 w-8 text-primary" />
+                    }
                     <div>
                       <h3 className="font-semibold">{game.name}</h3>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">

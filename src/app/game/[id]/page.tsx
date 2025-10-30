@@ -183,7 +183,9 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                          <Logo className="text-3xl sm:text-5xl" />
                     </div>
 
-                    <GameNotifications notifications={notifications} />
+                    <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-4/5">
+                        <GameNotifications notifications={notifications} />
+                    </div>
                     
                     <div className="flex justify-center items-center gap-8">
                         <motion.div

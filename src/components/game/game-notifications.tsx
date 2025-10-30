@@ -9,7 +9,7 @@ export function GameNotifications({
   notifications: Notification[];
 }) {
   return (
-    <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-4/5 h-1/3 flex flex-col items-center gap-2 pointer-events-none">
+    <div className="h-16 flex flex-col items-center justify-center gap-2 pointer-events-none w-full">
       <AnimatePresence>
         {notifications.map((notification) => (
           <motion.div
@@ -17,8 +17,8 @@ export function GameNotifications({
             layout
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3 }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             className={cn(
               'w-full max-w-md rounded-lg p-3 text-sm font-semibold shadow-lg text-center flex items-center justify-center gap-2',
               notification.variant === 'destructive'

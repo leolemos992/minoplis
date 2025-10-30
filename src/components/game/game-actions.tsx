@@ -28,16 +28,26 @@ function DiceIcon({ value }: { value: number }) {
       'bottom-right',
     ],
   };
+  
+  const pipGridAreas: { [key: string]: string } = {
+    'top-left': '1 / 1',
+    'top-right': '1 / 3',
+    'mid-left': '2 / 1',
+    'center': '2 / 2',
+    'mid-right': '2 / 3',
+    'bottom-left': '3 / 1',
+    'bottom-right': '3 / 3',
+    };
 
-  const pipGridAreas = pipPatterns[value] || [];
+  const currentPips = pipPatterns[value] || [];
 
   return (
-    <div className="grid h-10 w-10 grid-cols-3 grid-rows-3 gap-[2px] rounded-md border-2 bg-white p-1">
-      {pipGridAreas.map((area) => (
+    <div className="grid h-12 w-12 grid-cols-3 grid-rows-3 gap-1 rounded-lg border-2 bg-white p-1 shadow-md">
+      {currentPips.map((area) => (
         <div
           key={area}
           className={`w-full h-full rounded-full bg-black`}
-          style={{ gridArea: area }}
+          style={{ gridArea: pipGridAreas[area] }}
         ></div>
       ))}
     </div>
@@ -47,15 +57,11 @@ function DiceIcon({ value }: { value: number }) {
 
 export function GameActions({ onDiceRoll }: GameActionsProps) {
   const { toast } = useToast();
-  const [dice, setDice] = useState<[number, number]>([0, 0]);
+  const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
 
   const rollDice = () => {
     setIsRolling(true);
-    // Initialize dice to a rolling state if they haven't been rolled yet
-    if (dice[0] === 0) {
-      setDice([1, 1]);
-    }
   };
 
   useEffect(() => {
@@ -95,12 +101,10 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex h-20 items-center justify-center gap-4">
-          {dice[0] > 0 && (
-            <div className="flex gap-4 rounded-lg border bg-background p-4">
-              <DiceIcon value={dice[0]} />
-              <DiceIcon value={dice[1]} />
-            </div>
-          )}
+          <div className="flex gap-4 rounded-lg border bg-background p-4">
+            <DiceIcon value={dice[0]} />
+            <DiceIcon value={dice[1]} />
+          </div>
         </div>
         <Button
           size="lg"

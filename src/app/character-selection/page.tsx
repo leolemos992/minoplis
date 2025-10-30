@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Palette, Users, Ban } from 'lucide-react';
+import { ArrowRight, Palette, Ban } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import type { Player } from '@/lib/definitions';
@@ -38,14 +38,13 @@ export default function CharacterSelectionPage() {
   const searchParams = useSearchParams();
   const gameId = searchParams.get('gameId');
   const gameName = searchParams.get('gameName');
-  const isHost = searchParams.get('host') === 'true';
 
   const { user } = useUser();
   const firestore = useFirestore();
 
   // Fetch existing players to check for used totems/colors
   const playersRef = useMemoFirebase(() => 
-    firestore && gameId && gameId !== 'solo-game' 
+    firestore && gameId 
       ? collection(firestore, 'games', gameId, 'players') 
       : null,
     [firestore, gameId]
@@ -61,7 +60,6 @@ export default function CharacterSelectionPage() {
   const [playerName, setPlayerName] = useState('');
   const [selectedTotem, setSelectedTotem] = useState(firstAvailableTotem);
   const [selectedColor, setSelectedColor] = useState(firstAvailableColor);
-  const [numOpponents, setNumOpponents] = useState('1'); // Only used for solo
 
   // Update selection if the first available option changes (e.g., due to another player joining)
   useEffect(() => {
@@ -98,7 +96,8 @@ export default function CharacterSelectionPage() {
     };
 
     try {
-      const playerRef = doc(collection(firestore, 'games', gameId, 'players'), user.uid);
+      // Use user.uid as the document ID for the player
+      const playerRef = doc(firestore, 'games', gameId, 'players', user.uid);
       await setDoc(playerRef, player);
       
       router.push(`/game/${gameId}?gameName=${encodeURIComponent(gameName || 'MINOPOLIS')}`);
@@ -109,12 +108,6 @@ export default function CharacterSelectionPage() {
     }
   };
   
-  const soloGameHref = isHost ? `/game/${gameId}?playerName=${encodeURIComponent(
-      playerName
-    )}&totem=${selectedTotem}&color=${selectedColor}&numOpponents=${numOpponents}&gameName=${encodeURIComponent(
-      gameName || 'MINOPOLIS'
-    )}` : '#';
-
   const isCurrentSelectionValid = !usedTotems.has(selectedTotem) && !usedColors.has(selectedColor);
 
   return (
@@ -187,26 +180,6 @@ export default function CharacterSelectionPage() {
               </TooltipProvider>
             </div>
             
-            {isHost && (
-              <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <Users /> Oponentes (IA)
-                </Label>
-                <RadioGroup
-                  value={numOpponents}
-                  onValueChange={setNumOpponents}
-                  className="flex gap-4"
-                >
-                  {[1, 2, 3].map((num) => (
-                    <div key={num} className="flex items-center space-x-2">
-                      <RadioGroupItem value={String(num)} id={`opponents-${num}`} />
-                      <Label htmlFor={`opponents-${num}`}>{num}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-            )}
-
           </div>
 
           <div className="flex flex-col items-center justify-center space-y-6 rounded-lg bg-muted/50 p-8">
@@ -265,19 +238,10 @@ export default function CharacterSelectionPage() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-            {isHost ? (
-                 <Button asChild className="group" disabled={!playerName}>
-                    <Link href={soloGameHref}>
-                        Iniciar Jogo Solo
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Link>
-                 </Button>
-            ) : (
-                <Button className="group" disabled={!playerName || !gameId || !isCurrentSelectionValid} onClick={handleJoinGame}>
-                    Entrar no Jogo
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-            )}
+            <Button className="group" disabled={!playerName || !gameId || !isCurrentSelectionValid} onClick={handleJoinGame}>
+                Entrar no Jogo
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
         </CardFooter>
       </Card>
     </div>

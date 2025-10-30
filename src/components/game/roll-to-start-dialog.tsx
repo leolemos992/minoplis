@@ -50,15 +50,16 @@ interface RollToStartDialogProps {
   players: Player[];
   rolls: Record<string, number>;
   onRoll: (playerId: string, roll: number) => void;
+  localPlayerId?: string;
 }
 
-export function RollToStartDialog({ isOpen, players, rolls, onRoll }: RollToStartDialogProps) {
+export function RollToStartDialog({ isOpen, players, rolls, onRoll, localPlayerId }: RollToStartDialogProps) {
   const [isRolling, setIsRolling] = useState(false);
-  const humanPlayer = players.find(p => p.id === 'player-1');
-  const hasHumanRolled = humanPlayer && rolls[humanPlayer.id];
+  const localPlayer = players.find(p => p.userId === localPlayerId);
+  const hasLocalPlayerRolled = localPlayer && rolls[localPlayer.id];
 
   const handleRoll = () => {
-    if (!humanPlayer || isRolling || hasHumanRolled) return;
+    if (!localPlayer || isRolling || hasLocalPlayerRolled) return;
     setIsRolling(true);
   };
 
@@ -66,14 +67,14 @@ export function RollToStartDialog({ isOpen, players, rolls, onRoll }: RollToStar
     if (isRolling) {
       const stopTimeout = setTimeout(() => {
         setIsRolling(false);
-        if (humanPlayer) {
+        if (localPlayer) {
             const roll = Math.floor(Math.random() * 12) + 1;
-            onRoll(humanPlayer.id, roll);
+            onRoll(localPlayer.id, roll);
         }
       }, 1000);
       return () => clearTimeout(stopTimeout);
     }
-  }, [isRolling, onRoll, humanPlayer]);
+  }, [isRolling, onRoll, localPlayer]);
 
   return (
     <Dialog open={isOpen}>
@@ -125,9 +126,9 @@ export function RollToStartDialog({ isOpen, players, rolls, onRoll }: RollToStar
           <Button 
             className="w-full"
             onClick={handleRoll}
-            disabled={isRolling || !!hasHumanRolled}
+            disabled={isRolling || !!hasLocalPlayerRolled || !localPlayer}
           >
-            {isRolling ? 'Rolando...' : (hasHumanRolled ? <><Check className="mr-2"/>Aguardando os outros</> : <><Dices className="mr-2"/>Rolar Dados</>)}
+            {isRolling ? 'Rolando...' : (hasLocalPlayerRolled ? <><Check className="mr-2"/>Aguardando os outros</> : <><Dices className="mr-2"/>Rolar Dados</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

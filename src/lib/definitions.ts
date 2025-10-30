@@ -43,6 +43,9 @@ export type Game = {
   currentPlayerId: string | null;
   status: GameStatus;
   createdAt: any; // serverTimestamp
+  playerOrder?: string[];
+  turnOrder?: string[];
+  lastRoll?: [number, number] | null;
 };
 
 

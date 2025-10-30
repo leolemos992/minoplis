@@ -10,8 +10,46 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useUser, useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useState } from 'react';
 
 export default function LobbyPage() {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const handleCreateSoloGame = async () => {
+    if (!user || !firestore) {
+      console.error("Firestore or user not available");
+      return;
+    }
+    
+    setIsCreating(true);
+
+    try {
+      // 1. Create the game document
+      const gameData = {
+        name: "Jogo Solo",
+        status: 'waiting' as const,
+        hostId: user.uid,
+        createdAt: serverTimestamp(),
+        currentPlayerId: null,
+      };
+      const gamesCollection = collection(firestore, 'games');
+      const docRef = await addDoc(gamesCollection, gameData);
+
+      // 2. Redirect to character selection for the new game
+      router.push(`/character-selection?gameId=${docRef.id}&gameName=${encodeURIComponent("Jogo Solo")}`);
+
+    } catch (error) {
+      console.error("Error creating solo game: ", error);
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
       <Card className="w-full max-w-lg text-center">
@@ -21,12 +59,12 @@ export default function LobbyPage() {
           </div>
           <CardTitle className="text-2xl">Criar Jogo Solo</CardTitle>
           <CardDescription>
-            Comece um novo jogo contra oponentes controlados por IA.
+            Comece um novo jogo. Você pode jogar sozinho ou convidar amigos mais tarde.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild size="lg">
-            <Link href="/character-selection?gameId=solo-game&gameName=Jogo%20Solo&host=true">Criar Jogo Solo</Link>
+          <Button size="lg" onClick={handleCreateSoloGame} disabled={isCreating}>
+            {isCreating ? "Criando..." : "Criar Jogo"}
           </Button>
         </CardContent>
       </Card>

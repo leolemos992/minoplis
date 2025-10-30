@@ -5,7 +5,7 @@ import { useSearchParams, useParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState, Notification, GameStatus } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -21,7 +21,7 @@ import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 import { GameNotifications } from '@/components/game/game-notifications';
 import { RollToStartDialog } from '@/components/game/roll-to-start-dialog';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp, setDoc } from 'firebase/firestore';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -254,7 +254,6 @@ export default function GamePage() {
   
   // Local game logic states
   const [players, setPlayers] = useState<Player[]>([]);
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [hasRolled, setHasRolled] = useState(false);
   const [doublesCount, setDoublesCount] = useState(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>('waiting');
@@ -276,14 +275,57 @@ export default function GamePage() {
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const isHost = gameData?.hostId === user?.uid;
+  const player = gameData?.currentPlayerId ? players.find(p => p.id === gameData.currentPlayerId) : undefined;
+  
+  const shuffle = <T,>(array: T[]): T[] => {
+    return [...array].sort(() => Math.random() - 0.5);
+  };
+  
+  const handleStartGame = async () => {
+    if (!firestore || !gameId || !isHost || !playersData) return;
+
+    const batch = writeBatch(firestore);
+    
+    // Set game status to rolling-to-start
+    const gameDocRef = doc(firestore, 'games', gameId);
+    batch.update(gameDocRef, { status: 'rolling-to-start' });
+
+    // Initialize decks and save to a subcollection
+    const shuffledChance = shuffle(chanceCards);
+    const shuffledCommunity = shuffle(communityChestCards);
+    
+    const chanceDeckRef = doc(collection(firestore, `games/${gameId}/decks`), 'chance');
+    batch.set(chanceDeckRef, { cards: shuffledChance, currentIndex: 0 });
+
+    const communityDeckRef = doc(collection(firestore, `games/${gameId}/decks`), 'community-chest');
+    batch.set(communityDeckRef, { cards: shuffledCommunity, currentIndex: 0 });
+
+    try {
+      await batch.commit();
+      addLog("O anfitrião iniciou o jogo! Role os dados para determinar a ordem.");
+    } catch (error) {
+      console.error("Error starting game: ", error);
+    }
+  };
 
   // Update local players state when Firestore data changes
   useEffect(() => {
     if (playersData) {
-      // TODO: Preserve order if game is active
-      setPlayers(playersData);
+      if (gameData?.playerOrder) {
+          // If order is set, sort local players accordingly
+          const sorted = [...playersData].sort((a, b) => {
+              const indexA = gameData.playerOrder.indexOf(a.id);
+              const indexB = gameData.playerOrder.indexOf(b.id);
+              return indexA - indexB;
+          });
+          setPlayers(sorted);
+      } else {
+          // Otherwise, just set them as they come
+          setPlayers(playersData);
+      }
     }
-  }, [playersData]);
+  }, [playersData, gameData?.playerOrder]);
 
   // Update game status from Firestore
   useEffect(() => {
@@ -294,7 +336,6 @@ export default function GamePage() {
 
 
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
-  const player = players[currentPlayerIndex];
 
   const addNotification = useCallback((message: string, variant: 'default' | 'destructive' = 'default') => {
     const id = Date.now().toString();
@@ -310,10 +351,7 @@ export default function GamePage() {
   }, []);
 
   const initializeDecks = useCallback(() => {
-    const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
-    setChanceDeck(shuffle(chanceCards));
-    setCommunityChestDeck(shuffle(communityChestCards));
-    // TODO: This should be done by the host and synced via Firestore
+    // This is now handled by the host in handleStartGame
   }, []);
 
   // Initialize decks once
@@ -380,22 +418,24 @@ export default function GamePage() {
   }, [players, handleBankruptcy, updatePlayer]);
   
   const handleEndTurn = useCallback(() => {
+    if (!gameData || !firestore) return;
     // Check for game over
     if (players.length <= 1) {
-        setGameStatus('finished');
-        // TODO: Update Firestore game status
+        setDoc(doc(firestore, 'games', gameId), { status: 'finished' }, { merge: true });
         return;
     }
 
     setDoublesCount(0); // Reset doubles count on turn end
+    const currentPlayerIndex = players.findIndex(p => p.id === gameData.currentPlayerId);
     const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
-    setCurrentPlayerIndex(nextPlayerIndex);
-    setHasRolled(false);
-    if(players[nextPlayerIndex]) {
-       addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
+    const nextPlayer = players[nextPlayerIndex];
+
+    if(nextPlayer) {
+       addLog(`É a vez de ${nextPlayer.name}.`);
+       setDoc(doc(firestore, 'games', gameId), { currentPlayerId: nextPlayer.id, lastRoll: null }, { merge: true });
     }
-    // TODO: Update currentPlayerId in Firestore
-  }, [players, currentPlayerIndex]);
+    setHasRolled(false);
+  }, [players, gameData, firestore, gameId, addLog]);
 
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
@@ -471,21 +511,9 @@ export default function GamePage() {
             } else if (!owner) {
                  if (player.userId === user?.uid) {
                     setSelectedSpace(space);
-                    // Resolve is handled by dialog close/buy actions
-                 } else { // AI Logic to buy
-                     setTimeout(() => {
-                        if (player.money >= property.price * 1.5) { // AI is a bit picky
-                           updatePlayer(player.id, prev => ({
-                               money: prev.money - property.price,
-                               properties: [...prev.properties, property.id],
-                           }));
-                           addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
-                        } else {
-                            startAuction(property);
-                        }
-                        resolve();
-                     }, 1000);
                  }
+                 // AI logic removed
+                 return resolve();
             } else {
                 return resolve();
             }
@@ -505,16 +533,11 @@ export default function GamePage() {
     
                 addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
                 
-                if (player.userId === user?.uid) {
-                    setDrawnCard(card);
-                    // Resolve will be handled by card dialog close
-                } else {
-                    setCardToExecute(card);
-                    resolve();
-                }
+                setDrawnCard(card);
                 
                 setAnimateCardPile(null);
             }, 500);
+            return resolve();
     
         } else if (space.type === 'income-tax') {
             const taxAmount = Math.floor(player.money * 0.1);
@@ -627,7 +650,7 @@ export default function GamePage() {
 
 
  const handleDiceRoll = (dice1: number, dice2: number) => {
-    if (!player) return;
+    if (!player || !firestore || !gameId) return;
 
     addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
     setLastDiceRoll([dice1, dice2]);
@@ -661,31 +684,28 @@ export default function GamePage() {
 
     setHasRolled(true);
 
-    if (player.userId === user?.uid) {
-        addNotification(`Você rolou ${dice1 + dice2}.`);
-        if (isDoubles) {
-            addNotification("Dados duplos! Você joga de novo.");
-        }
+    addNotification(`Você rolou ${dice1 + dice2}.`);
+    if (isDoubles) {
+        addNotification("Dados duplos! Você joga de novo.");
+    }
+    
+    const total = dice1 + dice2;
+    const currentPosition = player.position;
+    const newPosition = (currentPosition + total) % 40;
+    
+    const playerUpdate: Partial<Player> = { position: newPosition };
+
+    if (newPosition < currentPosition) { // Passed GO
+        playerUpdate.money = player.money + 200;
+        setTimeout(() => {
+            addNotification(`Você coletou R$200.`);
+        }, 100);
+        addLog(`${player.name} passou pelo início e coletou R$200.`);
     }
 
-    const total = dice1 + dice2;
-    let newPosition = 0;
-    
-    updatePlayer(player.id, prevPlayer => {
-        const currentPosition = prevPlayer.position;
-        newPosition = (currentPosition + total) % 40;
-        
-        let updatedPlayer: Partial<Player> = { position: newPosition };
-
-        if (newPosition < currentPosition) {
-            updatedPlayer.money = prevPlayer.money + 200;
-            setTimeout(() => {
-                if(player.userId === user?.uid) addNotification(`Você coletou R$200.`);
-            }, 100);
-            addLog(`${player.name} passou pelo início e coletou R$200.`);
-        }
-        return updatedPlayer;
-    });
+    // Update player position and money in one go
+    const playerDocRef = doc(firestore, `games/${gameId}/players`, player.id);
+    setDoc(playerDocRef, playerUpdate, { merge: true });
 
     if (isDoubles) {
         setHasRolled(false); // Allow another roll
@@ -733,17 +753,18 @@ export default function GamePage() {
       }
   }
 
-  const handleDebugMove = (space: any, index: number) => {
-    if (process.env.NODE_ENV !== 'development' || !player || player.userId !== user?.uid) return;
-    updatePlayer(player.id, p => ({ position: index }));
-    handleLandedOnSpace(index);
+  const handleSpaceClick = (space: any, index: number) => {
+    // Only allow interaction with property cards
+    if ('price' in space) {
+        setSelectedSpace(space);
+    }
   };
   
   useEffect(() => {
     if (players.length === 1 && gameStatus === 'active') {
-        setGameStatus('finished');
+        setDoc(doc(firestore, 'games', gameId), { status: 'finished' }, { merge: true });
     }
-  }, [players, gameStatus]);
+  }, [players, gameStatus, firestore, gameId]);
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
@@ -934,100 +955,96 @@ export default function GamePage() {
     if (!auctionState) return;
 
     // End condition
-    if (auctionState.playersInAuction.length === 1 && auctionState.highestBidderId === auctionState.playersInAuction[0]) {
+    if (auctionState.playersInAuction.length <= 1) {
         endAuction();
-        return;
     }
-    if (auctionState.playersInAuction.length === 0) {
-        endAuction();
-        return;
-    }
-
-    // AI Logic for auction
-    const currentAuctionPlayerId = auctionState.playersInAuction[auctionState.turnIndex];
-    const isHumanPlayerTurn = currentAuctionPlayerId === user?.uid;
-    
-    if (currentAuctionPlayerId && !isHumanPlayerTurn) { // AI's turn to bid
-        const aiPlayer = players.find(p => p.id === currentAuctionPlayerId);
-        if (!aiPlayer) return;
-
-        const property = auctionState.property;
-        const currentBid = auctionState.currentBid;
-        const valueToAI = property.price * 0.9; // AI thinks it's worth 90% of price in auction
-
-        const nextBid = currentBid + 10;
-        
-        setTimeout(() => {
-          if (aiPlayer.money > nextBid && nextBid < valueToAI) {
-              handleAuctionBid(aiPlayer.id, nextBid);
-          } else {
-              handleAuctionPass(aiPlayer.id);
-          }
-        }, 1500);
-    }
-
-  }, [auctionState, endAuction, players, user]);
+    // AI Logic removed
+  }, [auctionState, endAuction]);
 
 
   const handleRollToStart = (playerId: string, roll: number) => {
-    // TODO: Update rolls in Firestore
-    setRollsToStart(prev => ({...prev, [playerId]: roll}));
+    if (!firestore || !gameId) return;
+    const rollRef = doc(firestore, `games/${gameId}/rolls-to-start`, playerId);
+    setDoc(rollRef, { roll, playerName: players.find(p => p.id === playerId)?.name });
     addLog(`${players.find(p => p.id === playerId)?.name} rolou ${roll} para começar.`);
   }
-
+  
+  const rollsToStartRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, `games/${gameId}/rolls-to-start`) : null, [firestore, gameId]);
+  const { data: rollsToStartData } = useCollection(rollsToStartRef);
 
   // Effect to determine start order (HOST ONLY)
   useEffect(() => {
-    if (gameData?.hostId !== user?.uid) return;
+    if (!isHost || !firestore || !gameId) return;
 
-    if (gameStatus === 'rolling-to-start' && players.length > 0 && Object.keys(rollsToStart).length === players.length) {
-        let sortedPlayers = [...players];
-        let tie = false;
-
-        do {
-            tie = false;
-            const rolls = sortedPlayers.map(p => rollsToStart[p.id]);
-            const maxRoll = Math.max(...rolls);
-            const tiedPlayerIds = sortedPlayers.filter(p => rollsToStart[p.id] === maxRoll).map(p => p.id);
-
-            if (tiedPlayerIds.length > 1) {
-                tie = true;
-                addLog(`Empate entre ${tiedPlayerIds.map(id => players.find(p => p.id === id)?.name).join(' e ')}. Rolando novamente...`);
-                const newRollsToStart = { ...rollsToStart };
-                
-                tiedPlayerIds.forEach(id => {
-                  delete newRollsToStart[id];
-                  const newRoll = Math.floor(Math.random() * 12) + 1;
-                  setTimeout(() => handleRollToStart(id, newRoll), 1000);
-                });
-                setRollsToStart(newRollsToStart);
-                break; // Exit this check and wait for new rolls
-            }
-
-        } while (tie);
-
-        if (!tie) {
-           sortedPlayers.sort((a, b) => rollsToStart[b.id] - rollsToStart[a.id]);
-           setPlayers(sortedPlayers); // This should be an update to player order in Firestore
-           setCurrentPlayerIndex(0);
-           setGameStatus('active'); // This should update Firestore
-           if (sortedPlayers.length > 0 && sortedPlayers[0]) {
-             addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
-             addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
-           }
+    if (gameStatus === 'rolling-to-start' && players.length > 0 && rollsToStartData && rollsToStartData.length === players.length) {
+      
+      const decideOrder = async () => {
+        const uniqueRolls = new Set(rollsToStartData.map(r => r.roll));
+        if (uniqueRolls.size < rollsToStartData.length) {
+          addLog("Houve um empate! Rolando novamente para os jogadores empatados.");
+          // Simplified: for now, we just tell them to re-roll. A real implementation would handle this automatically.
+          return;
         }
+
+        const sortedPlayers = [...players].sort((a, b) => {
+          const rollA = rollsToStartData.find(r => r.id === a.id)?.roll || 0;
+          const rollB = rollsToStartData.find(r => r.id === b.id)?.roll || 0;
+          return rollB - rollA;
+        });
+
+        const playerOrder = sortedPlayers.map(p => p.id);
+        const gameDocRef = doc(firestore, 'games', gameId);
+
+        await setDoc(gameDocRef, {
+            status: 'active',
+            playerOrder: playerOrder,
+            currentPlayerId: playerOrder[0],
+            turnOrder: playerOrder,
+        }, { merge: true });
+
+        if (sortedPlayers.length > 0 && sortedPlayers[0]) {
+            addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
+            addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
+        }
+      };
+
+      // Use a timeout to prevent rapid-fire updates
+      const timer = setTimeout(decideOrder, 2000);
+      return () => clearTimeout(timer);
     }
-  }, [rollsToStart, players, gameStatus, addLog, addNotification, gameData, user]);
+  }, [rollsToStartData, players, gameStatus, isHost, firestore, gameId, addLog, addNotification]);
 
 
-  if (players.length === 0) {
+  if (players.length === 0 || !gameData) {
+    return (
+        <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
+            <h2 className="text-2xl font-bold">Carregando Jogo...</h2>
+            <p className="text-muted-foreground">ID do Jogo: <code className="bg-muted p-1 rounded-md">{gameId}</code></p>
+        </div>
+    )
+  }
+  
+  if (gameStatus === 'waiting') {
     return (
         <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
             <h2 className="text-2xl font-bold">Aguardando jogadores...</h2>
             <p className="text-muted-foreground">O jogo '{gameName}' começará em breve.</p>
             <p className="mt-4">ID do Jogo: <code className="bg-muted p-1 rounded-md">{gameId}</code></p>
+            <div className='mt-8'>
+                <h3 className="font-semibold mb-2">Jogadores na Sala:</h3>
+                <ul className="space-y-2">
+                    {players.map(p => <li key={p.id}>{p.name}</li>)}
+                </ul>
+            </div>
+            {isHost && (
+                <Button onClick={handleStartGame} disabled={players.length < 2} className="mt-8">
+                    <Play className="mr-2 h-4 w-4" />
+                    Iniciar Jogo ({players.length}/{players.length})
+                </Button>
+            )}
+            {!isHost && <p className="mt-8 text-sm text-muted-foreground">Aguardando o anfitrião iniciar o jogo.</p>}
         </div>
-    )
+    );
   }
 
   const humanPlayer = players.find(p => p.userId === user?.uid) || players[0];
@@ -1041,7 +1058,7 @@ export default function GamePage() {
         <div className="lg:col-span-3">
           <GameBoard 
             players={players} 
-            onSpaceClick={handleDebugMove} 
+            onSpaceClick={handleSpaceClick} 
             mortgagedProperties={humanPlayer ? humanPlayer.mortgagedProperties : []} 
             animateCardPile={animateCardPile} 
             notifications={notifications}
@@ -1114,8 +1131,9 @@ export default function GamePage() {
       <RollToStartDialog 
         isOpen={gameStatus === 'rolling-to-start'}
         players={players}
-        rolls={rollsToStart}
+        rolls={rollsToStartData?.reduce((acc, roll) => ({...acc, [roll.id]: roll.roll}), {}) || {}}
         onRoll={handleRollToStart}
+        localPlayerId={user?.uid}
       />
 
       <Dialog open={!!selectedSpace} onOpenChange={(open) => {
@@ -1190,12 +1208,3 @@ export default function GamePage() {
     </>
   );
 }
-
-    
-
-    
-
-
-
-
-

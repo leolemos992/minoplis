@@ -240,9 +240,9 @@ export default function GamePage({
 }: {
   params: { id: string };
 }) {
+  const { id: gameId } = params;
   const { user } = useUser();
   const firestore = useFirestore();
-  const gameId = params.id;
 
   // Firestore data
   const gameRef = useMemoFirebase(() => firestore && gameId ? doc(firestore, 'games', gameId) : null, [firestore, gameId]);
@@ -1197,5 +1197,6 @@ export default function GamePage({
     
 
     
+
 
 

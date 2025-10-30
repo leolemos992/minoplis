@@ -20,13 +20,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { PlusCircle, Gamepad, Hourglass, Users, Trash2 } from 'lucide-react';
+import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { useState, useCallback } from 'react';
 
 export default function MultiplayerLobbyPage() {
   const firestore = useFirestore();
   const { user } = useUser();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const gamesQuery = useMemoFirebase(
     () =>
@@ -36,14 +38,29 @@ export default function MultiplayerLobbyPage() {
     [firestore]
   );
   
-  const { data: ongoingGames, isLoading } = useCollection(gamesQuery);
+  const { data: ongoingGames, isLoading, setData: setOngoingGames } = useCollection(gamesQuery);
+
+  const handleRefresh = useCallback(async () => {
+    if (!gamesQuery) return;
+    setIsRefreshing(true);
+    try {
+      const snapshot = await getDocs(gamesQuery);
+      const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOngoingGames(games as any);
+    } catch (error) {
+      console.error("Error refreshing games:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [gamesQuery, setOngoingGames]);
 
   const handleDeleteGame = async (gameId: string) => {
     if (!firestore) return;
     const gameRef = doc(firestore, 'games', gameId);
     try {
       await deleteDoc(gameRef);
-      // TODO: Add toast notification for successful deletion
+      // Data will refresh automatically due to useCollection, but we can force it
+      handleRefresh();
     } catch (error) {
       console.error("Error deleting game:", error);
       // TODO: Add error toast
@@ -54,12 +71,18 @@ export default function MultiplayerLobbyPage() {
     <div className="container py-12">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Lobby Multiplayer</h1>
-        <Button asChild>
-          <Link href="/create-board">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Criar Novo Jogo
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRefresh} variant="outline" disabled={isRefreshing}>
+            <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+            Atualizar
+          </Button>
+          <Button asChild>
+            <Link href="/create-board">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Criar Novo Jogo
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -93,7 +93,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged 
 
     const content = (
         <>
-            {isProperty && (space.type === 'property' || space.type === 'railroad') && (
+            {isProperty && (space.type === 'property' || space.type === 'railroad' || space.type === 'utility') && (
                  <div className={cn(
                     "absolute",
                     index > 0 && index < 10 && "top-0 h-5 w-full", // bottom row
@@ -479,6 +479,8 @@ export default function GamePage({
         } else {
             toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
         }
+        // End turn after trying to roll doubles
+        // In a multiplayer game, you'd call endTurn() here
         return;
     }
     
@@ -536,7 +538,7 @@ export default function GamePage({
             title: "Você pagou a fiança!",
             description: "Você está livre da prisão."
         });
-    } else {
+    } else if (player.inJail) {
          toast({
             variant: "destructive",
             title: "Dinheiro insuficiente!",
@@ -768,3 +770,5 @@ export default function GamePage({
     </>
   );
 }
+
+    

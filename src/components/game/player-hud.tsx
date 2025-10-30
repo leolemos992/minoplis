@@ -3,12 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Player, Property } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Wallet, Landmark, Shield, Home, Hotel, Gavel, Banknote } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { totems, boardSpaces } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { PlayerToken } from './player-token';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -153,3 +151,5 @@ export function PlayerHud({ player }: PlayerHudProps) {
     </Card>
   );
 }
+
+    

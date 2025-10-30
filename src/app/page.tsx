@@ -1,32 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { ArrowRight, Users, SquarePlus, Star } from 'lucide-react';
+import { ArrowRight, User, Users } from 'lucide-react';
 import { Logo } from '@/components/logo';
-
-const features = [
-  {
-    icon: <Users className="h-8 w-8 text-accent" />,
-    title: 'Diversão Multijogador',
-    description: 'Desafie seus amigos e familiares em partidas emocionantes em tempo real.',
-  },
-  {
-    icon: <SquarePlus className="h-8 w-8 text-accent" />,
-    title: 'Tabuleiros Personalizados',
-    description: 'Crie tabuleiros de jogo únicos com seus locais e temas favoritos.',
-  },
-  {
-    icon: <Star className="h-8 w-8 text-accent" />,
-    title: 'Personagens Únicos',
-    description: 'Escolha entre um elenco diversificado de personagens, cada um com habilidades especiais.',
-  },
-];
 
 export default function Home() {
   return (
@@ -48,35 +23,19 @@ export default function Home() {
                   amigos à falência.
                 </p>
               </div>
-              <div className="space-x-4">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="group">
                   <Link href="/lobby">
-                    Jogar Agora <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <User className="mr-2 h-5 w-5" />
+                    Jogo Solo
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
+                <Button size="lg" variant="outline" disabled>
+                   <Users className="mr-2 h-5 w-5" />
+                    Multiplayer
+                </Button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="w-full pb-20 md:pb-32 lg:pb-40">
-          <div className="container px-4 md:px-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => (
-                <Card key={feature.title} className="flex flex-col text-center">
-                  <CardHeader>
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                      {feature.icon}
-                    </div>
-                    <CardTitle>{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
-                      {feature.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </div>
         </section>

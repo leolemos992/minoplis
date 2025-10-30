@@ -96,21 +96,20 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string }
 export const chanceCards: GameCard[] = [
   { type: 'chance', description: 'Avance até o Início (Receba R$200)', action: { type: 'move_to', position: 'go', collectGo: true } },
   { type: 'chance', description: 'Avance para "Rio Branco". Se você passar pelo Início, receba R$200.', action: { type: 'move_to', position: 'rio-branco', collectGo: true } },
+  { type: 'chance', description: 'A ponte estaiada balançou demais. Pague R$15 pela vistoria.', action: { type: 'money', amount: -15 } },
   { type: 'chance', description: 'O banco paga a você um dividendo de R$50.', action: { type: 'money', amount: 50 } },
   { type: 'chance', description: 'Receba uma carta de "Saia Livre da Prisão".', action: { type: 'get_out_of_jail' } },
   { type: 'chance', description: 'Seu empréstimo de construção vence. Receba R$150.', action: { type: 'money', amount: 150 } },
-  { type: 'chance', description: 'Erro do banco a seu favor. Receba R$200.', action: { type: 'money', amount: 200 } },
-  { type: 'chance', description: 'Da venda de ações você recebe R$50.', action: { type: 'money', amount: 50 } },
-  { type: 'chance', description: 'Receba por serviços R$25.', action: { type: 'money', amount: 25 } },
-  { type: 'chance', description: 'Você ganhou o segundo prêmio em um concurso de beleza. Receba R$10.', action: { type: 'money', amount: 10 } },
-  { type: 'chance', description: 'Você herda R$100.', action: { type: 'money', amount: 100 } },
 ];
 
 export const communityChestCards: GameCard[] = [
+  { type: 'community-chest', description: 'É Fenarreco! Seus negócios prosperaram. Receba R$100.', action: { type: 'money', amount: 100 } },
   { type: 'community-chest', description: 'Taxas médicas. Pague R$50.', action: { type: 'money', amount: -50 } },
   { type: 'community-chest', description: 'Vá para a Prisão. Vá diretamente para a Prisão, não passe pelo Início, não receba R$200.', action: { type: 'go_to_jail' } },
   { type: 'community-chest', description: 'Pague taxa escolar de R$50.', action: { type: 'money', amount: -50 } },
+  { type: 'community-chest', description: 'Você foi pego na enchente e precisou de um bote. Pague R$100.', action: { type: 'money', amount: -100 } },
   { type: 'community-chest', description: 'Você é avaliado para reparos de rua. R$40 por casa, R$115 por hotel.', action: { type: 'repairs', perHouse: 40, perHotel: 115 } },
+  { type: 'community-chest', description: 'Restituição do Imposto de Renda. Receba R$20.', action: { type: 'money', amount: 20 } },
   { type: 'community-chest', description: 'Multa por excesso de velocidade: R$15.', action: { type: 'money', amount: -15 } },
   { type: 'community-chest', description: 'Faça reparos gerais em todas as suas propriedades. Para cada casa pague R$25. Para cada hotel pague R$100.', action: { type: 'repairs', perHouse: 25, perHotel: 100 } },
   { type: 'community-chest', description: 'Receba uma carta de "Saia Livre da Prisão".', action: { type: 'get_out_of_jail' } },

@@ -9,12 +9,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { PlusCircle, Gamepad, Hourglass, Users, User } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { PlusCircle, Gamepad, Hourglass, Users, Trash2 } from 'lucide-react';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 
 export default function MultiplayerLobbyPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const gamesQuery = useMemoFirebase(
     () =>
@@ -25,6 +37,18 @@ export default function MultiplayerLobbyPage() {
   );
   
   const { data: ongoingGames, isLoading } = useCollection(gamesQuery);
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (!firestore) return;
+    const gameRef = doc(firestore, 'games', gameId);
+    try {
+      await deleteDoc(gameRef);
+      // TODO: Add toast notification for successful deletion
+    } catch (error) {
+      console.error("Error deleting game:", error);
+      // TODO: Add error toast
+    }
+  };
 
   return (
     <div className="container py-12">
@@ -65,11 +89,36 @@ export default function MultiplayerLobbyPage() {
                       </div>
                     </div>
                   </div>
-                  <Button asChild variant="secondary">
-                    <Link href={`/character-selection?gameId=${game.id}&gameName=${encodeURIComponent(game.name)}`}>
-                      Entrar
-                    </Link>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button asChild variant="secondary">
+                      <Link href={`/character-selection?gameId=${game.id}&gameName=${encodeURIComponent(game.name)}`}>
+                        Entrar
+                      </Link>
+                    </Button>
+                    {user && user.uid === game.hostId && (
+                       <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="destructive" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                           </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. Isso excluirá permanentemente a sala de jogo.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteGame(game.id)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (

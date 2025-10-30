@@ -184,7 +184,7 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                          <Logo className="text-3xl sm:text-5xl" />
                     </div>
 
-                    <div className="w-4/5">
+                    <div className="w-full max-w-sm">
                         <GameNotifications notifications={notifications} />
                     </div>
                     
@@ -248,6 +248,7 @@ export default function GamePage({
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [hasRolled, setHasRolled] = useState(false);
+  const [doublesCount, setDoublesCount] = useState(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>('rolling-to-start');
   const [rollsToStart, setRollsToStart] = useState<Record<string, number>>({});
 
@@ -322,6 +323,7 @@ export default function GamePage({
     setPlayers([humanPlayer, ...aiPlayers]);
     setCurrentPlayerIndex(0);
     setHasRolled(false);
+    setDoublesCount(0);
     setGameLog([]);
     setNotifications([]);
     setGameStatus('rolling-to-start');
@@ -396,6 +398,8 @@ export default function GamePage({
         addNotification('Você foi para a prisão!', 'destructive');
         return { position: JAIL_POSITION, inJail: true };
     });
+    setDoublesCount(0); // Reset doubles count when going to jail
+    handleEndTurn();
   }, [JAIL_POSITION, addNotification, updatePlayer, addLog]);
 
   const startAuction = useCallback((property: Property) => {
@@ -545,8 +549,7 @@ export default function GamePage({
           }
           break;
         case 'go_to_jail':
-          newPlayerState.position = JAIL_POSITION;
-          newPlayerState.inJail = true;
+          goToJail(player.id);
           break;
         case 'get_out_of_jail':
           newPlayerState.getOutOfJailFreeCards = p.getOutOfJailFreeCards + 1;
@@ -567,7 +570,7 @@ export default function GamePage({
     
     updatePlayer(player.id, actionResult);
 
-  }, [player, JAIL_POSITION, handleLandedOnSpace, updatePlayer, addLog, makePayment]);
+  }, [player, handleLandedOnSpace, updatePlayer, addLog, makePayment, goToJail]);
 
   useEffect(() => {
     if (!cardToExecute || !player) return;
@@ -599,28 +602,46 @@ export default function GamePage({
   }, [cardToExecute, applyCardAction, addNotification, player]);
 
 
-  const handleDiceRoll = (dice1: number, dice2: number, fromCard = false) => {
+ const handleDiceRoll = (dice1: number, dice2: number) => {
     if (!player) return;
-    setHasRolled(true);
-    setLastDiceRoll([dice1, dice2]);
+
     addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
-    
-    if (player.id === 'player-1' && !player.inJail) {
-        addNotification(`Você rolou ${dice1 + dice2}.`);
-    }
+    setLastDiceRoll([dice1, dice2]);
 
     if (player.inJail) {
         if (dice1 === dice2) {
             updatePlayer(player.id, { inJail: false });
             addNotification("Você rolou dados duplos e saiu da prisão!");
             addLog(`${player.name} saiu da prisão rolando dados duplos.`);
+            setHasRolled(true); // Can't move, just out of jail
         } else {
             addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
+            handleEndTurn(); // End turn if fail to roll doubles in jail
         }
-        // Rolling dice in jail (even if you don't get out) counts as your move
         return;
     }
-    
+
+    if (dice1 === dice2) {
+        setDoublesCount(prev => prev + 1);
+        if (doublesCount + 1 === 3) {
+            addNotification("Você tirou 3 duplos seguidos e foi para a prisão!", "destructive");
+            addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
+            goToJail(player.id);
+            return;
+        }
+    } else {
+        setDoublesCount(0);
+    }
+
+    setHasRolled(true);
+
+    if (player.id === 'player-1') {
+        addNotification(`Você rolou ${dice1 + dice2}.`);
+        if (dice1 === dice2) {
+            addNotification("Dados duplos! Você joga de novo.");
+        }
+    }
+
     const total = dice1 + dice2;
     let newPosition = 0;
     
@@ -630,18 +651,22 @@ export default function GamePage({
         
         let updatedPlayer: Partial<Player> = { position: newPosition };
 
-        if (newPosition < currentPosition && !fromCard) {
+        if (newPosition < currentPosition) {
             updatedPlayer.money = prevPlayer.money + 200;
             setTimeout(() => {
-                addNotification(`Você coletou R$200.`);
+                if(player.id === 'player-1') addNotification(`Você coletou R$200.`);
             }, 100);
             addLog(`${player.name} passou pelo início e coletou R$200.`);
         }
         return updatedPlayer;
     });
+
+    if (dice1 === dice2) {
+        setHasRolled(false); // Allow another roll
+    }
     
-    setTimeout(() => handleLandedOnSpace(newPosition, fromCard), 500);
-  };
+    setTimeout(() => handleLandedOnSpace(newPosition), 500);
+};
 
   const handleEndTurn = () => {
     // Check for game over
@@ -650,6 +675,7 @@ export default function GamePage({
         return;
     }
 
+    setDoublesCount(0); // Reset doubles count on turn end
     const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
     setCurrentPlayerIndex(nextPlayerIndex);
     setHasRolled(false);
@@ -686,6 +712,7 @@ export default function GamePage({
         updatePlayer(player.id, { inJail: false });
         addNotification("Você pagou a fiança e está livre!");
         addLog(`${player.name} pagou R$50 de fiança e saiu da prisão.`);
+        setHasRolled(true); // After paying, you can't roll, but you must end turn
     }
   }
 
@@ -1048,8 +1075,10 @@ export default function GamePage({
            setPlayers(sortedPlayers);
            setCurrentPlayerIndex(0);
            setGameStatus('active');
-           addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
-           addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
+           if (sortedPlayers[0]) {
+             addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
+             addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
+           }
         }
     }
   }, [rollsToStart, players, gameStatus, addLog, addNotification]);
@@ -1058,16 +1087,55 @@ export default function GamePage({
     if (gameStatus !== 'active' || auctionState || !player) return;
     if (player.id !== 'player-1' && !hasRolled) {
       // AI's turn
-      setTimeout(() => {
-        const dice1 = Math.floor(Math.random() * 6) + 1;
-        const dice2 = Math.floor(Math.random() * 6) + 1;
-        handleDiceRoll(dice1, dice2);
-      }, 1000); // Wait 1 sec before AI rolls
+      let aiDoublesCount = doublesCount;
+      const playAiTurn = () => {
+        setTimeout(() => {
+          const dice1 = Math.floor(Math.random() * 6) + 1;
+          const dice2 = Math.floor(Math.random() * 6) + 1;
+          
+          addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
+          setLastDiceRoll([dice1, dice2]);
 
-      setTimeout(() => {
-        handleAiLogic(player);
-        handleEndTurn();
-      }, 4000); // AI thinks and ends turn after 4 seconds
+          if (dice1 === dice2) {
+              aiDoublesCount++;
+              addLog(`${player.name} tirou dados duplos e joga de novo.`);
+              if (aiDoublesCount === 3) {
+                  addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
+                  goToJail(player.id);
+                  return; // End AI turn
+              }
+          } else {
+              aiDoublesCount = 0;
+          }
+
+          const total = dice1 + dice2;
+          const newPosition = (player.position + total) % 40;
+          
+          updatePlayer(player.id, p => {
+            let updated: Partial<Player> = { position: newPosition };
+            if (newPosition < p.position) {
+              updated.money = p.money + 200;
+              addLog(`${p.name} coletou R$200.`);
+            }
+            return updated;
+          });
+          
+          setTimeout(() => {
+            handleLandedOnSpace(newPosition);
+            
+            if (dice1 === dice2) {
+              playAiTurn(); // Play again
+            } else {
+              setTimeout(() => {
+                  handleAiLogic(player);
+                  handleEndTurn();
+              }, 2000);
+            }
+          }, 500);
+
+        }, 1000);
+      };
+      playAiTurn();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPlayerIndex, player, hasRolled, gameStatus, auctionState]);
@@ -1235,3 +1303,5 @@ export default function GamePage({
     </>
   );
 }
+
+    

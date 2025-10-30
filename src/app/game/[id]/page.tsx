@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState, Notification } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState, Notification, GameStatus } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -19,6 +19,7 @@ import { AuctionDialog } from '@/components/game/auction-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 import { GameNotifications } from '@/components/game/game-notifications';
+import { RollToStartDialog } from '@/components/game/roll-to-start-dialog';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -247,6 +248,8 @@ export default function GamePage({
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [hasRolled, setHasRolled] = useState(false);
+  const [gameStatus, setGameStatus] = useState<GameStatus>('rolling-to-start');
+  const [rollsToStart, setRollsToStart] = useState<Record<string, number>>({});
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
@@ -260,7 +263,6 @@ export default function GamePage({
   const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
   
   const [gameLog, setGameLog] = useState<GameLog[]>([]);
-  const [gameOver, setGameOver] = useState<Player | null>(null);
   
   const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
 
@@ -322,10 +324,10 @@ export default function GamePage({
     setHasRolled(false);
     setGameLog([]);
     setNotifications([]);
-    setGameOver(null);
+    setGameStatus('rolling-to-start');
+    setRollsToStart({});
     setAuctionState(null);
-    addLog(`O jogo ${gameName} começou!`);
-    addLog(`É a vez de ${humanPlayer.name}.`);
+    addLog(`O jogo ${gameName} começou! Rolando dados para decidir a ordem...`);
   }, [playerName, totemId, colorId, gameName, addLog, numOpponents]);
 
   // Initialize game
@@ -644,7 +646,7 @@ export default function GamePage({
   const handleEndTurn = () => {
     // Check for game over
     if (players.length <= 1) {
-        setGameOver(players[0] || null);
+        setGameStatus('finished');
         return;
     }
 
@@ -701,10 +703,10 @@ export default function GamePage({
   };
   
   useEffect(() => {
-    if (players.length <= 1 && players.length > 0) {
-        setGameOver(players[0]);
+    if (players.length === 1 && gameStatus === 'active') {
+        setGameStatus('finished');
     }
-  }, [players]);
+  }, [players, gameStatus]);
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
@@ -996,8 +998,64 @@ export default function GamePage({
     }
   };
 
+  const handleRollToStart = (playerId: string, roll: number) => {
+    setRollsToStart(prev => ({...prev, [playerId]: roll}));
+    addLog(`${players.find(p => p.id === playerId)?.name} rolou ${roll} para começar.`);
+  }
+
+  // Effect for AI rolling to start
   useEffect(() => {
-    if (gameOver || auctionState || !player) return;
+    if (gameStatus === 'rolling-to-start') {
+        players.forEach(p => {
+            if (p.id !== 'player-1' && !rollsToStart[p.id]) {
+                const roll = Math.floor(Math.random() * 12) + 1;
+                setTimeout(() => handleRollToStart(p.id, roll), 500);
+            }
+        });
+    }
+  }, [gameStatus, players, rollsToStart]);
+
+  // Effect to determine start order
+  useEffect(() => {
+    if (gameStatus === 'rolling-to-start' && Object.keys(rollsToStart).length === players.length) {
+        let sortedPlayers = [...players];
+        let tie = false;
+
+        do {
+            tie = false;
+            const rolls = sortedPlayers.map(p => rollsToStart[p.id]);
+            const maxRoll = Math.max(...rolls);
+            const tiedPlayerIds = sortedPlayers.filter(p => rollsToStart[p.id] === maxRoll).map(p => p.id);
+
+            if (tiedPlayerIds.length > 1) {
+                tie = true;
+                addLog(`Empate entre ${tiedPlayerIds.map(id => players.find(p => p.id === id)?.name).join(' e ')}. Rolando novamente...`);
+                const newRollsToStart = { ...rollsToStart };
+                
+                tiedPlayerIds.forEach(id => {
+                  delete newRollsToStart[id];
+                  const newRoll = Math.floor(Math.random() * 12) + 1;
+                  setTimeout(() => handleRollToStart(id, newRoll), 1000);
+                });
+                setRollsToStart(newRollsToStart);
+                break; // Exit this check and wait for new rolls
+            }
+
+        } while (tie);
+
+        if (!tie) {
+           sortedPlayers.sort((a, b) => rollsToStart[b.id] - rollsToStart[a.id]);
+           setPlayers(sortedPlayers);
+           setCurrentPlayerIndex(0);
+           setGameStatus('active');
+           addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
+           addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
+        }
+    }
+  }, [rollsToStart, players, gameStatus, addLog, addNotification]);
+
+  useEffect(() => {
+    if (gameStatus !== 'active' || auctionState || !player) return;
     if (player.id !== 'player-1' && !hasRolled) {
       // AI's turn
       setTimeout(() => {
@@ -1012,9 +1070,9 @@ export default function GamePage({
       }, 4000); // AI thinks and ends turn after 4 seconds
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlayerIndex, player, hasRolled, gameOver, auctionState]);
+  }, [currentPlayerIndex, player, hasRolled, gameStatus, auctionState]);
 
-  if (!player && !gameOver) {
+  if (!player && gameStatus !== 'finished') {
     return <div>Carregando...</div>;
   }
 
@@ -1022,6 +1080,7 @@ export default function GamePage({
   const humanPlayer = allPlayers.find(p => p.id === 'player-1') || player;
   const owner = selectedSpace ? allPlayers.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
   const isMyTurn = player && player.id === 'player-1';
+  const gameOverPlayer = gameStatus === 'finished' ? players[0] : null;
 
   return (
     <>
@@ -1042,7 +1101,7 @@ export default function GamePage({
                 onManageProperties={() => setManageOpen(true)}
                 onTrade={() => setTradeOpen(true)}
                 playerHasProperties={humanPlayer?.properties.length > 0}
-                isTurnActive={isMyTurn}
+                isTurnActive={isMyTurn && gameStatus === 'active'}
                 hasRolled={hasRolled}
                 onEndTurn={handleEndTurn}
              />
@@ -1063,14 +1122,14 @@ export default function GamePage({
       </div>
 
       <AnimatePresence>
-        {gameOver && (
+        {gameOverPlayer && (
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
             >
-                <Dialog open={!!gameOver} onOpenChange={() => {}}>
+                <Dialog open={!!gameOverPlayer} onOpenChange={() => {}}>
                     <DialogContent className="max-w-md text-center p-8">
                         <DialogHeader>
                             <motion.div
@@ -1082,7 +1141,7 @@ export default function GamePage({
                             </motion.div>
                             <DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle>
                             <DialogDescription className="text-lg mt-2">
-                                Parabéns, <span className="font-bold text-primary">{gameOver.name}</span>! Você é o grande vencedor!
+                                Parabéns, <span className="font-bold text-primary">{gameOverPlayer.name}</span>! Você é o grande vencedor!
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
@@ -1096,6 +1155,13 @@ export default function GamePage({
             </motion.div>
         )}
       </AnimatePresence>
+      
+      <RollToStartDialog 
+        isOpen={gameStatus === 'rolling-to-start'}
+        players={players}
+        rolls={rollsToStart}
+        onRoll={handleRollToStart}
+      />
 
       <Dialog open={!!selectedSpace} onOpenChange={(open) => {
           if (!open) {

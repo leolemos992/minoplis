@@ -31,13 +31,15 @@ export type Property = {
   type: 'property' | 'railroad' | 'utility';
 };
 
+export type GameStatus = 'waiting' | 'rolling-to-start' | 'active' | 'finished';
+
 export type Game = {
   id:string;
   name: string;
   players: Player[];
   board: (Property | { type: string, name: string })[];
   currentPlayerId: string;
-  status: 'waiting' | 'active' | 'finished';
+  status: GameStatus;
 };
 
 

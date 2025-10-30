@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 import { GameControls } from '@/components/game/game-controls';
+import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -50,24 +51,10 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void }) => {
+const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void, houses?: number }) => {
     const isProperty = 'price' in space;
     const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors";
-    const rotationClasses: { [key: number]: string } = {
-        // Cantos
-        0: 'justify-start items-start',
-        10: 'justify-start items-end',
-        20: 'justify-end items-start',
-        30: 'justify-end items-end',
-        // Linha de baixo
-        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 'flex-col justify-end'])),
-        // Linha da esquerda
-        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, 'flex-row-reverse justify-end'])),
-         // Linha de cima
-        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 21, 'flex-col-reverse justify-start'])),
-        // Linha da direita
-        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'flex-row justify-end'])),
-    };
+    
     const textRotation: { [key: number]: string } = {
         ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, '-rotate-90'])),
         ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'rotate-90'])),
@@ -80,6 +67,27 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
         30: 'rotate-[45deg]',
     }
 
+    const houseContainerClasses: { [key: number]: string } = {
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 'top-0 h-5 w-full flex-row '])), // bottom
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, 'right-0 w-5 h-full flex-col '])), // left
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 21, 'bottom-0 h-5 w-full flex-row-reverse '])), // top
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'left-0 w-5 h-full flex-col-reverse '])), // right
+    }
+
+    const HouseDisplay = ({ count }: { count: number}) => {
+        if (count === 0) return null;
+        if (count === 5) {
+            return <Hotel className="w-4 h-4 text-red-600 bg-white/80 rounded-sm p-0.5" />;
+        }
+        return (
+            <div className="flex gap-px">
+                {Array.from({ length: count }).map((_, i) => (
+                    <Home key={i} className="w-3 h-3 text-green-600 bg-white/80 rounded-sm p-0.5" />
+                ))}
+            </div>
+        )
+    };
+
     const content = (
         <>
             {isProperty && (space.type === 'property' || space.type === 'railroad') && (
@@ -91,6 +99,11 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
                     index > 30 && index < 40 && "left-0 w-5 h-full", // right row
                     colorClasses[(space as Property).color]
                 )} />
+            )}
+             {houses && houses > 0 && (
+                <div className={cn("absolute z-10 flex items-center justify-center p-px", houseContainerClasses[index])}>
+                    <HouseDisplay count={houses} />
+                </div>
             )}
             <div className={cn(
                 "relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full",
@@ -117,14 +130,14 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
     }
 
     return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])} onClick={() => onSpaceClick(space, index)}>
+         <div style={{ gridArea: `space-${index}`}} className={cn("border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors")} onClick={() => onSpaceClick(space, index)}>
             {content}
             {children && <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{children}</div>}
          </div>
     )
 };
 
-const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick: (space: any, index: number) => void }) => {
+const GameBoard = ({ players, onSpaceClick, houses }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number } }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -153,7 +166,7 @@ const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick:
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick}>
+                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick} houses={ 'id' in space ? houses[space.id] : undefined}>
                          <>
                             {players.filter(p => p.position === index).map(p => (
                                 <PlayerToken key={p.id} player={p} size={10}/>
@@ -184,6 +197,7 @@ export default function GamePage({
     name: playerName,
     money: 1500,
     properties: [],
+    houses: {},
     position: 0,
     color: colorId,
     totem: totemId,
@@ -193,16 +207,17 @@ export default function GamePage({
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
-  const JAIL_POSITION = boardSpaces.findIndex(s => s.type === 'jail');
+  const [isManageOpen, setManageOpen] = useState(false);
+  const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
 
-  const goToJail = () => {
+  const goToJail = useCallback(() => {
     setPlayer(p => ({...p, position: JAIL_POSITION, inJail: true}));
     toast({
         variant: "destructive",
         title: "Encrenca!",
         description: "Você foi para a prisão!"
     });
-  }
+  }, [JAIL_POSITION, toast]);
 
   const applyCardAction = useCallback((card: GameCard) => {
     setPlayer(prevPlayer => {
@@ -251,10 +266,10 @@ export default function GamePage({
             description: 'Você recebeu uma carta para sair da prisão!',
           });
           break;
-        // A lógica de 'repairs' precisa saber quais propriedades o jogador tem
-        // Para simplificar, vamos tratar como um pagamento fixo por agora.
         case 'repairs':
-             const repairCost = action.perHouse! * 2; // Simulação: 2 casas
+             const houseCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
+             const hotelCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
+             const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
              newPlayerState.money -= repairCost;
              toast({
                 variant: "destructive",
@@ -273,7 +288,6 @@ export default function GamePage({
     const space = boardSpaces[spaceIndex];
     if (!space) return;
 
-    // Se o jogador está apenas visitando a prisão, nada acontece
     if (space.type === 'jail' && !player.inJail) {
         toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
         return;
@@ -282,11 +296,9 @@ export default function GamePage({
     const isProperty = 'price' in space;
     if(isProperty) {
         const property = space as Property;
-        // Se a propriedade não pertence a ninguém
-        if(!player.properties.includes(property.id)) { // Simplificando - precisa verificar todos os jogadores
+        if(!player.properties.includes(property.id)) {
              setSelectedSpace(space);
         }
-        // Se pertence a outro jogador, pague aluguel (lógica a ser adicionada)
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         const deck = space.type === 'chance' ? chanceCards : communityChestCards;
         const card = deck[Math.floor(Math.random() * deck.length)];
@@ -305,19 +317,16 @@ export default function GamePage({
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
-    
-    // Lógica da Prisão
     if (player.inJail) {
         if (dice1 === dice2) {
             setPlayer(p => ({...p, inJail: false}));
             toast({ title: "Sorte!", description: "Você rolou dados duplos e saiu da prisão!" });
         } else {
-            toast({ title: " azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
+            toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
         }
         return;
     }
     
-    // Lógica normal de rolagem
     const total = dice1 + dice2;
     let newPosition = 0;
     setPlayer(prevPlayer => {
@@ -326,7 +335,6 @@ export default function GamePage({
         
         let updatedPlayer = { ...prevPlayer, position: newPosition };
 
-        // Handle passing GO
         if (newPosition < currentPosition) {
             updatedPlayer.money += 200;
             toast({
@@ -384,22 +392,51 @@ export default function GamePage({
       }
   }
 
-  // DEBUG: Move player by clicking on a space
   const handleDebugMove = (space: any, index: number) => {
     setPlayer(p => ({ ...p, position: index }));
     handleLandedOnSpace(index);
-    if ('price' in space) {
-        setSelectedSpace(space);
-    }
   };
 
+  const handleBuild = (propertyId: string, amount: number) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property || !property.houseCost) return;
+  
+    const cost = property.houseCost * amount;
+    if (player.money < cost) {
+      toast({
+        variant: "destructive",
+        title: "Dinheiro insuficiente!",
+        description: "Você não tem dinheiro para construir."
+      });
+      return;
+    }
+  
+    setPlayer(p => {
+      const currentHouses = p.houses[propertyId] || 0;
+      const newHouses = currentHouses + amount;
+      
+      return {
+        ...p,
+        money: p.money - cost,
+        houses: {
+          ...p.houses,
+          [propertyId]: newHouses,
+        }
+      }
+    });
+
+    toast({
+      title: "Construção realizada!",
+      description: `Você construiu ${amount} casa(s) em ${property.name}.`
+    });
+  };
 
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-          <GameBoard players={[player]} onSpaceClick={handleDebugMove}/>
+          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses}/>
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />
@@ -408,6 +445,8 @@ export default function GamePage({
             isPlayerInJail={player.inJail}
             onPayBail={handlePayBail}
             canPayBail={player.money >= 50}
+            onManageProperties={() => setManageOpen(true)}
+            playerHasProperties={player.properties.length > 0}
           />
           <GameControls />
         </aside>
@@ -446,6 +485,13 @@ export default function GamePage({
             )}
         </DialogContent>
       </Dialog>
+
+      <ManagePropertiesDialog
+        isOpen={isManageOpen}
+        onOpenChange={setManageOpen}
+        player={player}
+        onBuild={handleBuild}
+      />
     </>
   );
 }

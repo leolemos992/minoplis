@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Player } from '@/lib/definitions';
+import type { Player, Property } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Wallet, Landmark, Shield } from 'lucide-react';
+import { Wallet, Landmark, Shield, Home, Hotel } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { totems } from '@/lib/game-data';
+import { totems, boardSpaces } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { PlayerToken } from './player-token';
 import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 
 const playerColors: { [key: string]: { border: string, text: string, bg: string } } = {
   red: { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-500' },
@@ -25,6 +26,17 @@ interface PlayerHudProps {
     player: Player;
 }
 
+const propertyColorClasses: { [key: string]: string } = {
+  brown: 'bg-[#955436]',
+  lightblue: 'bg-[#aae0fa]',
+  pink: 'bg-[#d93a96]',
+  orange: 'bg-[#f7941d]',
+  red: 'bg-[#ed1b24]',
+  yellow: 'bg-[#fef200]',
+  green: 'bg-[#1fb25a]',
+  darkblue: 'bg-[#0072bb]',
+};
+
 export function PlayerHud({ player }: PlayerHudProps) {
   const [formattedMoney, setFormattedMoney] = useState('');
   const totemData = totems.find(t => t.id === player.totem);
@@ -38,12 +50,31 @@ export function PlayerHud({ player }: PlayerHudProps) {
 
   const color = playerColors[player.color] || { border: 'border-gray-500', text: 'text-gray-500', bg: 'bg-gray-500' };
 
+  const HouseDisplay = ({ count }: { count: number}) => {
+    if (count === 0) return null;
+    if (count === 5) {
+        return <Hotel className="w-4 h-4 text-red-700" />;
+    }
+    return (
+        <div className="flex gap-px">
+            {Array.from({ length: count }).map((_, i) => (
+                <Home key={i} className="w-3 h-3 text-green-700" />
+            ))}
+        </div>
+    )
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-            <div className={cn("h-16 w-16 rounded-full flex items-center justify-center p-1", color.bg)}>
+            <div className={cn("relative h-16 w-16 rounded-full flex items-center justify-center p-1", color.bg)}>
                  {TotemIcon && <TotemIcon className="h-10 w-10 text-white drop-shadow-md" />}
+                 {player.inJail && (
+                     <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 border-2 border-destructive">
+                         <Gavel className="h-4 w-4 text-destructive"/>
+                     </div>
+                 )}
             </div>
             <div>
                 <CardTitle>{player.name}</CardTitle>
@@ -79,13 +110,29 @@ export function PlayerHud({ player }: PlayerHudProps) {
                 <Landmark className="h-5 w-5 text-muted-foreground"/>
                 <span>Propriedades ({player.properties.length})</span>
             </div>
-            {player.properties.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">Nenhuma propriedade ainda.</p>
-            ) : (
-                <ul className="space-y-2">
-                   {/* Lista de propriedades irá aqui */}
-                </ul>
-            )}
+            <ScrollArea className="h-48">
+              {player.properties.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">Nenhuma propriedade ainda.</p>
+              ) : (
+                  <ul className="space-y-2 pr-4">
+                    {player.properties.map(id => {
+                      const property = boardSpaces.find(p => 'id' in p && p.id === id) as Property | undefined;
+                      if (!property) return null;
+                      const houseCount = player.houses[id] || 0;
+
+                      return (
+                        <li key={id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2 h-6 rounded-sm", property.color && propertyColorClasses[property.color])}></div>
+                            <span className="font-medium">{property.name}</span>
+                          </div>
+                          <HouseDisplay count={houseCount} />
+                        </li>
+                      )
+                    })}
+                  </ul>
+              )}
+            </ScrollArea>
         </div>
       </CardContent>
     </Card>

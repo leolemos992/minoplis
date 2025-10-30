@@ -12,6 +12,7 @@ export type Player = {
   name: string;
   money: number;
   properties: string[];
+  houses: { [propertyId: string]: number };
   position: number;
   color: string;
   totem: string;
@@ -23,6 +24,7 @@ export type Property = {
   id: string;
   name: string; // Brusque Location
   price: number;
+  houseCost?: number;
   rent: number[];
   color: string;
   type: 'property' | 'railroad' | 'utility';

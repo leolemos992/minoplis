@@ -11,11 +11,11 @@ interface GameActionsProps {
   onPayBail?: () => void;
   isPlayerInJail: boolean;
   canPayBail: boolean;
+  onManageProperties: () => void;
+  playerHasProperties: boolean;
 }
 
 function DiceIcon({ value }: { value: number }) {
-  const pips = Array.from({ length: value }, (_, i) => i);
-
   const pipPatterns: { [key: number]: string[] } = {
     1: ['center'],
     2: ['top-left', 'bottom-right'],
@@ -58,7 +58,7 @@ function DiceIcon({ value }: { value: number }) {
 }
 
 
-export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail }: GameActionsProps) {
+export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties }: GameActionsProps) {
   const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
@@ -137,7 +137,12 @@ export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail 
             <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Negociar
           </Button>
-          <Button variant="outline" className="group w-full" disabled={isPlayerInJail}>
+          <Button 
+            variant="outline" 
+            className="group w-full" 
+            disabled={isPlayerInJail || !playerHasProperties}
+            onClick={onManageProperties}
+          >
             <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Gerenciar
           </Button>

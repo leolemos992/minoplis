@@ -162,6 +162,10 @@ const GameBoard = ({ players, onSpaceClick, houses, mortgagedProperties, animate
         "space-11 center   center   center   center   center   center   center   center   center   space-39"
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
+    
+    const allHouses = players.reduce((acc, player) => ({...acc, ...player.houses}), {} as {[key: string]: number});
+    const allMortgaged = players.reduce((acc, player) => [...acc, ...player.mortgagedProperties], [] as string[]);
+
 
     return (
         <div className="bg-green-200/40 p-2 md:p-4 aspect-square max-w-[900px] mx-auto">
@@ -197,8 +201,8 @@ const GameBoard = ({ players, onSpaceClick, houses, mortgagedProperties, animate
                         space={space} 
                         index={index} 
                         onSpaceClick={onSpaceClick} 
-                        houses={ 'id' in space ? houses[space.id] : undefined}
-                        isMortgaged={ 'id' in space && mortgagedProperties.includes(space.id)}
+                        houses={ 'id' in space ? allHouses[space.id] : undefined}
+                        isMortgaged={ 'id' in space && allMortgaged.includes(space.id)}
                     >
                          <>
                             {players.filter(p => p.position === index).map(p => (
@@ -225,51 +229,81 @@ export default function GamePage({
   const colorId = searchParams.get('color') || 'blue';
   const gameName = searchParams.get('gameName') || 'MINOPLIS';
 
-  const [player, setPlayer] = useState<Player>({
-    id: 'player-1',
-    name: playerName,
-    money: 1500,
-    properties: [],
-    mortgagedProperties: [],
-    houses: {},
-    position: 0,
-    color: colorId,
-    totem: totemId,
-    getOutOfJailFreeCards: 0,
-    inJail: false,
-  });
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
   const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
+  const [lastDiceRoll, setLastDiceRoll] = useState<[number, number]>([1, 1]);
   
   const [chanceDeck, setChanceDeck] = useState<GameCard[]>([]);
   const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
   
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
+  const player = players[currentPlayerIndex];
 
-  // Shuffle decks on game start
+  // Initialize players and decks on game start
   useEffect(() => {
     const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
     setChanceDeck(shuffle(chanceCards));
     setCommunityChestDeck(shuffle(communityChestCards));
+
+    const initialPlayer: Player = {
+        id: 'player-1',
+        name: playerName,
+        money: 1500,
+        properties: [],
+        mortgagedProperties: [],
+        houses: {},
+        position: 0,
+        color: colorId,
+        totem: totemId,
+        getOutOfJailFreeCards: 0,
+        inJail: false,
+    };
+    
+    // Add a dummy opponent for rent testing
+    const opponent: Player = {
+        id: 'opponent-1',
+        name: 'Oponente',
+        money: 1500,
+        properties: ['poco-fundo', 'guarani', 'railroad-1'],
+        mortgagedProperties: [],
+        houses: {'poco-fundo': 1},
+        position: -1, // Off-board
+        color: 'red',
+        totem: 'dog',
+        getOutOfJailFreeCards: 0,
+        inJail: false,
+    };
+    setPlayers([initialPlayer, opponent]);
+  }, [playerName, totemId, colorId]);
+
+
+  const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Player)) => {
+    setPlayers(prevPlayers => prevPlayers.map(p => {
+        if (p.id === playerId) {
+            return typeof updates === 'function' ? updates(p) : { ...p, ...updates };
+        }
+        return p;
+    }));
   }, []);
 
-
-  const goToJail = useCallback(() => {
-    setPlayer(p => ({...p, position: JAIL_POSITION, inJail: true}));
+  const goToJail = useCallback((playerId: string) => {
+    updatePlayer(playerId, { position: JAIL_POSITION, inJail: true });
     toast({
         variant: "destructive",
         title: "Encrenca!",
         description: "Você foi para a prisão!"
     });
-  }, [JAIL_POSITION, toast]);
+  }, [JAIL_POSITION, toast, updatePlayer]);
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
-    if (!space) return;
+    if (!space || !player) return;
 
     if (space.type === 'jail' && !player.inJail) {
         toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
@@ -279,7 +313,40 @@ export default function GamePage({
     const isProperty = 'price' in space;
     if(isProperty) {
         const property = space as Property;
-        if(!player.properties.includes(property.id)) {
+        const owner = players.find(p => p.properties.includes(property.id));
+        
+        if (owner && owner.id !== player.id) {
+            // Pay rent
+            if (owner.mortgagedProperties.includes(property.id)) {
+                 toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então você não paga aluguel.` });
+                 return;
+            }
+
+            let rentAmount = 0;
+            if (property.type === 'property') {
+                const houseCount = owner.houses[property.id] || 0;
+                rentAmount = property.rent[houseCount];
+            } else if (property.type === 'railroad') {
+                const railroadCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'railroad').length;
+                rentAmount = property.rent[railroadCount - 1];
+            } else if (property.type === 'utility') {
+                const utilityCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'utility').length;
+                const multiplier = utilityCount === 1 ? 4 : 10;
+                rentAmount = (lastDiceRoll[0] + lastDiceRoll[1]) * multiplier;
+            }
+
+            if(rentAmount > 0) {
+                 if (player.money < rentAmount) {
+                    toast({ variant: 'destructive', title: 'Falência!', description: `Você não tem dinheiro para pagar R$${rentAmount} a ${owner.name}.` });
+                    // Handle bankruptcy logic here
+                } else {
+                    updatePlayer(player.id, p => ({ ...p, money: p.money - rentAmount }));
+                    updatePlayer(owner.id, p => ({ ...p, money: p.money + rentAmount }));
+                    toast({ variant: 'destructive', title: `Aluguel!`, description: `Você pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
+                }
+            }
+
+        } else if (!owner) {
              setSelectedSpace(space);
         }
     } else if (space.type === 'chance' || space.type === 'community-chest') {
@@ -301,22 +368,24 @@ export default function GamePage({
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(player.money * 0.1);
-        setPlayer(p => ({...p, money: p.money - taxAmount}));
+        updatePlayer(player.id, p => ({...p, money: p.money - taxAmount}));
         toast({ variant: "destructive", title: "Imposto!", description: `Você pagou R$${taxAmount} de Imposto de Renda (10% do seu dinheiro).` });
     } else if (space.type === 'luxury-tax') {
-        setPlayer(p => ({...p, money: p.money - 100}));
+        updatePlayer(player.id, p => ({...p, money: p.money - 100}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
     } else if (space.type === 'go-to-jail') {
-        goToJail();
+        goToJail(player.id);
     }
 
-  }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck, player.money]);
+  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
     let postAction: (() => void) | null = null;
   
-    setPlayer(prevPlayer => {
+    if (!player) return { toastInfo, postAction };
+
+    updatePlayer(player.id, prevPlayer => {
       let newPlayerState = { ...prevPlayer };
       const { action } = card;
   
@@ -381,7 +450,7 @@ export default function GamePage({
     });
 
     return { toastInfo, postAction };
-  }, [JAIL_POSITION, handleLandedOnSpace, toast]);
+  }, [player, JAIL_POSITION, handleLandedOnSpace, toast, updatePlayer]);
 
   useEffect(() => {
     if (!cardToExecute) return;
@@ -400,9 +469,12 @@ export default function GamePage({
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
+    if (!player) return;
+    setLastDiceRoll([dice1, dice2]);
+
     if (player.inJail) {
         if (dice1 === dice2) {
-            setPlayer(p => ({...p, inJail: false}));
+            updatePlayer(player.id, { inJail: false });
             toast({ title: "Sorte!", description: "Você rolou dados duplos e saiu da prisão!" });
         } else {
             toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
@@ -412,7 +484,8 @@ export default function GamePage({
     
     const total = dice1 + dice2;
     let newPosition = 0;
-    setPlayer(prevPlayer => {
+    
+    updatePlayer(player.id, prevPlayer => {
         const currentPosition = prevPlayer.position;
         newPosition = (currentPosition + total) % 40;
         
@@ -432,8 +505,10 @@ export default function GamePage({
   };
 
   const handleBuyProperty = (property: Property) => {
+    if (!player) return;
+
     if (player.money >= property.price) {
-      setPlayer(prev => ({
+      updatePlayer(player.id, prev => ({
         ...prev,
         money: prev.money - property.price,
         properties: [...prev.properties, property.id],
@@ -453,8 +528,10 @@ export default function GamePage({
   };
 
   const handlePayBail = () => {
+    if (!player) return;
+
     if (player.inJail && player.money >= 50) {
-        setPlayer(p => ({...p, money: p.money - 50, inJail: false}));
+        updatePlayer(player.id, p => ({...p, money: p.money - 50, inJail: false}));
         toast({
             title: "Você pagou a fiança!",
             description: "Você está livre da prisão."
@@ -476,13 +553,14 @@ export default function GamePage({
   }
 
   const handleDebugMove = (space: any, index: number) => {
-    setPlayer(p => ({ ...p, position: index }));
+    if (!player) return;
+    updatePlayer(player.id, p => ({ ...p, position: index }));
     handleLandedOnSpace(index);
   };
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
-    if (!property || !property.houseCost) return;
+    if (!property || !property.houseCost || !player) return;
     
     const propertiesInGroup = boardSpaces.filter(p => 'color' in p && p.color === property.color);
     const ownedPropertiesInGroup = propertiesInGroup.filter(p => 'id' in p && player.properties.includes(p.id));
@@ -506,7 +584,7 @@ export default function GamePage({
       return;
     }
   
-    setPlayer(p => {
+    updatePlayer(player.id, p => {
       const currentHouses = p.houses[propertyId] || 0;
       if (currentHouses + amount > 5) {
          toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
@@ -531,6 +609,7 @@ export default function GamePage({
   };
 
   const handleSell = (propertyId: string, amount: number) => {
+    if (!player) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost) return;
 
@@ -542,7 +621,7 @@ export default function GamePage({
 
     const saleValue = (property.houseCost / 2) * amount;
 
-    setPlayer(p => {
+    updatePlayer(player.id, p => {
       const newHouses = currentHouses - amount;
       const newHousesState = { ...p.houses };
       if (newHouses === 0) {
@@ -565,11 +644,12 @@ export default function GamePage({
   };
 
   const handleMortgage = (propertyId: string) => {
+    if (!player) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property) return;
     
     const mortgageValue = property.price / 2;
-    setPlayer(p => ({
+    updatePlayer(player.id, p => ({
         ...p,
         money: p.money + mortgageValue,
         mortgagedProperties: [...p.mortgagedProperties, propertyId]
@@ -582,6 +662,7 @@ export default function GamePage({
   };
 
   const handleUnmortgage = (propertyId: string) => {
+    if (!player) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property) return;
 
@@ -595,7 +676,7 @@ export default function GamePage({
         return;
     }
 
-    setPlayer(p => ({
+    updatePlayer(player.id, p => ({
         ...p,
         money: p.money - unmortgageCost,
         mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
@@ -606,12 +687,25 @@ export default function GamePage({
     });
   };
 
+  if (!player) {
+    return <div>Carregando...</div>;
+  }
+
+  const allPlayers = players;
+  const owner = selectedSpace ? allPlayers.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
+
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses} mortgagedProperties={player.mortgagedProperties} animateCardPile={animateCardPile} />
+          <GameBoard 
+            players={allPlayers} 
+            onSpaceClick={handleDebugMove} 
+            houses={player.houses} 
+            mortgagedProperties={player.mortgagedProperties} 
+            animateCardPile={animateCardPile} 
+          />
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />
@@ -633,6 +727,7 @@ export default function GamePage({
                 <PropertyCard 
                     space={selectedSpace} 
                     player={player}
+                    owner={owner}
                     onBuy={handleBuyProperty}
                     onClose={() => setSelectedSpace(null)} 
                 />

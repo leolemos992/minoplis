@@ -43,19 +43,17 @@ const getIcon = (space: any) => {
 interface PropertyCardProps {
   space: Property | { type: string; name: string };
   player: Player;
+  owner?: Player | null;
   onBuy?: (property: Property) => void;
   onClose: () => void;
 }
 
-export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProps) {
+export function PropertyCard({ space, player, owner, onBuy, onClose }: PropertyCardProps) {
   if (!space) return null;
 
   const isProperty = 'price' in space;
   const property = isProperty ? (space as Property) : null;
   const isOwnedByCurrentPlayer = property && player.properties.includes(property.id);
-  // In a real multiplayer game, you'd check against all players.
-  // For now, we assume if it's not the current player's, it could be someone else's or unowned.
-  const isOwned = property && (player.properties.includes(property.id)); // Simplified for now
 
   const handleBuy = () => {
     if (property && onBuy) {
@@ -128,16 +126,16 @@ export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProp
 
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4">
-        {isProperty && !isOwned && player.money >= (property?.price || Infinity) && (
+        {isProperty && !owner && player.money >= (property?.price || Infinity) && (
           <Button className="w-full" onClick={handleBuy}>Comprar Propriedade</Button>
         )}
-        {isOwnedByCurrentPlayer && (
-             <div className="w-full text-center p-2 bg-green-100 text-green-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
+         {owner && (
+             <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
                 <User className="h-4 w-4" />
-                <span>Proprietário: {player.name}</span>
+                <span>Proprietário: {owner.name}</span>
              </div>
          )}
-         {isProperty && !isOwnedByCurrentPlayer && player.money < (property?.price || Infinity) && (
+         {isProperty && !owner && player.money < (property?.price || Infinity) && (
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}
 

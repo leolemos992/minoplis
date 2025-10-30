@@ -391,6 +391,22 @@ export default function GamePage({
       return true;
 
   }, [players, handleBankruptcy, updatePlayer]);
+  
+  const handleEndTurn = useCallback(() => {
+    // Check for game over
+    if (players.length <= 1) {
+        setGameStatus('finished');
+        return;
+    }
+
+    setDoublesCount(0); // Reset doubles count on turn end
+    const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    setCurrentPlayerIndex(nextPlayerIndex);
+    setHasRolled(false);
+    if(players[nextPlayerIndex]) {
+       addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
+    }
+  }, [players, currentPlayerIndex]);
 
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
@@ -402,7 +418,7 @@ export default function GamePage({
     });
     setDoublesCount(0); // Reset doubles count when going to jail
     handleEndTurn();
-  }, [JAIL_POSITION, addNotification, updatePlayer, addLog]);
+  }, [JAIL_POSITION, addNotification, updatePlayer, addLog, handleEndTurn]);
 
   const startAuction = useCallback((property: Property) => {
       addLog(`${property.name} foi a leilão!`);
@@ -625,9 +641,10 @@ export default function GamePage({
 
     addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
     setLastDiceRoll([dice1, dice2]);
+    const isDoubles = dice1 === dice2;
 
     if (player.inJail) {
-        if (dice1 === dice2) {
+        if (isDoubles) {
             updatePlayer(player.id, { inJail: false });
             addNotification("Você rolou dados duplos e saiu da prisão!");
             addLog(`${player.name} saiu da prisão rolando dados duplos.`);
@@ -639,9 +656,10 @@ export default function GamePage({
         return;
     }
 
-    if (dice1 === dice2) {
-        setDoublesCount(prev => prev + 1);
-        if (doublesCount + 1 === 3) {
+    if (isDoubles) {
+        const newDoublesCount = doublesCount + 1;
+        setDoublesCount(newDoublesCount);
+        if (newDoublesCount === 3) {
             addNotification("Você tirou 3 duplos seguidos e foi para a prisão!", "destructive");
             addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
             goToJail(player.id);
@@ -655,7 +673,7 @@ export default function GamePage({
 
     if (player.id === 'player-1') {
         addNotification(`Você rolou ${dice1 + dice2}.`);
-        if (dice1 === dice2) {
+        if (isDoubles) {
             addNotification("Dados duplos! Você joga de novo.");
         }
     }
@@ -679,28 +697,12 @@ export default function GamePage({
         return updatedPlayer;
     });
 
-    if (dice1 === dice2) {
+    if (isDoubles) {
         setHasRolled(false); // Allow another roll
     }
     
     setTimeout(() => handleLandedOnSpace(newPosition), 800);
 };
-
-  const handleEndTurn = () => {
-    // Check for game over
-    if (players.length <= 1) {
-        setGameStatus('finished');
-        return;
-    }
-
-    setDoublesCount(0); // Reset doubles count on turn end
-    const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
-    setCurrentPlayerIndex(nextPlayerIndex);
-    setHasRolled(false);
-    if(players[nextPlayerIndex]) {
-       addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
-    }
-  };
 
   const handleBuyProperty = (property: Property) => {
     if (!player) return;
@@ -1110,61 +1112,85 @@ export default function GamePage({
     }
   }, [rollsToStart, players, gameStatus, addLog, addNotification]);
 
+  // Main AI Turn Logic
   useEffect(() => {
-    if (gameStatus !== 'active' || auctionState || !player) return;
-    if (player.id !== 'player-1' && !hasRolled) {
-      // AI's turn
-      let aiDoublesCount = doublesCount;
-      const playAiTurn = () => {
-        setTimeout(async () => {
-          const dice1 = Math.floor(Math.random() * 6) + 1;
-          const dice2 = Math.floor(Math.random() * 6) + 1;
-          
-          addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
-          setLastDiceRoll([dice1, dice2]);
+    if (gameStatus !== 'active' || auctionState || !player || player.id === 'player-1') {
+        return;
+    }
+    
+    // AI is in jail logic
+    if (player.inJail) {
+        setTimeout(() => {
+            // Simple AI: always try to pay bail if possible
+            if (player.money > 50) {
+                if (makePayment(player.id, null, 50)) {
+                    updatePlayer(player.id, { inJail: false });
+                    addLog(`${player.name} pagou a fiança e saiu da prisão.`);
+                    addNotification(`${player.name} pagou a fiança.`);
+                }
+            }
+            handleEndTurn();
+        }, 2000);
+        return;
+    }
 
-          if (dice1 === dice2) {
-              aiDoublesCount++;
-              addLog(`${player.name} tirou dados duplos e joga de novo.`);
-              if (aiDoublesCount === 3) {
-                  addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
-                  goToJail(player.id);
-                  return; // End AI turn
-              }
-          } else {
-              aiDoublesCount = 0;
-          }
+    const playAiTurn = async () => {
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-          const total = dice1 + dice2;
-          const newPosition = (player.position + total) % 40;
-          
-          updatePlayer(player.id, p => {
+        const dice1 = Math.floor(Math.random() * 6) + 1;
+        const dice2 = Math.floor(Math.random() * 6) + 1;
+        const isDoubles = dice1 === dice2;
+
+        addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
+        setLastDiceRoll([dice1, dice2]);
+
+        if (isDoubles) {
+            const newDoublesCount = doublesCount + 1;
+            setDoublesCount(newDoublesCount);
+            if (newDoublesCount === 3) {
+                addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
+                goToJail(player.id);
+                return; // Turn ends
+            }
+            addLog(`${player.name} tirou dados duplos e joga de novo.`);
+        } else {
+            setDoublesCount(0);
+        }
+
+        const total = dice1 + dice2;
+        const newPosition = (player.position + total) % 40;
+
+        updatePlayer(player.id, p => {
             let updated: Partial<Player> = { position: newPosition };
             if (newPosition < p.position) {
-              updated.money = p.money + 200;
-              addLog(`${p.name} coletou R$200.`);
+                updated.money = p.money + 200;
+                addLog(`${p.name} coletou R$200.`);
             }
             return updated;
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, 800)); // Wait for token to move
-          await handleLandedOnSpace(newPosition);
-            
-          if (dice1 === dice2) {
-            playAiTurn(); // Play again
-          } else {
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 800)); // Wait for token to move
+        await handleLandedOnSpace(newPosition);
+        
+        // After landing and resolving space, check for next action
+        if (isDoubles) {
+            playAiTurn(); // Play again because of doubles
+        } else {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            await handleAiLogic(player);
+            await handleAiLogic(player); // Post-turn logic like building houses
             setTimeout(() => {
                 handleEndTurn();
-            }, 1000);
-          }
-        }, 1500);
-      };
-      playAiTurn();
+            }, 1500);
+        }
+    };
+    
+    // Only start the turn if hasRolled is false for the current player
+    if (!hasRolled) {
+        setHasRolled(true); // Mark that this player is starting their roll sequence
+        playAiTurn();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlayerIndex, player, hasRolled, gameStatus, auctionState]);
+}, [currentPlayerIndex, players, gameStatus, auctionState, hasRolled]);
+
 
   if (!player && gameStatus !== 'finished') {
     return <div>Carregando...</div>;

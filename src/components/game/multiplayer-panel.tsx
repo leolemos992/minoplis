@@ -251,9 +251,28 @@ function PlayerList({ allPlayers, currentPlayerId }: { allPlayers: Player[], cur
     )
 }
 
+type ChatMessage = {
+    playerId: string;
+    message: string;
+};
+
 function GameChat({ allPlayers }: { allPlayers: Player[] }) {
-    const aiPlayer = allPlayers.find(p => p.id === 'player-2');
-    const humanPlayer = allPlayers.find(p => p.id === 'player-1');
+    const [message, setMessage] = useState('');
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
+        { playerId: 'player-2', message: 'Boa sorte! Que vença o melhor.' },
+        { playerId: 'player-1', message: 'Para você também!' },
+    ]);
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (message.trim() === '') return;
+
+        const humanPlayer = allPlayers.find(p => p.id === 'player-1');
+        if (humanPlayer) {
+            setChatHistory(prev => [...prev, { playerId: humanPlayer.id, message }]);
+            setMessage('');
+        }
+    };
 
     const ChatAvatar = ({ player }: { player?: Player }) => {
         if (!player) return null;
@@ -261,48 +280,60 @@ function GameChat({ allPlayers }: { allPlayers: Player[] }) {
         const TotemIcon = totemData?.icon;
         const color = playerColors[player.color] || playerColors.blue;
         return (
-            <Avatar className={cn("h-8 w-8", color.bg)}>
+            <Avatar className={cn("h-8 w-8 flex-shrink-0", color.bg)}>
                 {TotemIcon && <TotemIcon className="h-5 w-5 text-white" />}
             </Avatar>
         )
     }
 
-     return (
+    return (
         <CardContent className="flex flex-col h-96">
-           <ScrollArea className="flex-1 mb-4">
+            <ScrollArea className="flex-1 mb-4">
                 <div className="space-y-4 text-xs pr-2">
-                    {aiPlayer && (
-                        <div className="flex items-start gap-2.5">
-                            <ChatAvatar player={aiPlayer} />
-                            <div className="flex flex-col gap-1 w-full max-w-[320px]">
-                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                                    <span className="font-semibold text-gray-900 dark:text-white">{aiPlayer.name}</span>
+                    {chatHistory.map((chat, index) => {
+                        const player = allPlayers.find(p => p.id === chat.playerId);
+                        const isHuman = player?.id === 'player-1';
+
+                        if (isHuman) {
+                            return (
+                                <div key={index} className="flex items-start gap-2.5 justify-end">
+                                    <div className="flex flex-col gap-1 w-full max-w-[320px] items-end">
+                                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                            <span className="font-semibold text-gray-900 dark:text-white">Você</span>
+                                        </div>
+                                        <div className="leading-snug p-2 rounded-s-lg rounded-ee-lg bg-primary text-primary-foreground">
+                                            <p>{chat.message}</p>
+                                        </div>
+                                    </div>
+                                    <ChatAvatar player={player} />
                                 </div>
-                                <div className="leading-snug p-2 rounded-e-lg rounded-es-lg bg-muted">
-                                    <p>Boa sorte! Que vença o melhor.</p>
+                            );
+                        } else {
+                            return (
+                                <div key={index} className="flex items-start gap-2.5">
+                                    <ChatAvatar player={player} />
+                                    <div className="flex flex-col gap-1 w-full max-w-[320px]">
+                                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                            <span className="font-semibold text-gray-900 dark:text-white">{player?.name}</span>
+                                        </div>
+                                        <div className="leading-snug p-2 rounded-e-lg rounded-es-lg bg-muted">
+                                            <p>{chat.message}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-                     {humanPlayer && (
-                        <div className="flex items-start gap-2.5 justify-end">
-                            <div className="flex flex-col gap-1 w-full max-w-[320px] items-end">
-                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                                    <span className="font-semibold text-gray-900 dark:text-white">Você</span>
-                                </div>
-                                <div className="leading-snug p-2 rounded-s-lg rounded-ee-lg bg-primary text-primary-foreground">
-                                   <p>Para você também!</p>
-                                </div>
-                            </div>
-                             <ChatAvatar player={humanPlayer} />
-                        </div>
-                    )}
+                            );
+                        }
+                    })}
                 </div>
-           </ScrollArea>
-           <div className="flex gap-2">
-                <Input placeholder="Digite sua mensagem..." disabled/>
-                <Button disabled>Enviar</Button>
-           </div>
+            </ScrollArea>
+            <form onSubmit={handleSendMessage} className="flex gap-2">
+                <Input
+                    placeholder="Digite sua mensagem..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                />
+                <Button type="submit">Enviar</Button>
+            </form>
         </CardContent>
     )
 }

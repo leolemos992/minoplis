@@ -19,10 +19,13 @@ export type Player = {
 
 export type Property = {
   id: string;
-  name: string;
+  name: string; // Country Name
+  ruler?: string; // Ruler Name
+  rulerDescription?: string; // Ruler's quirky law
   price: number;
   rent: number[];
   color: string;
+  type: 'property';
 };
 
 export type Game = {

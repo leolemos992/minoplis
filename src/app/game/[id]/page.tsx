@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard, GameLog } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -45,7 +45,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'chance': return <HelpCircle className={cn(size, "text-blue-600")} />;
         case 'income-tax': return <CircleDollarSign className={size} />;
         case 'luxury-tax': return <CircleDollarSign className={size} />;
-        case 'railroad': return <Train className={size} />
+        case 'railroad': return <Bus className={size} />
         case 'utility': 
             if(space.name.includes("CELESC")) return <Zap className={size} />
             if(space.name.includes("SAMAE")) return <ShowerHead className={size} />
@@ -276,11 +276,11 @@ export default function GamePage({
   }, [playerName, totemId, colorId, gameName, addLog]);
 
 
-  const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Player)) => {
+  const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Partial<Player>)) => {
     setPlayers(prevPlayers => prevPlayers.map(p => {
         if (p.id === playerId) {
-            const updatedPlayer = typeof updates === 'function' ? updates(p) : { ...p, ...updates };
-            return updatedPlayer;
+            const newUpdates = typeof updates === 'function' ? updates(p) : updates;
+            return { ...p, ...newUpdates };
         }
         return p;
     }));
@@ -341,8 +341,8 @@ export default function GamePage({
                     addLog(`${player.name} faliu ao tentar pagar R$${rentAmount} a ${owner.name}.`);
                     // Handle bankruptcy logic here
                 } else {
-                    updatePlayer(player.id, p => ({ ...p, money: p.money - rentAmount }));
-                    updatePlayer(owner.id, p => ({ ...p, money: p.money + rentAmount }));
+                    updatePlayer(player.id, p => ({ money: p.money - rentAmount }));
+                    updatePlayer(owner.id, p => ({ money: p.money + rentAmount }));
                     toast({ variant: 'destructive', title: `Aluguel!`, description: `Você pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
                     addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
                 }
@@ -371,11 +371,11 @@ export default function GamePage({
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(player.money * 0.1);
-        updatePlayer(player.id, p => ({...p, money: p.money - taxAmount}));
+        updatePlayer(player.id, p => ({money: p.money - taxAmount}));
         toast({ variant: "destructive", title: "Imposto!", description: `Você pagou R$${taxAmount} de Imposto de Renda (10% do seu dinheiro).` });
         addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
     } else if (space.type === 'luxury-tax') {
-        updatePlayer(player.id, p => ({...p, money: p.money - 100}));
+        updatePlayer(player.id, p => ({money: p.money - 100}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
         addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
     } else if (space.type === 'go-to-jail') {
@@ -501,10 +501,10 @@ export default function GamePage({
         const currentPosition = prevPlayer.position;
         newPosition = (currentPosition + total) % 40;
         
-        let updatedPlayer = { ...prevPlayer, position: newPosition };
+        let updatedPlayer: Partial<Player> = { position: newPosition };
 
         if (newPosition < currentPosition) {
-            updatedPlayer.money += 200;
+            updatedPlayer.money = prevPlayer.money + 200;
             toast({
                 title: "Você passou pelo início!",
                 description: `Você coletou R$200.`,
@@ -522,7 +522,6 @@ export default function GamePage({
 
     if (player.money >= property.price) {
       updatePlayer(player.id, prev => ({
-        ...prev,
         money: prev.money - property.price,
         properties: [...prev.properties, property.id],
       }));
@@ -545,7 +544,7 @@ export default function GamePage({
     if (!player) return;
 
     if (player.inJail && player.money >= 50) {
-        updatePlayer(player.id, p => ({...p, money: p.money - 50, inJail: false}));
+        updatePlayer(player.id, p => ({money: p.money - 50, inJail: false}));
         toast({
             title: "Você pagou a fiança!",
             description: "Você está livre da prisão."
@@ -569,7 +568,7 @@ export default function GamePage({
 
   const handleDebugMove = (space: any, index: number) => {
     if (!player) return;
-    updatePlayer(player.id, p => ({ ...p, position: index }));
+    updatePlayer(player.id, p => ({ position: index }));
     handleLandedOnSpace(index);
   };
 
@@ -672,7 +671,6 @@ export default function GamePage({
     updatePlayer(player.id, p => {
         addLog(`${p.name} hipotecou ${property.name} por R$${mortgageValue}.`);
         return {
-            ...p,
             money: p.money + mortgageValue,
             mortgagedProperties: [...p.mortgagedProperties, propertyId]
         }
@@ -702,7 +700,6 @@ export default function GamePage({
     updatePlayer(player.id, p => {
         addLog(`${p.name} pagou a hipoteca de ${property.name}.`);
         return {
-            ...p,
             money: p.money - unmortgageCost,
             mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
         }
@@ -792,3 +789,5 @@ export default function GamePage({
     </>
   );
 }
+
+    

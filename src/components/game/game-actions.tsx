@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dices, Handshake, Building, Gavel } from 'lucide-react';
+import { Dices, Handshake, Building, Gavel, CheckSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface GameActionsProps {
   onDiceRoll: (dice1: number, dice2: number) => void;
   onPayBail?: () => void;
+  onEndTurn: () => void;
   isPlayerInJail: boolean;
   canPayBail: boolean;
   onManageProperties: () => void;
   playerHasProperties: boolean;
+  isTurnActive: boolean;
+  hasRolled: boolean;
 }
 
 function DiceIcon({ value }: { value: number }) {
@@ -58,7 +61,7 @@ function DiceIcon({ value }: { value: number }) {
 }
 
 
-export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties }: GameActionsProps) {
+export function GameActions({ onDiceRoll, onPayBail, onEndTurn, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties, isTurnActive, hasRolled }: GameActionsProps) {
   const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
@@ -115,7 +118,7 @@ export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail,
           size="lg"
           className="group w-full"
           onClick={rollDice}
-          disabled={isRolling}
+          disabled={!isTurnActive || isRolling || hasRolled}
         >
           <Dices className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
           {isRolling ? 'Rolando...' : (isPlayerInJail ? 'Tentar Rolar Duplos' : 'Rolar Dados')}
@@ -126,30 +129,38 @@ export function GameActions({ onDiceRoll, onPayBail, isPlayerInJail, canPayBail,
             variant="outline"
             className="group w-full"
             onClick={onPayBail}
-            disabled={!canPayBail || isRolling}
+            disabled={!isTurnActive || !canPayBail || isRolling || hasRolled}
           >
             <Gavel className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Pagar Fiança (R$50)
           </Button>
         )}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" className="group w-full" disabled={isPlayerInJail || isRolling}>
+          <Button variant="outline" className="group w-full" disabled={!isTurnActive || isRolling}>
             <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Negociar
           </Button>
           <Button 
             variant="outline" 
             className="group w-full" 
-            disabled={isPlayerInJail || !playerHasProperties || isRolling}
+            disabled={!isTurnActive || isRolling || !playerHasProperties}
             onClick={onManageProperties}
           >
             <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
             Gerenciar
           </Button>
         </div>
+        <Button
+            size="lg"
+            variant="secondary"
+            className="w-full"
+            onClick={onEndTurn}
+            disabled={!isTurnActive || isRolling || !hasRolled}
+        >
+            <CheckSquare className="mr-2 h-5 w-5" />
+            Encerrar Turno
+        </Button>
       </CardContent>
     </Card>
   );
 }
-
-    

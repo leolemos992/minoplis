@@ -231,6 +231,7 @@ export default function GamePage({
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const [hasRolled, setHasRolled] = useState(false);
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
@@ -257,7 +258,7 @@ export default function GamePage({
     setChanceDeck(shuffle(chanceCards));
     setCommunityChestDeck(shuffle(communityChestCards));
 
-    const initialPlayer: Player = {
+    const humanPlayer: Player = {
         id: 'player-1',
         name: playerName,
         money: 1500,
@@ -271,8 +272,23 @@ export default function GamePage({
         inJail: false,
     };
     
-    setPlayers([initialPlayer]);
+     const aiPlayer: Player = {
+        id: 'player-2',
+        name: 'IA-Bot',
+        money: 1500,
+        properties: [],
+        mortgagedProperties: [],
+        houses: {},
+        position: 0,
+        color: 'red',
+        totem: 'boot',
+        getOutOfJailFreeCards: 0,
+        inJail: false,
+    };
+    
+    setPlayers([humanPlayer, aiPlayer]);
     addLog(`O jogo ${gameName} começou!`);
+    addLog(`É a vez de ${humanPlayer.name}.`);
   }, [playerName, totemId, colorId, gameName, addLog]);
 
 
@@ -349,7 +365,17 @@ export default function GamePage({
             }
 
         } else if (!owner) {
-             setSelectedSpace(space);
+             if (player.id === 'player-1') {
+                setSelectedSpace(space);
+             } else { // AI Logic to buy
+                 if (player.money >= property.price) {
+                    updatePlayer(player.id, prev => ({
+                        money: prev.money - property.price,
+                        properties: [...prev.properties, property.id],
+                    }));
+                    addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
+                 }
+             }
         }
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         setAnimateCardPile(space.type);
@@ -364,19 +390,26 @@ export default function GamePage({
                 card = first;
                 setCommunityChestDeck([...rest, card]); // Move card to bottom
             }
-            setDrawnCard(card);
+
             addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
+            
+            if (player.id === 'player-1') {
+                setDrawnCard(card);
+            } else {
+                setCardToExecute(card);
+            }
+            
             setAnimateCardPile(null);
         }, 500);
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(player.money * 0.1);
         updatePlayer(player.id, p => ({money: p.money - taxAmount}));
-        toast({ variant: "destructive", title: "Imposto!", description: `Você pagou R$${taxAmount} de Imposto de Renda (10% do seu dinheiro).` });
+        toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$${taxAmount} de Imposto de Renda.` });
         addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
     } else if (space.type === 'luxury-tax') {
         updatePlayer(player.id, p => ({money: p.money - 100}));
-        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
+        toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$100 de Taxa das Blusinhas.` });
         addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
@@ -385,23 +418,15 @@ export default function GamePage({
   }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog]);
   
   const applyCardAction = useCallback((card: GameCard) => {
-    let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
-    let postAction: (() => void) | null = null;
+    if (!player) return;
   
-    if (!player) return { toastInfo, postAction };
-
-    updatePlayer(player.id, prevPlayer => {
-      let newPlayerState = { ...prevPlayer };
+    const actionResult = (p: Player): Partial<Player> => {
+      let newPlayerState: Partial<Player> = {};
       const { action } = card;
   
       switch (action.type) {
         case 'money':
-          newPlayerState.money += action.amount || 0;
-          toastInfo = {
-            title: card.type === 'chance' ? 'Sorte!' : 'Baú Comunitário',
-            description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
-            variant: action.amount! < 0 ? 'destructive' : undefined,
-          };
+          newPlayerState.money = p.money + (action.amount || 0);
           break;
         case 'move_to':
           let newPosition = -1;
@@ -412,72 +437,72 @@ export default function GamePage({
           }
 
           if (newPosition !== -1) {
-              if (action.collectGo && newPosition < newPlayerState.position) {
-                  newPlayerState.money += 200;
-                  setTimeout(() => {
-                      toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
-                      addLog(`${newPlayerState.name} coletou R$200 por passar pelo Início.`);
-                  }, 0);
+              if (action.collectGo && newPosition < p.position) {
+                  newPlayerState.money = p.money + 200;
+                  addLog(`${p.name} coletou R$200 por passar pelo Início.`);
               }
               newPlayerState.position = newPosition;
-              postAction = () => handleLandedOnSpace(newPosition, true);
+              setTimeout(() => handleLandedOnSpace(newPosition, true), 500);
           }
           break;
         case 'go_to_jail':
           newPlayerState.position = JAIL_POSITION;
           newPlayerState.inJail = true;
-          toastInfo = {
-            variant: "destructive",
-            title: 'Que azar!',
-            description: 'Você foi para a prisão!',
-          };
           break;
         case 'get_out_of_jail':
-          newPlayerState.getOutOfJailFreeCards += 1;
-          toastInfo = {
-            title: 'Sorte Grande!',
-            description: 'Você recebeu uma carta para sair da prisão!',
-          };
+          newPlayerState.getOutOfJailFreeCards = p.getOutOfJailFreeCards + 1;
           break;
         case 'repairs':
-             const houseCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
-             const hotelCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
+             const houseCount = Object.values(p.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
+             const hotelCount = Object.values(p.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
              const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
-             newPlayerState.money -= repairCost;
-             toastInfo = {
-                variant: "destructive",
-                title: 'Manutenção!',
-                description: `Você pagou R$${repairCost.toLocaleString()} em reparos.`,
-            };
-            addLog(`${newPlayerState.name} pagou R$${repairCost} em reparos.`);
+             newPlayerState.money = p.money - repairCost;
+             addLog(`${p.name} pagou R$${repairCost} em reparos.`);
             break;
         default:
           break;
       }
       return newPlayerState;
-    });
+    };
+    
+    updatePlayer(player.id, actionResult);
 
-    return { toastInfo, postAction };
-  }, [player, JAIL_POSITION, handleLandedOnSpace, toast, updatePlayer, addLog]);
+  }, [player, JAIL_POSITION, handleLandedOnSpace, updatePlayer, addLog]);
 
   useEffect(() => {
-    if (!cardToExecute) return;
+    if (!cardToExecute || !player) return;
   
-    const { toastInfo, postAction } = applyCardAction(cardToExecute);
+    applyCardAction(cardToExecute);
   
+    const { action } = cardToExecute;
+    let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
+     switch (action.type) {
+        case 'money':
+          toastInfo = {
+            title: cardToExecute.type === 'chance' ? 'Sorte!' : 'Baú Comunitário',
+            description: `${player.name} ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
+            variant: action.amount! < 0 ? 'destructive' : undefined,
+          };
+          break;
+        case 'go_to_jail':
+            toastInfo = { variant: "destructive", title: 'Que azar!', description: `${player.name} foi para a prisão!` };
+            break;
+        case 'get_out_of_jail':
+            toastInfo = { title: 'Sorte Grande!', description: `${player.name} recebeu uma carta para sair da prisão!` };
+            break;
+     }
+
     if (toastInfo) {
-      setTimeout(() => toast(toastInfo), 0);
+      setTimeout(() => toast(toastInfo!), 100);
     }
-    if (postAction) {
-      setTimeout(postAction, 0);
-    }
-  
+    
     setCardToExecute(null);
-  }, [cardToExecute, applyCardAction, toast]);
+  }, [cardToExecute, applyCardAction, toast, player]);
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
     if (!player) return;
+    setHasRolled(true);
     setLastDiceRoll([dice1, dice2]);
     addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
 
@@ -489,8 +514,6 @@ export default function GamePage({
         } else {
             toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
         }
-        // End turn after trying to roll doubles
-        // In a multiplayer game, you'd call endTurn() here
         return;
     }
     
@@ -515,6 +538,13 @@ export default function GamePage({
     });
     
     setTimeout(() => handleLandedOnSpace(newPosition), 500);
+  };
+
+  const handleEndTurn = () => {
+    const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
+    setCurrentPlayerIndex(nextPlayerIndex);
+    setHasRolled(false);
+    addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
   };
 
   const handleBuyProperty = (property: Property) => {
@@ -567,10 +597,25 @@ export default function GamePage({
   }
 
   const handleDebugMove = (space: any, index: number) => {
-    if (!player) return;
+    if (!player || player.id !== 'player-1') return;
     updatePlayer(player.id, p => ({ position: index }));
     handleLandedOnSpace(index);
   };
+
+  useEffect(() => {
+    if (player && player.id === 'player-2' && !hasRolled) {
+      // AI's turn
+      setTimeout(() => {
+        const dice1 = Math.floor(Math.random() * 6) + 1;
+        const dice2 = Math.floor(Math.random() * 6) + 1;
+        handleDiceRoll(dice1, dice2);
+      }, 1000); // Wait 1 sec before AI rolls
+
+      setTimeout(() => {
+        handleEndTurn();
+      }, 3000); // AI ends turn after 3 seconds
+    }
+  }, [currentPlayerIndex, player, hasRolled]); // Re-run when turn changes
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
@@ -715,7 +760,9 @@ export default function GamePage({
   }
 
   const allPlayers = players;
+  const humanPlayer = allPlayers.find(p => p.id === 'player-1') || player;
   const owner = selectedSpace ? allPlayers.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
+  const isMyTurn = player.id === 'player-1';
 
   return (
     <>
@@ -732,7 +779,7 @@ export default function GamePage({
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <MultiplayerPanel
-            player={player}
+            player={humanPlayer}
             allPlayers={allPlayers}
             gameLog={gameLog}
             onBuild={handleBuild}
@@ -747,6 +794,9 @@ export default function GamePage({
             canPayBail={player.money >= 50}
             onManageProperties={() => setManageOpen(true)}
             playerHasProperties={player.properties.length > 0}
+            isTurnActive={isMyTurn}
+            hasRolled={hasRolled}
+            onEndTurn={handleEndTurn}
           />
           <GameControls />
         </aside>
@@ -789,5 +839,3 @@ export default function GamePage({
     </>
   );
 }
-
-    

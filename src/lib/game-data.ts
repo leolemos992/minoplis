@@ -1,3 +1,4 @@
+
 import type { Character, Game, Property } from '@/lib/definitions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -51,7 +52,7 @@ export const mockGames: Omit<Game, 'board'>[] = [
         name: "Disputa no Subúrbio",
         players: [],
         currentPlayerId: 'player-1',
-        status: 'waiting',
+        status: 'active',
     },
     {
         id: '3',
@@ -64,7 +65,7 @@ export const mockGames: Omit<Game, 'board'>[] = [
 
 export const boardSpaces: (Property | { type: string; name: string })[] = [
   { type: 'go', name: 'Início' },
-  { id: 'leo-land', name: 'Leo Land', ruler: 'Leo', rulerDescription: 'País análogo à Alemanha em 1939.', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'brown', type: 'property' },
+  { id: 'will-country', name: 'País do Bigode', ruler: 'Will Bigode', rulerDescription: 'País onde a injúria racial contra brancos está liberada.', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'black', type: 'property' },
   { type: 'community-chest', name: 'Caixa Comunitária' },
   { id: 'mafra-republic', name: 'República de Mafra', ruler: 'Mafra', rulerDescription: 'Prática de exercícios será obrigatória todos os dias.', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'brown', type: 'property' },
   { type: 'income-tax', name: 'Imposto de Renda' },
@@ -74,9 +75,9 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: 'zinkland', name: 'Zinklandia', ruler: 'Zink', rulerDescription: 'Todas as pessoas terão que fabricar 1 kg de plástico bolha toda semana.', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', type: 'property' },
   { id: '62-realm', name: 'Reino de 62', ruler: '62', rulerDescription: 'Toda mulher casada terá que passar a primeira noite com ele (Bahia Palace).', price: 120, rent: [8, 40, 100, 300, 450, 600], color: 'lightblue', type: 'property' },
   { type: 'jail', name: 'Prisão' },
-  { id: 'will-country', name: 'País do Bigode', ruler: 'Will Bigode', rulerDescription: 'País onde a injúria racial contra brancos está liberada.', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
-  { id: 'electric-company', name: 'Companhia Elétrica', price: 150, rent: [], color: 'utility', type: 'utility' },
   { id: 'dias-domain', name: 'Domínio de Dias', ruler: 'Dias', rulerDescription: 'País do futebol, cerveja e pagodinho.', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
+  { id: 'electric-company', name: 'Companhia Elétrica', price: 150, rent: [], color: 'utility', type: 'utility' },
+  { id: 'leo-land', name: 'Leo Land', ruler: 'Leo', rulerDescription: 'País análogo à Alemanha em 1939.', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
   { id: 'fly-zone', name: 'Zona do Fly', ruler: 'Fly', rulerDescription: 'País dos de de casadas.', price: 160, rent: [12, 60, 180, 500, 700, 900], color: 'pink', type: 'property' },
   { id: 'pennsylvania-railroad', name: 'Ferrovia Pensilvânia', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { id: 'hellmann-empire', name: 'Império Hellmann', ruler: 'Hellmann', rulerDescription: 'País do energético monster e salgadinho sabor camarão.', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'orange', type: 'property' },

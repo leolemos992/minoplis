@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -11,6 +12,7 @@ import type { Property } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 
 const colorClasses: { [key: string]: string } = {
+  black: 'bg-black',
   brown: 'bg-[#955436]',
   lightblue: 'bg-[#aae0fa]',
   pink: 'bg-[#d93a96]',

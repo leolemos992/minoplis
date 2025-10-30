@@ -79,7 +79,6 @@ export function ManagePropertiesDialog({
 
 
   const handleBuildClick = (property: Property) => {
-    // Simplified build logic: doesn't enforce even building yet.
     onBuild(property.id, 1);
   };
   

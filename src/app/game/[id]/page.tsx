@@ -183,20 +183,20 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                          <Logo className="text-3xl sm:text-5xl" />
                     </div>
 
-                    <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-4/5">
+                    <div className="w-4/5">
                         <GameNotifications notifications={notifications} />
                     </div>
                     
-                    <div className="flex justify-center items-center gap-8">
+                    <div className="flex justify-center items-center gap-2 sm:gap-8">
                         <motion.div
-                            className="w-[30%] h-[18%] sm:w-32 sm:h-20 bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12"
+                            className="w-[35%] h-auto sm:w-32 sm:h-20 bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12"
                             animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                         >
                             <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                         </motion.div>
                          <motion.div
-                            className="w-[30%] h-[18%] sm:w-32 sm:h-20 bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12"
+                            className="w-[35%] h-auto sm:w-32 sm:h-20 bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12"
                             animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                          >
@@ -205,7 +205,7 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                     </div>
 
 
-                    <div className="w-full max-w-xs scale-90 sm:scale-100">
+                    <div className="w-full max-w-[280px] scale-90 sm:scale-100">
                       {children}
                     </div>
 
@@ -221,7 +221,7 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                     >
                          <>
                             {players.filter(p => p.position === index).map(p => (
-                                <PlayerToken key={p.id} player={p} size={10}/>
+                                <PlayerToken key={p.id} player={p} />
                             ))}
                         </>
                     </BoardSpace>

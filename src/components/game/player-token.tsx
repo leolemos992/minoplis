@@ -14,17 +14,15 @@ const playerBgColors: { [key: string]: string } = {
 };
 
 
-export function PlayerToken({ player, size = 10 }: { player: Player, size?: number }) {
+export function PlayerToken({ player, size }: { player: Player, size?: number }) {
   const totem = totems.find((t) => t.id === player.totem);
   const TotemIcon = totem ? totem.icon : null;
   const bgColorClass = playerBgColors[player.color] || 'bg-gray-700';
 
   if (!TotemIcon) return null;
 
-  // h-8 w-8, h-10 w-10 etc.
-  const sizeClasses = `h-${size} w-${size}`;
-  // p-1, p-2 etc.
-  const paddingClass = `p-${Math.floor(size / 4)}`;
+  const sizeClasses = size ? `h-${size} w-${size}` : 'h-6 w-6 sm:h-8 sm:w-8';
+  const paddingClass = size ? `p-${Math.floor(size / 4)}` : 'p-1';
 
 
   return (

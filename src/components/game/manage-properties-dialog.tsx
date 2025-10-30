@@ -79,16 +79,6 @@ export function ManagePropertiesDialog({
 
 
   const handleBuildClick = (property: Property) => {
-    const currentHouses = player.houses[property.id] || 0;
-    
-    if (currentHouses >= 5) {
-        toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
-        return;
-    }
-    if (player.money < (property.houseCost || 0)) {
-        toast({ variant: 'destructive', title: 'Dinheiro Insuficiente', description: 'Você não tem dinheiro para construir.' });
-        return;
-    }
     // Simplified build logic: doesn't enforce even building yet.
     onBuild(property.id, 1);
   };

@@ -405,10 +405,22 @@ export default function GamePage({
     handleLandedOnSpace(index);
   };
 
-  const handleBuild = (propertyId: string, amount: number) => {
+ const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost) return;
-  
+    
+    const propertiesInGroup = boardSpaces.filter(p => 'color' in p && p.color === property.color);
+    const ownedPropertiesInGroup = propertiesInGroup.filter(p => 'id' in p && player.properties.includes(p.id));
+
+    if (ownedPropertiesInGroup.length !== propertiesInGroup.length) {
+      toast({
+        variant: "destructive",
+        title: "Grupo incompleto",
+        description: `Você precisa possuir todas as propriedades ${property.color} para construir.`
+      });
+      return;
+    }
+
     const cost = property.houseCost * amount;
     if (player.money < cost) {
       toast({
@@ -421,6 +433,10 @@ export default function GamePage({
   
     setPlayer(p => {
       const currentHouses = p.houses[propertyId] || 0;
+      if (currentHouses + amount > 5) {
+         toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
+        return p;
+      }
       const newHouses = currentHouses + amount;
       
       return {

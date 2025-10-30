@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils';
 import type { Player, Property } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { PropertyCard } from '@/components/game/property-card';
+import { useToast } from '@/hooks/use-toast';
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -45,9 +48,9 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, index, children }: { space: any, index: number, children?: React.ReactNode }) => {
+const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any) => void }) => {
     const isProperty = 'price' in space;
-    const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative";
+    const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors";
     const rotationClasses: { [key: number]: string } = {
         // Cantos
         0: 'justify-start items-start',
@@ -101,7 +104,7 @@ const BoardSpace = ({ space, index, children }: { space: any, index: number, chi
     // Corners
     if ([0, 10, 20, 30].includes(index)) {
         return (
-            <div className={cn(baseClasses, "z-10")} style={{ gridArea: `space-${index}` }}>
+            <div className={cn(baseClasses, "z-10")} style={{ gridArea: `space-${index}` }} onClick={() => onSpaceClick(space)}>
                  <div className={cn("flex flex-col items-center justify-center h-full w-full", cornerTextRotation[index] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
@@ -112,14 +115,14 @@ const BoardSpace = ({ space, index, children }: { space: any, index: number, chi
     }
 
     return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])}>
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])} onClick={() => onSpaceClick(space)}>
             {content}
             {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
          </div>
     )
 };
 
-const GameBoard = ({ players }: { players: Player[] }) => {
+const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick: (space: any) => void }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -148,10 +151,10 @@ const GameBoard = ({ players }: { players: Player[] }) => {
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index}>
-                         <div className="relative w-full h-full grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1">
+                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick}>
+                         <div className="relative w-full h-full grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">
                             {players.filter(p => p.position === index).map(p => (
-                                <PlayerToken key={p.id} player={p} size={6}/>
+                                <PlayerToken key={p.id} player={p} size={8}/>
                             ))}
                         </div>
                     </BoardSpace>
@@ -168,6 +171,7 @@ export default function GamePage({
   params: { id: string };
 }) {
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
@@ -183,28 +187,79 @@ export default function GamePage({
     totem: totemId,
   });
 
+  const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
+
   const handleDiceRoll = (dice1: number, dice2: number) => {
     const total = dice1 + dice2;
+    let newPosition = 0;
     setPlayer(prevPlayer => {
-        const newPosition = (prevPlayer.position + total) % 40;
+        newPosition = (prevPlayer.position + total) % 40;
         // Handle passing GO
         if (newPosition < prevPlayer.position) {
             return { ...prevPlayer, position: newPosition, money: prevPlayer.money + 200 };
         }
         return { ...prevPlayer, position: newPosition };
     });
+    
+    // Automatically open property card if landing on a new space
+    setTimeout(() => {
+        const space = boardSpaces[newPosition];
+        const isProperty = 'price' in space;
+        if(isProperty) {
+            const property = space as Property;
+            if(!player.properties.includes(property.id)) {
+                 setSelectedSpace(space);
+            }
+        }
+    }, 500); // Delay to allow player state to update
+  };
+
+  const handleBuyProperty = (property: Property) => {
+    if (player.money >= property.price) {
+      setPlayer(prev => ({
+        ...prev,
+        money: prev.money - property.price,
+        properties: [...prev.properties, property.id],
+      }));
+      toast({
+        title: "Propriedade Comprada!",
+        description: `Você comprou ${property.name}.`,
+      });
+      setSelectedSpace(null);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Dinheiro insuficiente!",
+            description: `Você não tem dinheiro para comprar ${property.name}.`,
+        });
+    }
   };
 
   return (
-    <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-      <div className="lg:col-span-3">
-        <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-        <GameBoard players={[player]}/>
+    <>
+      <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-3">
+          <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
+          <GameBoard players={[player]} onSpaceClick={setSelectedSpace}/>
+        </div>
+        <aside className="lg:col-span-1 space-y-8">
+          <PlayerHud player={player} />
+          <GameActions onDiceRoll={handleDiceRoll} />
+        </aside>
       </div>
-      <aside className="lg:col-span-1 space-y-8">
-        <PlayerHud player={player} />
-        <GameActions onDiceRoll={handleDiceRoll} />
-      </aside>
-    </div>
+
+      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
+        <DialogContent className="p-0 border-0 bg-transparent w-auto max-w-sm">
+            {selectedSpace && (
+                <PropertyCard 
+                    space={selectedSpace} 
+                    player={player}
+                    onBuy={handleBuyProperty}
+                    onClose={() => setSelectedSpace(null)} 
+                />
+            )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

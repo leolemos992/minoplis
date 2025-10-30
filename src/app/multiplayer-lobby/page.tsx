@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, doc, deleteDoc, getDocs, writeBatch, or } from 'firebase/firestore';
 import { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -75,38 +75,63 @@ export default function MultiplayerLobbyPage() {
     }
   }, [gamesQuery, setOngoingGames]);
 
-  const handleDeleteGame = async (gameId: string) => {
+  const handleDeleteGame = (gameId: string) => {
     if (!firestore) return;
 
-    try {
-        const batch = writeBatch(firestore);
+    const batch = writeBatch(firestore);
+    const gameRef = doc(firestore, 'games', gameId);
+    const playersRef = collection(firestore, 'games', gameId, 'players');
+    const rollsRef = collection(firestore, 'games', gameId, 'rolls-to-start');
 
-        // Delete players subcollection
-        const playersRef = collection(firestore, 'games', gameId, 'players');
-        const playersSnapshot = await getDocs(playersRef);
-        playersSnapshot.forEach((playerDoc) => {
-            batch.delete(playerDoc.ref);
+    // Chain the promises to handle deletions sequentially
+    getDocs(playersRef)
+      .then(playersSnapshot => {
+        playersSnapshot.forEach(playerDoc => {
+          batch.delete(playerDoc.ref);
+        });
+        return getDocs(rollsRef);
+      })
+      .catch(error => {
+        // This will catch permission errors on listing players
+        const permissionError = new FirestorePermissionError({
+          path: playersRef.path,
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        // We re-throw to stop the chain
+        throw error;
+      })
+      .then(rollsSnapshot => {
+        rollsSnapshot.forEach(rollDoc => {
+          batch.delete(rollDoc.ref);
         });
 
-        // Delete rolls-to-start subcollection
-        const rollsRef = collection(firestore, 'games', gameId, 'rolls-to-start');
-        const rollsSnapshot = await getDocs(rollsRef);
-        rollsSnapshot.forEach((rollDoc) => {
-            batch.delete(rollDoc.ref);
-        });
-
-        // Delete the game document itself
-        const gameRef = doc(firestore, 'games', gameId);
+        // Finally, delete the game document itself
         batch.delete(gameRef);
 
-        await batch.commit();
-        
-        // Optimistically remove the game from the local state
+        return batch.commit();
+      })
+      .catch(error => {
+        // This can catch permission errors on listing rolls or on the final commit
+        if (error.name !== 'FirebaseError') { // Avoid double-emitting if already caught
+            const permissionError = new FirestorePermissionError({
+              path: rollsRef.path,
+              operation: 'list', // Could also be the batch commit failing
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw error; // Stop the chain
+      })
+      .then(() => {
+        // Optimistically remove the game from the local state on successful commit
         setOngoingGames(prev => prev?.filter(g => g.id !== gameId) || null);
-    } catch (error) {
-        console.error("Error deleting game and its subcollections:", error);
-        // TODO: Add error toast
-    }
+      })
+      .catch(finalError => {
+          // All errors from the chain will end up here.
+          // The specific permission error has already been emitted.
+          // We can log a generic failure message if needed, but avoid another emission.
+          console.log(`Failed to delete game: ${finalError.message}`);
+      });
   };
 
 

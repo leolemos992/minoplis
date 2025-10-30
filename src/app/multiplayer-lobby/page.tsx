@@ -75,52 +75,78 @@ export default function MultiplayerLobbyPage() {
     }
   }, [gamesQuery, setOngoingGames]);
 
-  const handleDeleteGame = async (gameId: string) => {
+ const handleDeleteGame = (gameId: string) => {
     if (!firestore) return;
 
     const gameRef = doc(firestore, 'games', gameId);
     const playersRef = collection(firestore, 'games', gameId, 'players');
     const rollsRef = collection(firestore, 'games', gameId, 'rolls-to-start');
 
-    try {
-        const batch = writeBatch(firestore);
+    const batch = writeBatch(firestore);
 
-        // Delete players
-        const playersSnapshot = await getDocs(playersRef);
+    // Chain the promises to ensure sequential deletion and proper error handling
+    getDocs(playersRef)
+      .catch(serverError => {
+        errorEmitter.emit(
+          'permission-error',
+          new FirestorePermissionError({
+            path: playersRef.path,
+            operation: 'list',
+          })
+        );
+        // Throw a specific error to stop the promise chain
+        throw new Error('Permission denied while listing players.');
+      })
+      .then(playersSnapshot => {
         playersSnapshot.forEach(playerDoc => {
-            batch.delete(playerDoc.ref);
+          batch.delete(playerDoc.ref);
         });
 
-        // Delete rolls
-        const rollsSnapshot = await getDocs(rollsRef);
+        // Continue to the next step: getting rolls-to-start
+        return getDocs(rollsRef);
+      })
+      .catch(serverError => {
+        // This will catch errors from getDocs(playersRef) or getDocs(rollsRef)
+        if (serverError.message.includes('listing players')) {
+            return Promise.reject(serverError); // Re-throw to stop
+        }
+        errorEmitter.emit(
+          'permission-error',
+          new FirestorePermissionError({
+            path: rollsRef.path,
+            operation: 'list',
+          })
+        );
+        throw new Error('Permission denied while listing rolls-to-start.');
+      })
+      .then(rollsSnapshot => {
         rollsSnapshot.forEach(rollDoc => {
-            batch.delete(rollDoc.ref);
+          batch.delete(rollDoc.ref);
         });
 
-        // Delete the main game doc
+        // Finally, delete the main game doc
         batch.delete(gameRef);
 
-        await batch.commit();
-        
-        // Optimistically remove from UI
+        // Commit the batch
+        return batch.commit();
+      })
+      .catch(serverError => {
+         // This will catch errors from previous steps or the commit itself
+         if (serverError.message.includes('listing')) {
+            return; // Don't emit another error if it was already handled
+         }
+         errorEmitter.emit(
+          'permission-error',
+          new FirestorePermissionError({
+            path: gameRef.path,
+            operation: 'delete',
+          })
+        );
+      })
+      .then(() => {
+        // Optimistically remove from UI on successful commit
         setOngoingGames(prev => prev?.filter(g => g.id !== gameId) || null);
-
-    } catch (error: any) {
-        console.error(`Failed to delete game ${gameId}:`, error);
-
-        let path = gameRef.path; // Default path
-        if (error.message.includes("permission-denied") || error.code === 'permission-denied') {
-            // Attempt to determine which list operation failed, though it's hard without more context from the error
-            // We can make an educated guess. If players haven't been deleted, it might be playersRef.
-            path = playersRef.path; 
-        }
-
-        const permissionError = new FirestorePermissionError({
-            path: path,
-            operation: 'delete', // The overarching operation is delete, though it involves list/delete sub-ops
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+      });
   };
 
 
@@ -223,5 +249,3 @@ export default function MultiplayerLobbyPage() {
     </div>
   );
 }
-
-    

@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Home, Zap, Building, Train, Gem, Hotel, User } from 'lucide-react';
+import { Home, Zap, Building, Train, Gem, Hotel, User, Landmark, ShowerHead } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DialogHeader, DialogTitle } from '../ui/dialog';
 
@@ -28,12 +28,12 @@ const getIcon = (space: any) => {
     case 'go':
       return <Home className="h-6 w-6" />;
     case 'jail':
-      return <Building className="h-6 w-6" />;
+      return <Landmark className="h-6 w-6" />;
     case 'railroad':
       return <Train className="h-8 w-8" />;
     case 'utility':
       if (space.name.includes('CELESC')) return <Zap className="h-8 w-8" />;
-      if (space.name.includes('SAMAE')) return <Gem className="h-8 w-8" />;
+      if (space.name.includes('SAMAE')) return <ShowerHead className="h-8 w-8" />;
       return <Gem className="h-8 w-8" />;
     default:
       return null;

@@ -6,7 +6,7 @@ import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/gam
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel, Landmark, ShowerHead } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -35,7 +35,7 @@ const colorClasses: { [key: string]: string } = {
 const getIcon = (space: any, size = "w-8 h-8") => {
     switch(space.type) {
         case 'go': return <Home className={size} />;
-        case 'jail': return <Gavel className={size} />;
+        case 'jail': return <Landmark className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
         case 'community-chest': return <ShieldAlert className={cn(size, "text-red-600")} />;
@@ -45,7 +45,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'railroad': return <Train className={size} />
         case 'utility': 
             if(space.name.includes("CELESC")) return <Zap className={size} />
-            if(space.name.includes("SAMAE")) return <Gem className={size} />
+            if(space.name.includes("SAMAE")) return <ShowerHead className={size} />
             return <Gem className={size} />;
         default: return null;
     }
@@ -318,20 +318,21 @@ export default function GamePage({
       return newPlayerState;
     });
 
-    if (toastInfo) {
-      toast(toastInfo);
-    }
-    if (postAction) {
-      setTimeout(postAction, 500);
-    }
-  }, [toast, JAIL_POSITION, handleLandedOnSpace]);
+    return { toastInfo, postAction };
+  }, [JAIL_POSITION, handleLandedOnSpace, toast]);
 
   useEffect(() => {
     if (cardToExecute) {
-      applyCardAction(cardToExecute);
+      const { toastInfo, postAction } = applyCardAction(cardToExecute);
+      if (toastInfo) {
+        toast(toastInfo);
+      }
+      if (postAction) {
+        setTimeout(postAction, 500);
+      }
       setCardToExecute(null);
     }
-  }, [cardToExecute, applyCardAction]);
+  }, [cardToExecute, applyCardAction, toast]);
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
     if (player.inJail) {

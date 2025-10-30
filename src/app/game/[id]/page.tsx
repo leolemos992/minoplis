@@ -528,10 +528,12 @@ export default function GamePage({
 
         if (newPosition < currentPosition) {
             updatedPlayer.money = prevPlayer.money + 200;
-            toast({
-                title: "Você passou pelo início!",
-                description: `Você coletou R$200.`,
-            });
+            setTimeout(() => {
+                toast({
+                    title: "Você passou pelo início!",
+                    description: `Você coletou R$200.`,
+                });
+            }, 100);
             addLog(`${player.name} passou pelo início e coletou R$200.`);
         }
         return updatedPlayer;

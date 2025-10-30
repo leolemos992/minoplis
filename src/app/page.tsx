@@ -5,8 +5,8 @@ import { Logo } from '@/components/logo';
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-5xl">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4">
+      <div className="flex w-full max-w-5xl flex-1 flex-col items-center justify-center">
         <section className="w-full py-20 md:py-32 lg:py-40">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
@@ -19,8 +19,8 @@ export default function Home() {
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
                   O clássico jogo de troca de propriedades, reinventado. Crie
-                  seus próprios tabuleiros, escolha personagens únicos e leve seus
-                  amigos à falência.
+                  seus próprios tabuleiros, escolha personagens únicos e leve
+                  seus amigos à falência.
                 </p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
@@ -32,14 +32,28 @@ export default function Home() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" disabled>
-                   <Users className="mr-2 h-5 w-5" />
-                    Multiplayer
+                  <Users className="mr-2 h-5 w-5" />
+                  Multiplayer
                 </Button>
               </div>
             </div>
           </div>
         </section>
       </div>
+      <footer className="py-4 text-center text-sm text-muted-foreground">
+        <p>Versão 1.0.0</p>
+        <p>
+          Desenvolvido com ❤️ por{' '}
+          <a
+            href="https://instagram.com/leo.lemos992"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
+            @leo.lemos992
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }

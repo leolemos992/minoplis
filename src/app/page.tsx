@@ -31,9 +31,11 @@ export default function Home() {
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" disabled>
-                  <Users className="mr-2 h-5 w-5" />
-                  Multiplayer
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/multiplayer-lobby">
+                    <Users className="mr-2 h-5 w-5" />
+                    Multiplayer
+                  </Link>
                 </Button>
               </div>
             </div>

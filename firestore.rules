@@ -1,0 +1,84 @@
+/**
+ * @fileoverview Firestore Security Rules for Localopoly.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes a collaborative multiplayer experience.
+ * Game sessions are secured using a membership map pattern, with roles denormalized to player documents for Authorization Independence.
+ *
+ * Data Structure:
+ * - /boards/{boardId}: Publicly readable board configurations.
+ * - /game_sessions/{gameSessionId}: Game session data with a `members` map (UIDs to roles).
+ * - /game_sessions/{gameSessionId}/players/{playerId}: Player-specific data, including a denormalized `members` map from the parent game session.
+ * - /characters/{characterId}: Publicly readable character data.
+ *
+ * Key Security Decisions:
+ * - Boards and Characters are publicly readable.
+ * - Game sessions and players are secured by membership.
+ * - The rules denormalize game session memberships into player documents for efficiency and security.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows anyone to read board configurations. No write access granted.
+     * @path /boards/{boardId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Public read access for board configurations.
+     */
+    match /boards/{boardId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Manages game sessions, using a `members` map for authorization.
+     * @path /game_sessions/{gameSessionId}
+     * @allow get, list: if true; // TODO: Secure list by checking if user is in members map.
+     * @allow create: if isSignedIn();
+     * @allow update: if isSignedIn() && resource.data.members[request.auth.uid] != null;
+     * @allow delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'owner';
+     * @principle Enforces membership-based authorization for game sessions.
+     */
+    match /game_sessions/{gameSessionId} {
+      allow get: if true; // TODO: Secure get by checking if user is in members map
+      allow list: if true; // TODO: Secure list by checking if user is in members map.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.members[request.auth.uid] != null;
+      allow delete: if isSignedIn() && resource.data.members[request.auth.uid] == 'owner';
+    }
+
+    /**
+     * @description Manages player data within a game session, using the denormalized `members` map for authorization.
+     * @path /game_sessions/{gameSessionId}/players/{playerId}
+     * @allow get, list: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null;
+     * @allow create: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null && request.resource.data.gameSessionId == gameSessionId && request.resource.data.userId == request.auth.uid;
+     * @allow update: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null && request.resource.data.gameSessionId == gameSessionId && request.resource.data.userId == resource.data.userId;
+     * @allow delete: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] == 'owner';
+     * @principle Enforces membership-based authorization for player data within game sessions.
+     */
+    match /game_sessions/{gameSessionId}/players/{playerId} {
+      allow get, list: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null;
+      allow create: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null && request.resource.data.gameSessionId == gameSessionId && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] != null && request.resource.data.gameSessionId == gameSessionId && request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && get(/databases/$(database)/documents/game_sessions/$(gameSessionId)).data.members[request.auth.uid] == 'owner';
+    }
+
+    /**
+     * @description Allows anyone to read character data. No write access granted.
+     * @path /characters/{characterId}
+     * @allow get, list: if true;
+     * @deny create, update, delete: if false;
+     * @principle Public read access for character data.
+     */
+    match /characters/{characterId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+  }
+}

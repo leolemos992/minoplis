@@ -1,0 +1,331 @@
+{
+  "entities": {
+    "GameSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GameSession",
+      "type": "object",
+      "description": "Represents a single game session of Localopoly.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GameSession entity."
+        },
+        "boardId": {
+          "type": "string",
+          "description": "Reference to Board. (Relationship: GameSession 1:1 Board)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the game session."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the game session was created.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the game session (e.g., 'waiting', 'in_progress', 'finished')."
+        }
+      },
+      "required": [
+        "id",
+        "boardId",
+        "name",
+        "createdAt",
+        "status"
+      ]
+    },
+    "Board": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Board",
+      "type": "object",
+      "description": "Represents the game board layout, including properties and other locations.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Board entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the game board."
+        },
+        "properties": {
+          "type": "array",
+          "description": "Array of property ids on the board",
+          "items": {
+            "type": "string"
+          }
+        },
+        "otherLocations": {
+          "type": "array",
+          "description": "Array of ids of other locations on the board",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "properties",
+        "otherLocations"
+      ]
+    },
+    "Player": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Player",
+      "type": "object",
+      "description": "Represents a player participating in a game session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Player entity."
+        },
+        "gameSessionId": {
+          "type": "string",
+          "description": "Reference to GameSession. (Relationship: GameSession 1:N Player)"
+        },
+        "characterId": {
+          "type": "string",
+          "description": "Reference to Character. (Relationship: Character 1:N Player)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Player)"
+        },
+        "balance": {
+          "type": "number",
+          "description": "Player's current balance."
+        },
+        "position": {
+          "type": "number",
+          "description": "Player's current position on the board (index of property/location)."
+        },
+        "isBankrupt": {
+          "type": "boolean",
+          "description": "Indicates whether the player is bankrupt."
+        },
+        "order": {
+          "type": "number",
+          "description": "Indicates the order of the player in the game."
+        }
+      },
+      "required": [
+        "id",
+        "gameSessionId",
+        "characterId",
+        "userId",
+        "balance",
+        "position",
+        "isBankrupt",
+        "order"
+      ]
+    },
+    "Character": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Character",
+      "type": "object",
+      "description": "Represents a character that a player can choose.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Character entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the character."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the character's abilities and attributes."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the character's image.",
+          "format": "uri"
+        },
+        "abilities": {
+          "type": "string",
+          "description": "Character abilities represented in JSON."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "imageUrl",
+        "abilities"
+      ]
+    },
+    "Property": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Property",
+      "type": "object",
+      "description": "Represents a property on the game board.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Property entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the property."
+        },
+        "cost": {
+          "type": "number",
+          "description": "Cost to purchase the property."
+        },
+        "rent": {
+          "type": "number",
+          "description": "Rent amount for landing on the property."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to Player. (Relationship: Player 1:N Property) - The player who owns the property (can be null if unowned)."
+        },
+        "mortgageValue": {
+          "type": "number",
+          "description": "The value of the property if mortgaged."
+        },
+        "unmortgageValue": {
+          "type": "number",
+          "description": "The cost of unmortgaging the property."
+        },
+        "houseCost": {
+          "type": "number",
+          "description": "Cost to build a house on the property."
+        },
+        "hotelCost": {
+          "type": "number",
+          "description": "Cost to build a hotel on the property."
+        },
+        "buildingLevel": {
+          "type": "number",
+          "description": "The number of buildings that are on the property"
+        },
+        "boardId": {
+          "type": "string",
+          "description": "Reference to the Board it's attached to (Relationship: Board 1:N Property)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "cost",
+        "rent",
+        "mortgageValue",
+        "unmortgageValue",
+        "houseCost",
+        "hotelCost",
+        "buildingLevel",
+        "boardId"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "Username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/boards/{boardId}",
+        "definition": {
+          "entityName": "Board",
+          "schema": {
+            "$ref": "#/backend/entities/Board"
+          },
+          "description": "Stores global board configurations. Anyone can read these.",
+          "params": [
+            {
+              "name": "boardId",
+              "description": "Unique identifier for the board."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/game_sessions/{gameSessionId}",
+        "definition": {
+          "entityName": "GameSession",
+          "schema": {
+            "$ref": "#/backend/entities/GameSession"
+          },
+          "description": "Stores game session data, including a 'members' map for authorization (owner and players).",
+          "params": [
+            {
+              "name": "gameSessionId",
+              "description": "Unique identifier for the game session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/game_sessions/{gameSessionId}/players/{playerId}",
+        "definition": {
+          "entityName": "Player",
+          "schema": {
+            "$ref": "#/backend/entities/Player"
+          },
+          "description": "Stores player data within a game session. Includes denormalized 'members' map from the game session for authorization independence. Also includes a reference to the User id.",
+          "params": [
+            {
+              "name": "gameSessionId",
+              "description": "Unique identifier for the game session."
+            },
+            {
+              "name": "playerId",
+              "description": "Unique identifier for the player."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/characters/{characterId}",
+        "definition": {
+          "entityName": "Character",
+          "schema": {
+            "$ref": "#/backend/entities/Character"
+          },
+          "description": "Stores character data.  Anyone can read these.",
+          "params": [
+            {
+              "name": "characterId",
+              "description": "Unique identifier for the character."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "Given the focus on multiplayer gameplay, the Firestore structure is designed to optimize real-time interactions and collaborative data management. Authorization Independence is achieved primarily through the membership map pattern in the game sessions, which is then denormalized to the player level. This eliminates the need for `get()` calls in security rules and enables atomic operations. Segregation is used to separate boards (global) from game sessions (collaborative) to enable simpler rulesets.\n\nSpecifically:\n\n*   `/boards`: Stores global board configurations. Any user can read them.\n*   `/game_sessions`: This collection uses a membership map (`members: {uid: role}`) for authorization. Each session stores a `members` map indicating the role of each user (e.g., 'owner', 'player'). This map is denormalized into the `/game_sessions/{gameSessionId}/players/{playerId}` documents for Authorization Independence.\n*   `/game_sessions/{gameSessionId}/players`:  This subcollection holds player-specific data. Each player document includes a denormalized copy of the `members` map from the parent `game_session` document. This allows rules to verify a user's role in the session directly from the player document without needing to `get()` the parent. Each player includes a reference to their user ID.\n*   `/characters`: Stores available characters. Any user can read them.\n\nThis structure enables QAPs because listing `/game_sessions` can be secured by checking the existence of a user's ID in the `members` map (or checking the role) in the security rules. Listing `/game_sessions/{gameSessionId}/players` is also secured by the denormalized members list on the player document."
+  }
+}

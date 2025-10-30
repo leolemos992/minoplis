@@ -287,8 +287,9 @@ export default function GamePage({
         }, 500);
 
     } else if (space.type === 'income-tax') {
-        setPlayer(p => ({...p, money: p.money - 200}));
-        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
+        const taxAmount = Math.floor(player.money * 0.1);
+        setPlayer(p => ({...p, money: p.money - taxAmount}));
+        toast({ variant: "destructive", title: "Imposto!", description: `Você pagou R$${taxAmount} de Imposto de Renda (10% do seu dinheiro).` });
     } else if (space.type === 'luxury-tax') {
         setPlayer(p => ({...p, money: p.money - 100}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
@@ -296,7 +297,7 @@ export default function GamePage({
         goToJail();
     }
 
-  }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck]);
+  }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck, player.money]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;

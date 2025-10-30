@@ -71,7 +71,7 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string }
   { type: 'community-chest', name: 'Sorte/Azar', id: 'cc2' },
   { id: 'sao-pedro', name: 'São Pedro', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'orange', houseCost: 100, type: 'property' },
   { id: 'limoeiro', name: 'Limoeiro', price: 200, rent: [16, 80, 220, 600, 800, 1000], color: 'orange', houseCost: 100, type: 'property' },
-  { type: 'free-parking', name: 'Estacionamento Grátis', id: 'free-parking' },
+  { type: 'free-parking', name: 'Estacione Grátis', id: 'free-parking' },
   { id: 'rio-branco', name: 'Rio Branco', price: 220, rent: [18, 90, 250, 700, 875, 1050], color: 'red', houseCost: 150, type: 'property' },
   { type: 'chance', name: 'Sorte/Azar', id: 'chance2' },
   { id: 'souza-cruz', name: 'Souza Cruz', price: 220, rent: [18, 90, 250, 700, 875, 1050], color: 'red', houseCost: 150, type: 'property' },

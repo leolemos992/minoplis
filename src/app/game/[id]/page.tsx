@@ -32,7 +32,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'jail': return <Building className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
-        case 'community-chest': return <Users className={size} />;
+        case 'community-chest': return <HelpCircle className={size} />;
         case 'chance': return <HelpCircle className={size} />;
         case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
         case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
@@ -194,5 +194,3 @@ export default function GamePage({
     </div>
   );
 }
-
-    

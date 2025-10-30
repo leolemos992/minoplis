@@ -37,6 +37,10 @@ const prompt = ai.definePrompt({
 
 Você sugerirá um personagem ao jogador com base em seu estilo de jogo. O personagem deve ser adequado ao seu estilo de jogo.
 
+Use um tom satírico e de humor negro. Você pode fazer referência a piadas internas sobre jogos de tabuleiro, como o azar de um jogador ou a construção de "palácios" caros (hotéis).
+
+Exemplo de piada interna: Um jogador da Bahia construiu 3 hotéis e apelidamos o local de "BAHIA PALACE". Use esse tipo de humor.
+
 Estilo de Jogo: {{{playingStyle}}}`,
 });
 

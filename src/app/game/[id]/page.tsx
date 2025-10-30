@@ -207,6 +207,7 @@ export default function GamePage({
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
+  const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
 
@@ -283,6 +284,14 @@ export default function GamePage({
       return newPlayerState;
     });
   }, [toast, JAIL_POSITION]);
+
+  useEffect(() => {
+    if (cardToExecute) {
+      applyCardAction(cardToExecute);
+      setCardToExecute(null);
+    }
+  }, [cardToExecute, applyCardAction]);
+
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
@@ -387,7 +396,7 @@ export default function GamePage({
 
   const closeCardDialog = () => {
       if (drawnCard) {
-          applyCardAction(drawnCard);
+          setCardToExecute(drawnCard);
           setDrawnCard(null);
       }
   }

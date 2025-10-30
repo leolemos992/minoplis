@@ -8,9 +8,9 @@ export default function LobbyPage() {
   return (
     <div className="container py-8">
       <div className="flex flex-col items-center text-center mb-12">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Game Lobby</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Lobby de Jogos</h1>
         <p className="mt-3 max-w-2xl text-lg text-muted-foreground">
-          Join an existing game or create your own to start playing.
+          Junte-se a um jogo existente ou crie o seu próprio para começar a jogar.
         </p>
       </div>
 
@@ -18,8 +18,8 @@ export default function LobbyPage() {
         <div className="md:col-span-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Open Games</CardTitle>
-                    <CardDescription>Join a game that is waiting for players.</CardDescription>
+                    <CardTitle>Jogos Abertos</CardTitle>
+                    <CardDescription>Junte-se a um jogo que está esperando por jogadores.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ul className="space-y-4">
@@ -28,11 +28,11 @@ export default function LobbyPage() {
                                 <div>
                                     <p className="font-semibold">{game.name}</p>
                                     <p className="text-sm text-muted-foreground">
-                                        {game.players.length} / 4 Players - <span className={`${game.status === 'waiting' ? 'text-green-500' : 'text-yellow-500'}`}>{game.status}</span>
+                                        {game.players.length} / 4 Jogadores - <span className={`${game.status === 'waiting' ? 'text-green-500' : 'text-yellow-500'}`}>{game.status === 'waiting' ? 'esperando' : 'ativo'}</span>
                                     </p>
                                 </div>
                                 <Button asChild variant="secondary">
-                                    <Link href={`/character-selection?gameId=${game.id}`}>Join Game</Link>
+                                    <Link href={`/character-selection?gameId=${game.id}`}>Entrar no Jogo</Link>
                                 </Button>
                              </li>
                         ))}
@@ -46,12 +46,12 @@ export default function LobbyPage() {
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                         <PlusCircle className="h-8 w-8 text-primary"/>
                     </div>
-                    <CardTitle>Create a New Game</CardTitle>
-                    <CardDescription>Start a new game with a custom board and invite your friends.</CardDescription>
+                    <CardTitle>Criar um Novo Jogo</CardTitle>
+                    <CardDescription>Comece um novo jogo com um tabuleiro personalizado e convide seus amigos.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button asChild size="lg">
-                        <Link href="/create-board">Create Game</Link>
+                        <Link href="/create-board">Criar Jogo</Link>
                     </Button>
                 </CardContent>
             </Card>

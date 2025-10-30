@@ -17,17 +17,17 @@ export default function CreateBoardPage() {
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">Create Your Game</CardTitle>
+          <CardTitle className="text-2xl">Crie Seu Jogo</CardTitle>
           <CardDescription>
-            Give your new game a name to get started. You'll be able to customize the board later.
+            Dê um nome ao seu novo jogo para começar. Você poderá personalizar o tabuleiro mais tarde.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form>
             <div className="grid w-full items-center gap-4">
               <div className="flex flex-col space-y-1.5">
-                <Label htmlFor="name">Game Name</Label>
-                <Input id="name" placeholder="e.g., 'My Awesome Board'" defaultValue="Downtown Dash" />
+                <Label htmlFor="name">Nome do Jogo</Label>
+                <Input id="name" placeholder="ex: 'Meu Tabuleiro Incrível'" defaultValue="Corrida no Centro" />
               </div>
             </div>
           </form>
@@ -35,7 +35,7 @@ export default function CreateBoardPage() {
         <CardFooter className="flex justify-end">
           <Button asChild className="group">
             <Link href="/character-selection">
-              Next: Choose Character
+              Próximo: Escolher Personagem
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>

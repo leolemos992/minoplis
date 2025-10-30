@@ -33,8 +33,8 @@ export function CharacterSuggestionForm({ onSuggestion }: CharacterSuggestionFor
     if (!playingStyle.trim()) {
         toast({
             variant: "destructive",
-            title: "Error",
-            description: "Please describe your playing style.",
+            title: "Erro",
+            description: "Por favor, descreva seu estilo de jogo.",
         });
         setIsLoading(false);
         return;
@@ -48,8 +48,8 @@ export function CharacterSuggestionForm({ onSuggestion }: CharacterSuggestionFor
       console.error(e);
       toast({
         variant: "destructive",
-        title: "AI Suggestion Failed",
-        description: "Could not get a suggestion at this time. Please try again.",
+        title: "Falha na Sugestão da IA",
+        description: "Não foi possível obter uma sugestão no momento. Por favor, tente novamente.",
       });
     } finally {
       setIsLoading(false);
@@ -60,11 +60,11 @@ export function CharacterSuggestionForm({ onSuggestion }: CharacterSuggestionFor
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="playing-style">Describe your playing style</Label>
+          <Label htmlFor="playing-style">Descreva seu estilo de jogo</Label>
           <Textarea
             id="playing-style"
             name="playingStyle"
-            placeholder="e.g., 'I like to play aggressively and take risks' or 'I prefer a defensive strategy, building up my assets slowly.'"
+            placeholder="ex: 'Gosto de jogar agressivamente e correr riscos' or 'Prefiro uma estratégia defensiva, acumulando meus ativos lentamente.'"
             className="min-h-[100px]"
             disabled={isLoading}
           />
@@ -75,14 +75,14 @@ export function CharacterSuggestionForm({ onSuggestion }: CharacterSuggestionFor
           ) : (
             <Lightbulb className="mr-2 h-4 w-4" />
           )}
-          Get Suggestion
+          Obter Sugestão
         </Button>
       </form>
 
       {suggestion && (
         <Alert className="border-accent bg-accent/10 text-accent-foreground">
             <CheckCircle className="h-4 w-4 !text-accent" />
-          <AlertTitle className="font-semibold">AI Suggestion: {suggestion.suggestedCharacter}</AlertTitle>
+          <AlertTitle className="font-semibold">Sugestão da IA: {suggestion.suggestedCharacter}</AlertTitle>
           <AlertDescription>
             {suggestion.characterDescription}
           </AlertDescription>

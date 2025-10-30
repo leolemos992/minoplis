@@ -14,14 +14,14 @@ const CharacterSuggestionInputSchema = z.object({
   playingStyle: z
     .string()
     .describe(
-      'The players preferred style of play. Examples include aggressive, strategic, defensive, or balanced.'
+      'O estilo de jogo preferido do jogador. Exemplos incluem agressivo, estratégico, defensivo ou equilibrado.'
     ),
 });
 export type CharacterSuggestionInput = z.infer<typeof CharacterSuggestionInputSchema>;
 
 const CharacterSuggestionOutputSchema = z.object({
-  suggestedCharacter: z.string().describe('The character suggested for the player.'),
-  characterDescription: z.string().describe('A short description of the suggested character.'),
+  suggestedCharacter: z.string().describe('O personagem sugerido para o jogador.'),
+  characterDescription: z.string().describe('Uma breve descrição do personagem sugerido.'),
 });
 export type CharacterSuggestionOutput = z.infer<typeof CharacterSuggestionOutputSchema>;
 
@@ -33,11 +33,11 @@ const prompt = ai.definePrompt({
   name: 'characterSuggestionPrompt',
   input: {schema: CharacterSuggestionInputSchema},
   output: {schema: CharacterSuggestionOutputSchema},
-  prompt: `You are a game master in a board game similar to Monopoly.
+  prompt: `Você é um mestre de jogo em um jogo de tabuleiro semelhante ao Monopoly, em português.
 
-You will suggest a character to the player based on their playing style. The character should be well-suited to their playing style.
+Você sugerirá um personagem ao jogador com base em seu estilo de jogo. O personagem deve ser adequado ao seu estilo de jogo.
 
-Playing Style: {{{playingStyle}}}`,
+Estilo de Jogo: {{{playingStyle}}}`,
 });
 
 const characterSuggestionFlow = ai.defineFlow(

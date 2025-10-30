@@ -13,18 +13,18 @@ import { Logo } from '@/components/logo';
 const features = [
   {
     icon: <Users className="h-8 w-8 text-accent" />,
-    title: 'Multiplayer Fun',
-    description: 'Challenge your friends and family in exciting real-time matches.',
+    title: 'Diversão Multijogador',
+    description: 'Desafie seus amigos e familiares em partidas emocionantes em tempo real.',
   },
   {
     icon: <SquarePlus className="h-8 w-8 text-accent" />,
-    title: 'Custom Boards',
-    description: 'Create unique game boards with your favorite locations and themes.',
+    title: 'Tabuleiros Personalizados',
+    description: 'Crie tabuleiros de jogo únicos com seus locais e temas favoritos.',
   },
   {
     icon: <Star className="h-8 w-8 text-accent" />,
-    title: 'Unique Characters',
-    description: 'Choose from a diverse cast of characters, each with special abilities.',
+    title: 'Personagens Únicos',
+    description: 'Escolha entre um elenco diversificado de personagens, cada um com habilidades especiais.',
   },
 ];
 
@@ -37,21 +37,21 @@ export default function Home() {
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
                 <div className="inline-block rounded-lg bg-card px-3 py-1 text-sm">
-                  Welcome to
+                  Bem-vindo ao
                 </div>
                 <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
                   <Logo />
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                  The classic property trading game, reimagined. Create your
-                  own boards, choose unique characters, and bankrupt your
-                  friends.
+                  O clássico jogo de troca de propriedades, reinventado. Crie
+                  seus próprios tabuleiros, escolha personagens únicos e leve seus
+                  amigos à falência.
                 </p>
               </div>
               <div className="space-x-4">
                 <Button asChild size="lg" className="group">
                   <Link href="/lobby">
-                    Play Now <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    Jogar Agora <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
               </div>

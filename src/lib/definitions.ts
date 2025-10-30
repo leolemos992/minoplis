@@ -29,7 +29,7 @@ export type Game = {
   id: string;
   name: string;
   players: Player[];
-  board: Property[];
+  board: (Property | { type: string, name: string })[];
   currentPlayerId: string;
   status: 'waiting' | 'active' | 'finished';
 };

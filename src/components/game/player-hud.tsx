@@ -19,7 +19,7 @@ export function PlayerHud({ player }: PlayerHudProps) {
             </Avatar>
             <div>
                 <CardTitle>{player.name}</CardTitle>
-                <CardDescription>as {player.character.name}</CardDescription>
+                <CardDescription>como {player.character.name}</CardDescription>
             </div>
         </div>
       </CardHeader>
@@ -27,7 +27,7 @@ export function PlayerHud({ player }: PlayerHudProps) {
         <div className="flex items-center justify-between text-lg font-semibold">
             <div className="flex items-center gap-2 text-green-600">
                 <Wallet className="h-5 w-5" />
-                <span>Money</span>
+                <span>Dinheiro</span>
             </div>
             <span>${player.money.toLocaleString()}</span>
         </div>
@@ -35,13 +35,13 @@ export function PlayerHud({ player }: PlayerHudProps) {
         <div>
             <div className="flex items-center gap-2 font-semibold mb-2">
                 <Landmark className="h-5 w-5 text-muted-foreground"/>
-                <span>Properties ({player.properties.length})</span>
+                <span>Propriedades ({player.properties.length})</span>
             </div>
             {player.properties.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">No properties owned yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">Nenhuma propriedade ainda.</p>
             ) : (
                 <ul className="space-y-2">
-                   {/* Property list will go here */}
+                   {/* Lista de propriedades irá aqui */}
                 </ul>
             )}
         </div>

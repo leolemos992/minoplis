@@ -31,8 +31,8 @@ export function GameActions() {
         const d2 = Math.floor(Math.random() * 6) + 1;
         setDice([d1, d2]);
         toast({
-          title: "You Rolled!",
-          description: `You rolled a ${d1} and a ${d2} for a total of ${d1 + d2}.`,
+          title: "Você Rolou!",
+          description: `Você rolou um ${d1} e um ${d2} para um total de ${d1 + d2}.`,
         });
       }, 1000);
 
@@ -46,7 +46,7 @@ export function GameActions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Actions</CardTitle>
+        <CardTitle>Ações</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-center items-center gap-4 h-20">
@@ -59,16 +59,16 @@ export function GameActions() {
         </div>
         <Button size="lg" className="w-full group" onClick={rollDice} disabled={isRolling}>
           <Dices className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
-          {isRolling ? 'Rolling...' : 'Roll Dice'}
+          {isRolling ? 'Rolando...' : 'Rolar Dados'}
         </Button>
         <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" className="w-full group">
                 <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-                Trade
+                Negociar
             </Button>
             <Button variant="outline" className="w-full group">
                 <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-                Manage
+                Gerenciar
             </Button>
         </div>
       </CardContent>

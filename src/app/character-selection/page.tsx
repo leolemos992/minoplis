@@ -41,11 +41,10 @@ export default function CharacterSelectionPage() {
     <div className="container py-8">
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Choose Your Character
+          Escolha Seu Personagem
         </h1>
         <p className="mt-3 max-w-2xl mx-auto text-lg text-muted-foreground">
-          Select a character to represent you on the board. Each has a unique
-          ability.
+          Selecione um personagem para te representar no tabuleiro. Cada um tem uma habilidade única.
         </p>
       </div>
 
@@ -66,8 +65,8 @@ export default function CharacterSelectionPage() {
         <div className="lg:col-span-1 space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>AI Character Suggestion</CardTitle>
-                    <CardDescription>Tell us your play style, and our AI will suggest a character for you.</CardDescription>
+                    <CardTitle>Sugestão de Personagem por IA</CardTitle>
+                    <CardDescription>Nos diga seu estilo de jogo, e nossa IA irá sugerir um personagem para você.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <CharacterSuggestionForm onSuggestion={aiSuggestedCharacter} />
@@ -79,9 +78,9 @@ export default function CharacterSelectionPage() {
                 !selectedCharacter ? "opacity-50" : ""
             )}>
                  <CardHeader>
-                    <CardTitle>Ready to Play?</CardTitle>
+                    <CardTitle>Pronto para Jogar?</CardTitle>
                     <CardDescription>
-                        {selectedCharacter ? `You have selected ${selectedCharacter.name}.` : 'Select a character to start.'}
+                        {selectedCharacter ? `Você selecionou ${selectedCharacter.name}.` : 'Selecione um personagem para começar.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -91,7 +90,7 @@ export default function CharacterSelectionPage() {
                         disabled={!selectedCharacter}
                         onClick={handleStartGame}
                         >
-                        Start Game
+                        Começar Jogo
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                     </Button>
                 </CardContent>

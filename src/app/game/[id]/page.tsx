@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
@@ -235,12 +235,9 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
 };
 
 
-export default function GamePage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id: gameId } = params;
+export default function GamePage() {
+  const params = useParams();
+  const gameId = params.id as string;
   const { user } = useUser();
   const firestore = useFirestore();
 
@@ -1197,6 +1194,7 @@ export default function GamePage({
     
 
     
+
 
 
 

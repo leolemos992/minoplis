@@ -162,6 +162,7 @@ export default function GamePage({
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
+  const gameName = searchParams.get('gameName') || 'MINOPLIS';
 
   const mockPlayer = {
     id: 'player-1',
@@ -176,7 +177,7 @@ export default function GamePage({
   return (
     <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
       <div className="lg:col-span-3">
-        <h1 className="text-2xl font-bold mb-4">Jogo: MINOPLIS</h1>
+        <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
         <GameBoard />
       </div>
       <aside className="lg:col-span-1 space-y-8">

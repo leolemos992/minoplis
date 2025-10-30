@@ -31,6 +31,7 @@ const playerColors = [
 export default function CharacterSelectionPage() {
   const searchParams = useSearchParams();
   const gameId = searchParams.get('gameId');
+  const gameName = searchParams.get('gameName');
 
   const [playerName, setPlayerName] = useState('');
   const [selectedTotem, setSelectedTotem] = useState(totems[0].id);
@@ -108,7 +109,9 @@ export default function CharacterSelectionPage() {
             <Link
               href={`/game/${gameId}?playerName=${encodeURIComponent(
                 playerName
-              )}&totem=${selectedTotem}&color=${selectedColor}`}
+              )}&totem=${selectedTotem}&color=${selectedColor}&gameName=${encodeURIComponent(
+                gameName || 'MINOPOLIS'
+              )}`}
             >
               Entrar no Jogo
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,14 +16,17 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 
 export default function CreateBoardPage() {
-  const gameId = "123"; // Mock gameId
+  const [gameName, setGameName] = useState('MINOPOLIS');
+  const gameId = '123'; // Mock gameId
+
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Crie Seu Jogo</CardTitle>
           <CardDescription>
-            Dê um nome ao seu novo jogo para começar. Você poderá personalizar o tabuleiro mais tarde.
+            Dê um nome ao seu novo jogo para começar. Você poderá personalizar o
+            tabuleiro mais tarde.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -28,14 +34,23 @@ export default function CreateBoardPage() {
             <div className="grid w-full items-center gap-4">
               <div className="flex flex-col space-y-1.5">
                 <Label htmlFor="name">Nome do Jogo</Label>
-                <Input id="name" placeholder="ex: 'Meu Tabuleiro Incrível'" defaultValue="MINOPOLIS" />
+                <Input
+                  id="name"
+                  placeholder="ex: 'Meu Tabuleiro Incrível'"
+                  value={gameName}
+                  onChange={(e) => setGameName(e.target.value)}
+                />
               </div>
             </div>
           </form>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button asChild className="group">
-            <Link href={`/character-selection?gameId=${gameId}`}>
+          <Button asChild className="group" disabled={!gameName}>
+            <Link
+              href={`/character-selection?gameId=${gameId}&gameName=${encodeURIComponent(
+                gameName
+              )}`}
+            >
               Próximo: Escolher Personagem
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>

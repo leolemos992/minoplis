@@ -32,6 +32,9 @@ export default function MultiplayerLobbyPage() {
   const { user } = useUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // This is a specific user ID to act as an admin for deleting stuck rooms.
+  const ADMIN_USER_ID = 'EriuHWriY4hTNWKG5jC1buQn9Or2';
+
   const gamesQuery = useMemoFirebase(
     () =>
       firestore && user
@@ -137,56 +140,59 @@ export default function MultiplayerLobbyPage() {
             {isLoading && <p>Carregando jogos...</p>}
 
             {!isLoading && ongoingGames && ongoingGames.length > 0 ? (
-              ongoingGames.map((game) => (
-                <div
-                  key={game.id}
-                  className="flex items-center justify-between rounded-lg border p-4"
-                >
-                  <div className="flex items-center gap-4">
-                    {game.status !== 'waiting' && game.status !== 'rolling-to-start' 
-                      ? <AlertTriangle className="h-8 w-8 text-orange-500" />
-                      : <Gamepad className="h-8 w-8 text-primary" />
-                    }
-                    <div>
-                      <h3 className="font-semibold">{game.name}</h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className='flex items-center gap-1'><Hourglass className="h-3 w-3" /> {game.status}</span>
-                        {/* <span className='flex items-center gap-1'><Users className="h-3 w-3" /> {game.players?.length || 0} jogadores</span> */}
+              ongoingGames.map((game) => {
+                const canDelete = user && (user.uid === game.hostId || user.uid === ADMIN_USER_ID);
+                return (
+                  <div
+                    key={game.id}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      {game.status !== 'waiting' && game.status !== 'rolling-to-start' 
+                        ? <AlertTriangle className="h-8 w-8 text-orange-500" />
+                        : <Gamepad className="h-8 w-8 text-primary" />
+                      }
+                      <div>
+                        <h3 className="font-semibold">{game.name}</h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className='flex items-center gap-1'><Hourglass className="h-3 w-3" /> {game.status}</span>
+                          {/* <span className='flex items-center gap-1'><Users className="h-3 w-3" /> {game.players?.length || 0} jogadores</span> */}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="secondary" disabled={game.status !== 'waiting'}>
+                        <Link href={`/character-selection?gameId=${game.id}&gameName=${encodeURIComponent(game.name)}`}>
+                          Entrar
+                        </Link>
+                      </Button>
+                      {canDelete && (
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <Button variant="destructive" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                             </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Isso excluirá permanentemente a sala de jogo e todos os seus dados.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteGame(game.id)}>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button asChild variant="secondary" disabled={game.status !== 'waiting'}>
-                      <Link href={`/character-selection?gameId=${game.id}&gameName=${encodeURIComponent(game.name)}`}>
-                        Entrar
-                      </Link>
-                    </Button>
-                    {user && user.uid === game.hostId && (
-                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                           <Button variant="destructive" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta ação não pode ser desfeita. Isso excluirá permanentemente a sala de jogo e todos os seus dados.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteGame(game.id)}>
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </div>
-              ))
+                )
+              })
             ) : (
               !isLoading && (
                 <div className="py-12 text-center text-muted-foreground">

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { use, useEffect, useState } from 'react';
@@ -38,7 +39,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
         case 'railroad': return <Train className={size} />
         case 'utility': 
-            if(space.name.includes("Elétrica")) return <Zap className={size} />
+            if(space.name.includes("CELESC")) return <Zap className={size} />
             return <Gem className={size} />; // Placeholder for water works
         default: return null;
     }
@@ -194,3 +195,5 @@ export default function GamePage({
     </div>
   );
 }
+
+    

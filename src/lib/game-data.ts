@@ -76,7 +76,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: '62-realm', name: 'Reino de 62', ruler: '62', rulerDescription: 'Toda mulher casada terá que passar a primeira noite com ele (Bahia Palace).', price: 120, rent: [8, 40, 100, 300, 450, 600], color: 'lightblue', type: 'property' },
   { type: 'jail', name: 'Prisão' },
   { id: 'dias-domain', name: 'Domínio de Dias', ruler: 'Dias', rulerDescription: 'País do futebol, cerveja e pagodinho.', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
-  { id: 'electric-company', name: 'Companhia Elétrica', price: 150, rent: [], color: 'utility', type: 'utility' },
+  { id: 'electric-company', name: 'CELESC', price: 150, rent: [], color: 'utility', type: 'utility' },
   { id: 'leo-land', name: 'Leo Land', ruler: 'Leo', rulerDescription: 'País análogo à Alemanha em 1939.', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
   { id: 'fly-zone', name: 'Zona do Fly', ruler: 'Fly', rulerDescription: 'País dos de de casadas.', price: 160, rent: [12, 60, 180, 500, 700, 900], color: 'pink', type: 'property' },
   { id: 'nosso-brusque-2', name: 'Nosso Brusque - Rio Branco', price: 200, rent: [10, 20, 40, 80], color: 'railroad', type: 'railroad' },
@@ -92,7 +92,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: 'nosso-brusque-3', name: 'Nosso Brusque - Maluche', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { id: 'atlantic-ave', name: 'Domínio de Dias II', ruler: 'Dias', rulerDescription: 'País do futebol, cerveja e pagodinho.', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'yellow', type: 'property' },
   { id: 'ventnor-ave', name: 'Leo Land II', ruler: 'Leo', rulerDescription: 'País análogo à Alemanha em 1939.', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'yellow', type: 'property' },
-  { id: 'water-works', name: 'Companhia de Água', price: 150, rent: [], color: 'utility', type: 'utility' },
+  { id: 'water-works', name: 'SAMAE', price: 150, rent: [], color: 'utility', type: 'utility' },
   { id: 'marvin-gardens', name: 'Zona do Fly II', ruler: 'Fly', rulerDescription: 'País dos de de casadas.', price: 280, rent: [24, 120, 360, 850, 1025, 1200], color: 'yellow', type: 'property' },
   { type: 'go-to-jail', name: 'Vá para a Prisão' },
   { id: 'pacific-ave', name: 'Império Hellmann II', ruler: 'Hellmann', rulerDescription: 'País do energético monster e salgadinho sabor camarão.', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'green', type: 'property' },
@@ -105,5 +105,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { type: 'luxury-tax', name: 'Imposto de Luxo' },
   { id: 'boardwalk', name: 'Leo Land III', ruler: 'Leo', rulerDescription: 'País análogo à Alemanha em 1939.', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: 'darkblue', type: 'property' },
 ];
+
+    
 
     

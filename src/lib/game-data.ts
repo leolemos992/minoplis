@@ -1,7 +1,7 @@
 
 import type { Character, Game, Property } from '@/lib/definitions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Car, Dog, Ship, Hat, Boot, Cat } from 'lucide-react';
+import { Car, Dog, Ship, Rocket, Bot, Cat } from 'lucide-react';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id);
 
@@ -21,8 +21,8 @@ export const totems = [
   { id: 'car', name: 'Carro', icon: Car },
   { id: 'dog', name: 'Cachorro', icon: Dog },
   { id: 'ship', name: 'Navio', icon: Ship },
-  { id: 'hat', name: 'Cartola', icon: Hat },
-  { id: 'boot', name: 'Bota', icon: Boot },
+  { id: 'rocket', name: 'Foguete', icon: Rocket },
+  { id: 'boot', name: 'Robô', icon: Bot },
   { id: 'cat', name: 'Gato', icon: Cat },
 ];
 

@@ -30,8 +30,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'go-to-jail': return <Zap className={size} />;
         case 'community-chest': return <Users className={size} />;
         case 'chance': return <HelpCircle className={size} />;
-        case 'income-tax': return <div className="text-center text-[10px]"><p className="font-bold">Imposto de Renda</p><p>$200</p></div>;
-        case 'luxury-tax': return <div className="text-center text-[10px]"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>$100</p></div>;
+        case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>$200</p></div>;
+        case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>$100</p></div>;
         case 'railroad': return <Train className={size} />
         case 'utility': 
             if(space.name.includes("Elétrica")) return <Zap className={size} />
@@ -43,19 +43,16 @@ const getIcon = (space: any, size = "w-8 h-8") => {
 const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top' | 'bottom' | 'left' | 'right' }) => {
     const isProperty = 'price' in space;
 
-    const cornerSpaces: { [key:number]: string } = {
-        0: 'br', 20: 'bl', 10: 'tr', 30: 'tl'
-    }
-
     if (position === 'corner') {
-        const cornerPos = cornerSpaces[space.position];
+        const rotation: { [key: number]: string } = {
+            0: 'rotate-[225deg]',  // Go
+            10: 'rotate-[315deg]', // Jail
+            20: '-rotate-45',   // Free Parking
+            30: 'rotate-45',    // Go to Jail
+        }
         return (
-            <div className={cn(
-                "w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative",
-            )}>
-                 <div className={cn("flex flex-col items-center justify-center space-y-1", 
-                    {'rotate-45': cornerPos === 'tr', '-rotate-45': cornerPos === 'tl', 'rotate-135': cornerPos === 'br', '-rotate-135': cornerPos === 'bl'}
-                 )}>
+            <div className="w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative">
+                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[space.position] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
@@ -63,31 +60,36 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
         )
     }
 
-    const textRotation = {
-      top: '',
-      bottom: '',
-      left: 'transform rotate-90',
-      right: 'transform -rotate-90'
+    const textContainerClasses = {
+        top: 'text-center',
+        bottom: 'text-center',
+        left: 'text-center w-28 -rotate-90',
+        right: 'text-center w-28 rotate-90',
     };
+
+    const mainDivClasses = {
+      top: 'flex-col-reverse h-28',
+      bottom: 'flex-col h-28',
+      left: 'flex-row w-28',
+      right: 'flex-row-reverse w-28',
+    }
+
+    const colorDivClasses = {
+        top: 'h-7 w-full',
+        bottom: 'h-7 w-full',
+        left: 'w-7 h-full',
+        right: 'w-7 h-full',
+    }
     
     if (isProperty) {
       const property = space as Property;
       return (
-        <div className={cn("border border-black flex", {
-          'flex-col': position === 'top' || position === 'bottom',
-          'flex-row-reverse': position === 'right',
-          'flex-row': position === 'left',
-          'h-28': position === 'top' || position === 'bottom',
-          'w-28': position === 'left' || position === 'right',
-        })}>
-            <div className={cn("flex-shrink-0", colorClasses[property.color], {
-                'h-7 w-full': position === 'top' || position === 'bottom',
-                'w-7 h-full': position === 'left' || position === 'right',
-            })} />
-            <div className={cn("flex flex-col justify-between items-center text-center text-[9px] font-bold p-1 flex-1", textRotation[position])}>
+        <div className={cn("border border-black flex", mainDivClasses[position])}>
+            <div className={cn("flex-shrink-0", colorClasses[property.color], colorDivClasses[position])} />
+            <div className={cn("flex flex-col justify-around items-center p-1 flex-1", textContainerClasses[position])}>
                 {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
-                <span className="px-1">{property.name}</span>
-                <span className="font-normal mt-1">${property.price}</span>
+                <span className="text-[9px] font-bold px-1">{property.name}</span>
+                <span className="text-[9px] font-normal mt-1">${property.price}</span>
             </div>
         </div>
       )
@@ -95,11 +97,8 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
 
     // Not a property, not a corner
     return (
-        <div className={cn("border border-black flex items-center justify-center", {
-          'h-28': position === 'top' || position === 'bottom',
-          'w-28': position === 'left' || position === 'right',
-        })}>
-            <div className={cn("text-center text-[9px] p-1 space-y-1", textRotation[position])}>
+        <div className={cn("border border-black flex items-center justify-center", mainDivClasses[position])}>
+            <div className={cn("text-[9px] p-1 space-y-1 flex flex-col justify-around items-center", textContainerClasses[position])}>
                 {getIcon(space)}
                 <p className="font-bold">{space.name}</p>
             </div>

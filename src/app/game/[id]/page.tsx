@@ -40,115 +40,123 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top' | 'bottom' | 'left' | 'right' }) => {
+const BoardSpace = ({ space, index }: { space: any, index: number }) => {
     const isProperty = 'price' in space;
-    const spaceIndex = boardSpaces.findIndex(s => s.name === space.name);
+    let position: 'corner' | 'top' | 'bottom' | 'left' | 'right';
+    let gridArea: string;
+
+    if (index === 0) {
+        position = 'corner';
+        gridArea = '11 / 11 / 12 / 12'; // bottom-right
+    } else if (index < 10) {
+        position = 'bottom';
+        gridArea = `11 / ${11 - index} / 12 / ${12 - index}`;
+    } else if (index === 10) {
+        position = 'corner';
+        gridArea = '11 / 1 / 12 / 2'; // bottom-left
+    } else if (index < 20) {
+        position = 'left';
+        gridArea = `${11 - (index - 10)} / 1 / ${12 - (index - 10)} / 2`;
+    } else if (index === 20) {
+        position = 'corner';
+        gridArea = '1 / 1 / 2 / 2'; // top-left
+    } else if (index < 30) {
+        position = 'top';
+        gridArea = `1 / ${1 + (index - 20)} / 2 / ${2 + (index - 20)}`;
+    } else if (index === 30) {
+        position = 'corner';
+        gridArea = '1 / 11 / 2 / 12'; // top-right
+    } else { // index < 40
+        position = 'right';
+        gridArea = `${1 + (index - 30)} / 11 / ${2 + (index - 30)} / 12`;
+    }
+
+    const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative";
 
     if (position === 'corner') {
-        const rotation: { [key: number]: string } = {
+         const rotation: { [key: number]: string } = {
             0: 'rotate-[135deg]',  // Go
             10: 'rotate-[225deg]', // Jail
-            20: '-rotate-45',   // Free Parking
-            30: 'rotate-45',    // Go to Jail
+            20: 'rotate-[-45deg]',   // Free Parking
+            30: 'rotate-[45deg]',    // Go to Jail
         }
         return (
-            <div className="w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative">
-                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[spaceIndex] )}>
+            <div className={cn(baseClasses, "z-10")} style={{ gridArea }}>
+                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[index] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
             </div>
         )
     }
-    
-    const contentWrapperClasses = "flex-1 flex flex-col justify-between items-center text-center p-1 text-[9px]";
 
+    const contentWrapperClasses = "flex-1 flex flex-col justify-between items-center text-center p-1 text-[9px] w-full h-full";
+    
     if (isProperty) {
-      const property = space as Property;
-      if (position === 'top' || position === 'bottom') {
+        const property = space as Property;
+
+        if (position === 'top' || position === 'bottom') {
+            return (
+                <div style={{ gridArea }} className={cn(baseClasses, "flex", position === 'top' ? 'flex-col-reverse' : 'flex-col')}>
+                    <div className={cn("h-5 w-full flex-shrink-0", colorClasses[property.color])} />
+                    <div className={contentWrapperClasses}>
+                        {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
+                        <span className="font-bold px-1 leading-tight">{property.name}</span>
+                        <span className="font-normal mt-1">${property.price}</span>
+                    </div>
+                </div>
+            );
+        }
+
+        // Left or Right
         return (
-            <div className={cn("w-[70px] h-28 border border-black flex", position === 'top' ? 'flex-col-reverse' : 'flex-col')}>
-                <div className={cn("h-7 w-full flex-shrink-0", colorClasses[property.color])} />
-                <div className={contentWrapperClasses}>
+            <div style={{ gridArea }} className={cn(baseClasses, "flex", position === 'left' ? 'flex-row' : 'flex-row-reverse')}>
+                <div className={cn("w-5 h-full flex-shrink-0", colorClasses[property.color])} />
+                <div className={cn(contentWrapperClasses, "justify-center", position === 'left' ? 'rotate-90' : '-rotate-90')}>
                     {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
                     <span className="font-bold px-1 leading-tight">{property.name}</span>
                     <span className="font-normal mt-1">${property.price}</span>
                 </div>
             </div>
         );
-      }
-      // Left or Right
-      return (
-        <div className={cn("w-28 h-[70px] border border-black flex", position === 'left' ? 'flex-row' : 'flex-row-reverse')}>
-            <div className={cn("w-7 h-full flex-shrink-0", colorClasses[property.color])} />
-            <div className={cn(contentWrapperClasses, "justify-center w-full h-full", position === 'left' ? 'rotate-90' : '-rotate-90')}>
-                {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
-                <span className="font-bold px-1 leading-tight">{property.name}</span>
-                <span className="font-normal mt-1">${property.price}</span>
-            </div>
-        </div>
-      );
     }
 
     // Not a property, not a corner
-     if (position === 'top' || position === 'bottom') {
+    if (position === 'top' || position === 'bottom') {
         return (
-            <div className="w-[70px] h-28 border border-black flex items-center justify-center">
+            <div style={{ gridArea }} className={cn(baseClasses, "flex items-center justify-center")}>
                 <div className={cn(contentWrapperClasses, "justify-center space-y-1")}>
                     <p className="font-bold leading-tight">{space.name}</p>
                     {getIcon(space, 'w-8 h-8')}
                 </div>
             </div>
         );
-     }
-     // Left or Right
-     return (
-        <div className="w-28 h-[70px] border border-black flex items-center justify-center">
-            <div className={cn(contentWrapperClasses, "justify-center space-y-1 w-full h-full", position === 'left' ? 'rotate-90' : '-rotate-90')}>
+    }
+    // Left or Right
+    return (
+        <div style={{ gridArea }} className={cn(baseClasses, "flex items-center justify-center")}>
+            <div className={cn(contentWrapperClasses, "justify-center space-y-1", position === 'left' ? 'rotate-90' : '-rotate-90')}>
                 <p className="font-bold leading-tight">{space.name}</p>
                 {getIcon(space, 'w-8 h-8')}
             </div>
         </div>
-     );
-}
+    );
+};
 
 const GameBoard = () => {
-    const bottomRow = boardSpaces.slice(1, 10);
-    const leftRow = boardSpaces.slice(11, 20);
-    const topRow = boardSpaces.slice(21, 30);
-    const rightRow = boardSpaces.slice(31, 40);
-
     return (
         <div className="bg-green-200/40 p-4 aspect-square max-w-[900px] mx-auto">
-            <div className="w-full h-full relative">
-                {/* Center Logo */}
-                <div className="absolute top-28 left-28 right-28 bottom-28 bg-muted flex items-center justify-center">
+            <div className="grid grid-cols-11 grid-rows-11 h-full w-full relative">
+                <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-muted flex items-center justify-center">
                     <Logo className="text-5xl" />
                 </div>
-                
-                {/* Corners */}
-                <div className="absolute bottom-0 left-0"><BoardSpace space={boardSpaces[0]} position="corner" /></div>
-                <div className="absolute bottom-0 right-0"><BoardSpace space={boardSpaces[10]} position="corner" /></div>
-                <div className="absolute top-0 right-0"><BoardSpace space={boardSpaces[20]} position="corner" /></div>
-                <div className="absolute top-0 left-0"><BoardSpace space={boardSpaces[30]} position="corner" /></div>
-
-                {/* Rows */}
-                <div className="absolute bottom-0 left-28 right-28 flex flex-row-reverse">
-                    {bottomRow.map((space) => <BoardSpace key={space.name} space={space} position="bottom" />)}
-                </div>
-                <div className="absolute top-28 bottom-28 right-0 flex flex-col-reverse">
-                    {leftRow.map((space) => <BoardSpace key={space.name} space={space} position="left" />)}
-                </div>
-                <div className="absolute top-0 left-28 right-28 flex">
-                    {topRow.map((space) => <BoardSpace key={space.name} space={space} position="top" />)}
-                </div>
-                <div className="absolute top-28 bottom-28 left-0 flex flex-col">
-                    {rightRow.map((space) => <BoardSpace key={space.name} space={space} position="right" />)}
-                </div>
+                {boardSpaces.map((space, index) => (
+                    <BoardSpace key={space.name + index} space={space} index={index} />
+                ))}
             </div>
         </div>
-    )
-}
+    );
+};
 
 
 export default function GamePage({

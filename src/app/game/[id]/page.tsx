@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
+import { GameControls } from '@/components/game/game-controls';
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -118,7 +119,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick }: { space: any, inde
     return (
          <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])} onClick={() => onSpaceClick(space)}>
             {content}
-            {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
+            {children && <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{children}</div>}
          </div>
     )
 };
@@ -153,11 +154,11 @@ const GameBoard = ({ players, onSpaceClick }: { players: Player[]; onSpaceClick:
                 </div>
                 {boardSpaces.map((space, index) => (
                     <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick}>
-                         <div className="relative w-full h-full grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">
+                         <>
                             {players.filter(p => p.position === index).map(p => (
-                                <PlayerToken key={p.id} player={p} size={8}/>
+                                <PlayerToken key={p.id} player={p} size={10}/>
                             ))}
-                        </div>
+                        </>
                     </BoardSpace>
                 ))}
             </div>
@@ -346,6 +347,7 @@ export default function GamePage({
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />
           <GameActions onDiceRoll={handleDiceRoll} />
+          <GameControls />
         </aside>
       </div>
 

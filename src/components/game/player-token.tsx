@@ -24,13 +24,13 @@ export function PlayerToken({ player, size = 8 }: { player: Player, size?: numbe
   return (
     <motion.div
         layoutId={`player-token-${player.id}`}
-        className={cn(`h-${size} w-${size} transform transition-all duration-500 ease-in-out`, colorClass)}
+        className={cn(`h-${size} w-${size} drop-shadow-lg`, colorClass)}
         initial={{ scale: 0.8, opacity: 0.8 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         title={player.name}
     >
-        <TotemIcon className="h-full w-full drop-shadow-lg" />
+        <TotemIcon className="h-full w-full" />
     </motion.div>
   );
 }

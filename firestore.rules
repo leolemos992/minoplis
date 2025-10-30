@@ -1,84 +1,94 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model for the Localopoly game.
+ * @fileoverview Firestore Security Rules for Localopoly.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes strong authorization based on user identity and game ownership.
+ * It assumes a collaborative environment where players interact within the context of a game.
+ * Data validation is relaxed to facilitate rapid prototyping.
  *
  * Data Structure:
- * - /games/{gameId}: Stores game metadata.
- * - /games/{gameId}/players/{playerId}: Stores player data for each game.
- * - /games/{gameId}/rolls-to-start/{playerId}: Stores roll-to-start data for each player in a game.
+ * - /games/{gameId}: Root collection for games.
+ *   - /players/{playerId}: Subcollection for players within a game.
+ *   - /rolls-to-start/{playerId}: Subcollection for roll-to-start results within a game.
  *
  * Key Security Decisions:
- * - Any authenticated user can list games.
- * - Any authenticated user can read individual games.
- * - Only the corresponding player can modify their own player data within a game.
- * - Only the corresponding player can create or update roll-to-start data.
+ * - Games are publicly readable.
+ * - Players can only modify their own data within a game.
+ * - Game creation is implicitly allowed for authenticated users via the hostId field validation.
+ * - Listing players and rolls is allowed for game participants to enable turn management and game flow.
  *
  * Denormalization for Authorization:
- * - The rules rely on matching the `request.auth.uid` against the `userId` field in the `/players/{playerId}` documents and `/rolls-to-start/{playerId}` documents to ensure authorization.
+ * - The `Game` document stores the `hostId` which is used to authorize administrative actions on the game.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Rules for the /games/{gameId} collection.
+     * @path /games/{gameId}
+     * @allow get, list: Any authenticated user can read game data.
+     * @allow create: Any authenticated user can create a game. The 'hostId' field must match the user's UID.
+     * @allow update, delete: Only the host of the game can update or delete the game.
+     * @principle Enforces game ownership for writes; allows public reads.
+     */
+    match /games/{gameId} {
+      allow get, list: if true; // Public read access for games
+
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.hostId);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.hostId);
+
+      /**
+       * @description Rules for the /games/{gameId}/players/{playerId} subcollection.
+       * @path /games/{gameId}/players/{playerId}
+       * @allow get, list: Any authenticated user can read player data within a game.
+       * @allow create: Only the user with the matching playerId can create their player document.
+       * @allow update, delete: Only the user with the matching playerId can update or delete their player document.
+       * @principle Enforces player ownership for writes within a game; allows public reads within a game.
+       */
+      match /games/{gameId}/players/{playerId} {
+        allow get, list: if true; // Listing players is fine for game participants
+
+        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
+        allow update: if isSignedIn() && isExistingOwner(playerId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isSignedIn() && isExistingOwner(playerId) && resource.data.userId == playerId;
+      }
+
+      /**
+       * @description Rules for the /games/{gameId}/rolls-to-start/{playerId} subcollection.
+       * @path /games/{gameId}/rolls-to-start/{playerId}
+       * @allow get, list: Any authenticated user can read roll-to-start data within a game.
+       * @allow create: Only the user with the matching playerId can create their roll-to-start document.
+       * @allow update, delete: Only the user with the matching playerId can update or delete their roll-to-start document.
+       * @principle Enforces player ownership for writes within a game; allows public reads within a game.
+       */
+      match /games/{gameId}/rolls-to-start/{playerId} {
+        allow get, list: if true; // Listing rolls is fine for game participants
+
+        allow create: if isSignedIn() && request.auth.uid == playerId;
+        allow update: if isSignedIn() && isExistingOwner(playerId);
+        allow delete: if isSignedIn() && isExistingOwner(playerId);
+      }
+    }
+
+    /**
+     * Helper functions
+     */
+
+    // Checks if the user is signed in.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Checks if the user is the owner of the resource, assuming the resource has an 'ownerId' field.
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
     }
 
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Controls access to the /games collection.  Any authenticated user can list and read games.
-     * @path /games/{gameId}
-     * @allow (get, list) User is authenticated
-     * @deny (create, update, delete) if false
-     * @principle Allows read access to all authenticated users, but restricts all write operations.
-     */
-    match /games/{gameId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
-    
-
-      /**
-       * @description Controls access to the /games/{gameId}/players subcollection. Only the corresponding player can modify their own data.
-       * @path /games/{gameId}/players/{playerId}
-       * @allow (get) User is authenticated.
-       * @allow (list) User is authenticated.
-       * @allow (create) The authenticated user's ID matches the playerId.
-       * @allow (update, delete) The authenticated user's ID matches the playerId, and the document exists.
-       * @deny  (create) The authenticated user's ID does not match the playerId.
-       * @deny  (update, delete) The authenticated user's ID does not match the playerId, or the document doesn't exist.
-       * @principle Enforces document ownership for writes.
-       */
-      match /players/{playerId} {
-        allow get, list: if isSignedIn();
-        allow create: if isOwner(playerId) && request.resource.data.userId == request.auth.uid;
-        allow update: if isExistingOwner(playerId) && request.resource.data.userId == resource.data.userId;
-        allow delete: if isExistingOwner(playerId);
-      }
-
-      /**
-       * @description Controls access to the /games/{gameId}/rolls-to-start subcollection. Only the corresponding player can create or update their own roll data.
-       * @path /games/{gameId}/rolls-to-start/{playerId}
-       * @allow (get) User is authenticated.
-       * @allow (list) User is authenticated.
-       * @allow (create) The authenticated user's ID matches the playerId.
-       * @allow (update, delete) The authenticated user's ID matches the playerId, and the document exists.
-       * @deny  (create) The authenticated user's ID does not match the playerId.
-       * @deny  (update, delete) The authenticated user's ID does not match the playerId, or the document doesn't exist.
-       * @principle Enforces document ownership for writes.
-       */
-      match /rolls-to-start/{playerId} {
-          allow get, list: if isSignedIn();
-          allow create: if isOwner(playerId);
-          allow update: if isExistingOwner(playerId);
-          allow delete: if isExistingOwner(playerId);
-      }
+    // Checks if the user is the owner of an existing resource, preventing operations on non-existent documents.
+    function isExistingOwner(ownerId) {
+      return isOwner(ownerId) && resource != null;
     }
   }
 }

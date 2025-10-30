@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Home, Zap, Train, Diamond, Building, HelpCircle, Briefcase, Gem } from 'lucide-react';
+import { Home, Zap, Train, Building, HelpCircle, Briefcase, Gem, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Property } from '@/lib/definitions';
+import { Logo } from '@/components/logo';
 
 const colorClasses: { [key: string]: string } = {
   brown: 'bg-[#955436]',

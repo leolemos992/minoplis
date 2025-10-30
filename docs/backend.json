@@ -12,7 +12,7 @@
         "status": {
           "type": "string",
           "description": "Status atual da partida (ex: 'waiting', 'active', 'finished').",
-          "enum": ["waiting", "active", "finished"]
+          "enum": ["waiting", "rolling-to-start", "active", "finished"]
         },
         "hostId": {
           "type": "string",
@@ -26,6 +26,11 @@
         "currentPlayerId": {
            "type": "string",
            "description": "O ID do jogador cujo turno está ativo."
+        },
+        "playerOrder": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Array com os IDs dos jogadores na ordem do turno."
         }
       },
       "required": ["name", "status", "hostId", "createdAt"]
@@ -84,6 +89,22 @@
         }
       },
       "required": ["userId", "name", "money", "position", "color", "totem"]
+    },
+    "RollToStart": {
+        "title": "RollToStart",
+        "type": "object",
+        "description": "Armazena o resultado da rolagem de dados de um jogador para determinar a ordem de início.",
+        "properties": {
+            "roll": {
+                "type": "number",
+                "description": "O resultado da rolagem (1-12)."
+            },
+            "playerName": {
+                "type": "string",
+                "description": "O nome do jogador que rolou."
+            }
+        },
+        "required": ["roll", "playerName"]
     }
   },
   "auth": {
@@ -96,7 +117,11 @@
       "subcollections": {
           "/players/{playerId}": {
               "schema": { "$ref": "#/entities/Player"},
-              "description": "Armazena os dados de cada jogador na partida. Apenas o jogador correspondente (ou o host) pode modificar seus próprios dados."
+              "description": "Armazena os dados de cada jogador na partida. Apenas o jogador correspondente pode modificar seus próprios dados."
+          },
+          "/rolls-to-start/{playerId}": {
+              "schema": { "$ref": "#/entities/RollToStart"},
+              "description": "Armazena os resultados da rolagem de dados para determinar a ordem de início do jogo."
           }
       }
     }

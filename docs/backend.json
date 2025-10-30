@@ -90,16 +90,14 @@
     "providers": ["anonymous", "google.com"]
   },
   "firestore": {
-    "collections": {
-      "/games/{gameId}": {
-        "schema": { "$ref": "#/entities/Game" },
-        "description": "Armazena todas as partidas. Qualquer usuário autenticado pode listar e ler as partidas. Apenas o host pode atualizar o status do jogo (para iniciá-lo).",
-        "subcollections": {
-            "/players/{playerId}": {
-                "schema": { "$ref": "#/entities/Player"},
-                "description": "Armazena os dados de cada jogador na partida. Apenas o jogador correspondente (ou o host) pode modificar seus próprios dados."
-            }
-        }
+    "/games/{gameId}": {
+      "schema": { "$ref": "#/entities/Game" },
+      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode listar e ler as partidas. Apenas o host pode atualizar o status do jogo (para iniciá-lo).",
+      "subcollections": {
+          "/players/{playerId}": {
+              "schema": { "$ref": "#/entities/Player"},
+              "description": "Armazena os dados de cada jogador na partida. Apenas o jogador correspondente (ou o host) pode modificar seus próprios dados."
+          }
       }
     }
   }

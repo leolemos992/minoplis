@@ -115,7 +115,7 @@ export function ManagePropertiesDialog({
                   <div className="space-y-2 pl-5">
                     {props.map(prop => {
                         const houseCount = player.houses[prop.id] || 0;
-                        const canBuild = ownedColorSets[color] && houseCount < 5;
+                        const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0);
                         const canSell = houseCount > 0;
                         return (
                             <div key={prop.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">

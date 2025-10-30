@@ -115,7 +115,14 @@ export function PlayerHud({ player }: PlayerHudProps) {
                   <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">Nenhuma propriedade ainda.</p>
               ) : (
                   <ul className="space-y-2 pr-4">
-                    {player.properties.map(id => {
+                    {player.properties.sort((a, b) => {
+                      const propA = boardSpaces.find(p => 'id' in p && p.id === a) as Property | undefined;
+                      const propB = boardSpaces.find(p => 'id' in p && p.id === b) as Property | undefined;
+                      if (!propA || !propB) return 0;
+                      if (propA.color < propB.color) return -1;
+                      if (propA.color > propB.color) return 1;
+                      return 0;
+                    }).map(id => {
                       const property = boardSpaces.find(p => 'id' in p && p.id === id) as Property | undefined;
                       if (!property) return null;
                       const houseCount = player.houses[id] || 0;

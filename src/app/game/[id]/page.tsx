@@ -166,14 +166,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
             >
                 <div className="bg-muted flex items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
                     <motion.div
-                        className="absolute w-[40%] h-[25%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[20%] left-[10%]"
+                        className="absolute w-[35%] h-[20%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[22%] left-[12%]"
                         animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
                         <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[40%] h-[25%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[20%] right-[10%]"
+                        className="absolute w-[35%] h-[20%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[22%] right-[12%]"
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >

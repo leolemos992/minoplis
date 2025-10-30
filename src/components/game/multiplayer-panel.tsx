@@ -128,7 +128,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
   
   return (
     <CardContent className="p-0">
-      <div className="flex items-center justify-between p-4 text-lg font-semibold bg-muted/50">
+      <div className="flex items-center justify-between p-3 text-base font-semibold bg-muted/50">
         <div className="flex items-center gap-2 text-green-600">
           <Wallet className="h-5 w-5" />
           <span>Dinheiro</span>
@@ -139,7 +139,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
       {player.getOutOfJailFreeCards > 0 && (
         <>
           <Separator />
-          <div className="flex items-center justify-between p-4 text-sm font-semibold">
+          <div className="flex items-center justify-between p-3 text-sm font-semibold">
             <div className="flex items-center gap-2 text-blue-600">
               <Shield className="h-5 w-5" />
               <span>Cartas "Sair da Prisão"</span>
@@ -150,8 +150,8 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
       )}
 
       <Separator />
-      <div className="p-4">
-        <div className="flex items-center gap-2 font-semibold mb-2">
+      <div className="p-3">
+        <div className="flex items-center gap-2 font-semibold mb-2 text-sm">
           <Landmark className="h-5 w-5 text-muted-foreground" />
           <span>Propriedades ({player.properties.length})</span>
         </div>
@@ -165,8 +165,8 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
               {Object.entries(groupedProperties).map(([color, props]) => (
                 <div key={color}>
                   <div className="flex items-center gap-2 mb-2">
-                     <div className={cn("w-3 h-6 rounded-sm", propertyColorClasses[color])}></div>
-                     <h3 className="font-semibold capitalize">{props[0].color}</h3>
+                     <div className={cn("w-3 h-5 rounded-sm", propertyColorClasses[color])}></div>
+                     <h3 className="font-semibold capitalize text-sm">{props[0].color}</h3>
                      {ownedColorSets[color] && <Badge>Conjunto</Badge>}
                   </div>
                   <div className="space-y-2 pl-5">
@@ -179,7 +179,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
                         const canUnmortgage = isMortgaged && player.money >= (prop.price / 2 * 1.1);
 
                         return (
-                            <div key={prop.id} className={cn("flex items-center justify-between p-2 rounded-md", isMortgaged ? "bg-destructive/10" : "bg-muted/50")}>
+                            <div key={prop.id} className={cn("flex items-center justify-between p-2 rounded-md text-sm", isMortgaged ? "bg-destructive/10" : "bg-muted/50")}>
                                 <div className="flex-1">
                                     <p className="font-medium">{prop.name}</p>
                                     <div className="flex items-center gap-1 mt-1">
@@ -291,7 +291,7 @@ function EventLog({ log }: { log: GameLog[] }) {
                 <div className="space-y-3">
                     {log.map((entry, index) => (
                         <div key={index} className="flex items-start gap-3 text-sm">
-                            <div className="text-muted-foreground pt-0.5">
+                            <div className="text-muted-foreground pt-0.5 text-xs">
                                 {formatDistanceToNow(entry.timestamp, { addSuffix: true, locale: ptBR })}
                             </div>
                             <p className="flex-1">{entry.message}</p>
@@ -320,16 +320,16 @@ export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions 
       <Tabs defaultValue="assets">
         <CardHeader className="p-2">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="assets" className="h-auto">
+            <TabsTrigger value="assets" className="h-auto py-1.5 text-xs">
               <Landmark className="h-4 w-4 mb-1" /> Ativos
             </TabsTrigger>
-            <TabsTrigger value="players" className="h-auto">
+            <TabsTrigger value="players" className="h-auto py-1.5 text-xs">
               <Users className="h-4 w-4 mb-1" /> Jogadores
             </TabsTrigger>
-            <TabsTrigger value="chat" className="h-auto">
+            <TabsTrigger value="chat" className="h-auto py-1.5 text-xs">
               <MessageCircle className="h-4 w-4 mb-1" /> Chat
             </TabsTrigger>
-            <TabsTrigger value="log" className="h-auto">
+            <TabsTrigger value="log" className="h-auto py-1.5 text-xs">
               <ClipboardList className="h-4 w-4 mb-1" /> Eventos
             </TabsTrigger>
           </TabsList>

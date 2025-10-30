@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc, getDocs, writeBatch, or } from 'firebase/firestore';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -31,10 +31,17 @@ export default function MultiplayerLobbyPage() {
   const { user } = useUser();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Updated query to fetch 'waiting' and 'rolling-to-start' games
   const gamesQuery = useMemoFirebase(
     () =>
       firestore
-        ? query(collection(firestore, 'games'), where('status', '==', 'waiting'))
+        ? query(
+            collection(firestore, 'games'),
+            or(
+              where('status', '==', 'waiting'),
+              where('status', '==', 'rolling-to-start')
+            )
+          )
         : null,
     [firestore]
   );
@@ -61,29 +68,28 @@ export default function MultiplayerLobbyPage() {
     try {
         const batch = writeBatch(firestore);
 
-        // 1. Delete players in subcollection
+        // Delete players subcollection
         const playersRef = collection(firestore, 'games', gameId, 'players');
         const playersSnapshot = await getDocs(playersRef);
         playersSnapshot.forEach((playerDoc) => {
             batch.delete(playerDoc.ref);
         });
 
-        // 2. Delete rolls-to-start in subcollection
+        // Delete rolls-to-start subcollection
         const rollsRef = collection(firestore, 'games', gameId, 'rolls-to-start');
         const rollsSnapshot = await getDocs(rollsRef);
         rollsSnapshot.forEach((rollDoc) => {
             batch.delete(rollDoc.ref);
         });
 
-        // 3. Delete the game document itself
+        // Delete the game document itself
         const gameRef = doc(firestore, 'games', gameId);
         batch.delete(gameRef);
 
-        // 4. Commit the batch
         await batch.commit();
         
-        // Data will refresh automatically due to useCollection, but we can force it
-        handleRefresh();
+        // Optimistically remove the game from the local state
+        setOngoingGames(prev => prev?.filter(g => g.id !== gameId) || null);
     } catch (error) {
         console.error("Error deleting game and its subcollections:", error);
         // TODO: Add error toast
@@ -137,7 +143,7 @@ export default function MultiplayerLobbyPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button asChild variant="secondary">
+                    <Button asChild variant="secondary" disabled={game.status !== 'waiting'}>
                       <Link href={`/character-selection?gameId=${game.id}&gameName=${encodeURIComponent(game.name)}`}>
                         Entrar
                       </Link>
@@ -153,7 +159,7 @@ export default function MultiplayerLobbyPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta ação não pode ser desfeita. Isso excluirá permanentemente a sala de jogo.
+                              Esta ação não pode ser desfeita. Isso excluirá permanentemente a sala de jogo e todos os seus dados.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

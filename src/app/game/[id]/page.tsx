@@ -183,7 +183,7 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={handleDebugMove} houses={ 'id' in space ? houses[space.id] : undefined}>
+                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick} houses={ 'id' in space ? houses[space.id] : undefined}>
                          <>
                             {players.filter(p => p.position === index).map(p => (
                                 <PlayerToken key={p.id} player={p} size={10}/>

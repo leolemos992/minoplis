@@ -6,7 +6,7 @@ import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/gam
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel, Landmark, ShowerHead } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel, Landmark, ShowerHead, TreasureChest } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -40,8 +40,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'jail': return <Landmark className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
-        case 'community-chest': return <ShieldAlert className={cn(size, "text-red-600")} />;
-        case 'chance': return <ShieldCheck className={cn(size, "text-green-600")} />;
+        case 'community-chest': return <TreasureChest className={cn(size, "text-yellow-600")} />;
+        case 'chance': return <HelpCircle className={cn(size, "text-blue-600")} />;
         case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
         case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
         case 'railroad': return <Train className={size} />
@@ -143,14 +143,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
-        "space-18 center   center   center   center   center   center   center   center   center   space-32"
-        "space-17 center   center   center   center   center   center   center   center   center   space-33"
-        "space-16 center   center   center   center   center   center   center   center   center   space-34"
-        "space-15 center   center   center   center   center   center   center   center   center   space-35"
-        "space-14 center   center   center   center   center   center   center   center   center   space-36"
-        "space-13 center   center   center   center   center   center   center   center   center   space-37"
-        "space-12 center   center   center   center   center   center   center   center   center   space-38"
-        "space-11 center   center   center   center   center   center   center   center   center   space-39"
+        "space-18 center   center   center   center   center   center   center   center   center   center   space-32"
+        "space-17 center   center   center   center   center   center   center   center   center   center   space-33"
+        "space-16 center   center   center   center   center   center   center   center   center   center   space-34"
+        "space-15 center   center   center   center   center   center   center   center   center   center   space-35"
+        "space-14 center   center   center   center   center   center   center   center   center   center   space-36"
+        "space-13 center   center   center   center   center   center   center   center   center   center   space-37"
+        "space-12 center   center   center   center   center   center   center   center   center   center   space-38"
+        "space-11 center   center   center   center   center   center   center   center   center   center   space-39"
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
 
@@ -166,24 +166,24 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
             >
                 <div className="bg-muted flex items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
                     <motion.div
-                        className="absolute w-[40%] h-[25%] bg-green-200 border-2 border-green-800 rounded-lg flex items-center justify-center -rotate-12 top-[20%] left-[10%]"
+                        className="absolute w-[40%] h-[25%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[20%] left-[10%]"
                         animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
-                        <ShieldCheck className="h-1/2 w-1/2 text-green-800 opacity-60" />
+                        <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[40%] h-[25%] bg-red-200 border-2 border-red-800 rounded-lg flex items-center justify-center rotate-12 bottom-[20%] right-[10%]"
+                        className="absolute w-[40%] h-[25%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[20%] right-[10%]"
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
-                        <ShieldAlert className="h-1/2 w-1/2 text-red-800 opacity-60" />
+                        <TreasureChest className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
                     </motion.div>
 
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick} houses={ 'id' in space ? houses[space.id] : undefined}>
+                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={handleDebugMove} houses={ 'id' in space ? houses[space.id] : undefined}>
                          <>
                             {players.filter(p => p.position === index).map(p => (
                                 <PlayerToken key={p.id} player={p} size={10}/>
@@ -306,7 +306,7 @@ export default function GamePage({
         case 'money':
           newPlayerState.money += action.amount || 0;
           toastInfo = {
-            title: card.type === 'chance' ? 'Sorte!' : 'Azar...',
+            title: card.type === 'chance' ? 'Sorte!' : 'Do Baú...',
             description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
             variant: action.amount! < 0 ? 'destructive' : undefined,
           };
@@ -585,9 +585,9 @@ export default function GamePage({
             {drawnCard && (
                 <>
                     <DialogHeader>
-                        <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-green-600' : 'text-red-600')}>
-                            {drawnCard.type === 'chance' ? <ShieldCheck/> : <ShieldAlert/>}
-                            {drawnCard.type === 'chance' ? 'Carta Sorte!' : 'Carta Azar!'}
+                        <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-blue-600' : 'text-yellow-700')}>
+                            {drawnCard.type === 'chance' ? <HelpCircle/> : <TreasureChest/>}
+                            {drawnCard.type === 'chance' ? 'Sorte!' : 'Baú Comunitário'}
                         </DialogTitle>
                         <DialogDescription className="pt-4 text-lg text-foreground text-center">
                             {drawnCard.description}

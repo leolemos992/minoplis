@@ -24,6 +24,7 @@ import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw } from 'lucide
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 
 export default function MultiplayerLobbyPage() {
   const firestore = useFirestore();

@@ -1,6 +1,7 @@
 
 'use client';
 
+import { use, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { characters, boardSpaces } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
@@ -46,82 +47,76 @@ const getIcon = (space: any, size = "w-8 h-8") => {
 const BoardSpace = ({ space, index }: { space: any, index: number }) => {
     const isProperty = 'price' in space;
     const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative";
+    const rotationClasses: { [key: number]: string } = {
+        // Cantos
+        0: 'justify-start items-start',
+        10: 'justify-start items-end',
+        20: 'justify-end items-start',
+        30: 'justify-end items-end',
+        // Linha de baixo
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 'flex-col justify-end'])),
+        // Linha da esquerda
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, 'flex-row-reverse justify-end'])),
+         // Linha de cima
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 21, 'flex-col-reverse justify-start'])),
+        // Linha da direita
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'flex-row justify-end'])),
+    };
+    const textRotation: { [key: number]: string } = {
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, '-rotate-90'])),
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'rotate-90'])),
+    }
+
+    const cornerTextRotation: { [key: number]: string } = {
+        0: 'rotate-[135deg]',
+        10: 'rotate-[225deg]',
+        20: 'rotate-[-45deg]',
+        30: 'rotate-[45deg]',
+    }
+
+    const content = (
+        <>
+            {isProperty && (space.type === 'property' || space.type === 'railroad') && (
+                 <div className={cn(
+                    "absolute",
+                    index > 0 && index < 10 && "top-0 h-5 w-full", // bottom row
+                    index > 10 && index < 20 && "right-0 w-5 h-full", // left row
+                    index > 20 && index < 30 && "bottom-0 h-5 w-full", // top row
+                    index > 30 && index < 40 && "left-0 w-5 h-full", // right row
+                    colorClasses[(space as Property).color]
+                )} />
+            )}
+            <div className={cn(
+                "relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full",
+                textRotation[index]
+            )}>
+                 {getIcon(space, "w-6 h-6")}
+                <span className="font-bold px-1 leading-tight">{space.name}</span>
+                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
+                {'ruler' in space && (
+                    <span className="text-[8px] italic mt-0.5">({(space as any).ruler})</span>
+                )}
+            </div>
+        </>
+    );
 
     // Corners
     if ([0, 10, 20, 30].includes(index)) {
-         const rotation: { [key: number]: string } = {
-            0: 'rotate-[135deg]',
-            10: 'rotate-[225deg]',
-            20: 'rotate-[-45deg]',
-            30: 'rotate-[45deg]',
-        }
         return (
             <div className={cn(baseClasses, "z-10")} style={{ gridArea: `space-${index}` }}>
-                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[index] )}>
+                 <div className={cn("flex flex-col items-center justify-center h-full w-full", cornerTextRotation[index] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
             </div>
         )
     }
-    
-    // Top Row (21-29)
-    if (index > 20 && index < 30) {
-       return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-col-reverse")}>
-             {isProperty && <div className={cn("h-5 w-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
-             </div>
-         </div>
-       )
-    }
 
-    // Bottom Row (1-9)
-    if (index > 0 && index < 10) {
-        return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-col")}>
-             {isProperty && <div className={cn("h-5 w-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px]">
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
-             </div>
+    return (
+         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])}>
+            {content}
          </div>
-       )
-    }
-
-    // Left Row (11-19)
-    if (index > 10 && index < 20) {
-        return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row-reverse")}>
-             {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] -rotate-90">
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight block">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
-             </div>
-         </div>
-       )
-    }
-
-    // Right Row (31-39)
-    if (index > 30 && index < 40) {
-         return (
-         <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, "flex-row")}>
-             {isProperty && <div className={cn("w-5 h-full", colorClasses[(space as Property).color])} />}
-             <div className="flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] rotate-90">
-                {getIcon(space, "w-6 h-6")}
-                <span className="font-bold px-1 leading-tight block">{space.name}</span>
-                {isProperty && <span className="font-normal mt-1">R${(space as Property).price}</span>}
-             </div>
-         </div>
-       )
-    }
-
-    return null;
+    )
 };
 
 const GameBoard = () => {
@@ -149,7 +144,7 @@ const GameBoard = () => {
                     gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr',
                 }}
             >
-                <div className="bg-muted flex items-center justify-center" style={{ gridArea: 'center'}}>
+                <div className="bg-muted flex items-center justify-center border-black border-[1.5px]" style={{ gridArea: 'center'}}>
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
@@ -199,3 +194,5 @@ export default function GamePage({
     </div>
   );
 }
+
+    

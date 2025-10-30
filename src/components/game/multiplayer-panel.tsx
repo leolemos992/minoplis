@@ -11,7 +11,6 @@ import {
 import {
   Card,
   CardContent,
-  CardHeader,
 } from '@/components/ui/card';
 import {
   Wallet,
@@ -31,7 +30,7 @@ import { totems, boardSpaces } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Avatar } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -252,30 +251,52 @@ function PlayerList({ allPlayers, currentPlayerId }: { allPlayers: Player[], cur
     )
 }
 
-function GameChat() {
+function GameChat({ allPlayers }: { allPlayers: Player[] }) {
+    const aiPlayer = allPlayers.find(p => p.id === 'player-2');
+    const humanPlayer = allPlayers.find(p => p.id === 'player-1');
+
+    const ChatAvatar = ({ player }: { player?: Player }) => {
+        if (!player) return null;
+        const totemData = totems.find(t => t.id === player.totem);
+        const TotemIcon = totemData?.icon;
+        const color = playerColors[player.color] || playerColors.blue;
+        return (
+            <Avatar className={cn("h-8 w-8", color.bg)}>
+                {TotemIcon && <TotemIcon className="h-5 w-5 text-white" />}
+            </Avatar>
+        )
+    }
+
      return (
         <CardContent className="flex flex-col h-96">
            <ScrollArea className="flex-1 mb-4">
-                <div className="space-y-4 text-sm">
-                    {/* Placeholder chat messages */}
-                    <div className="flex items-start gap-2">
-                        <Avatar className="h-8 w-8 bg-red-500">
-                             <div className="text-white font-bold">IA</div>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">IA-Bot</p>
-                            <p className="p-2 rounded-md bg-muted">Boa sorte! Que vença o melhor.</p>
+                <div className="space-y-4 text-xs pr-2">
+                    {aiPlayer && (
+                        <div className="flex items-start gap-2.5">
+                            <ChatAvatar player={aiPlayer} />
+                            <div className="flex flex-col gap-1 w-full max-w-[320px]">
+                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                    <span className="font-semibold text-gray-900 dark:text-white">{aiPlayer.name}</span>
+                                </div>
+                                <div className="leading-snug p-2 rounded-e-lg rounded-es-lg bg-muted">
+                                    <p>Boa sorte! Que vença o melhor.</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                     <div className="flex items-start gap-2 flex-row-reverse">
-                        <Avatar className="h-8 w-8 bg-blue-500">
-                             <div className="text-white font-bold">J</div>
-                        </Avatar>
-                        <div className="text-right">
-                            <p className="font-semibold">Você</p>
-                            <p className="p-2 rounded-md bg-primary text-primary-foreground">Para você também!</p>
+                    )}
+                     {humanPlayer && (
+                        <div className="flex items-start gap-2.5 justify-end">
+                            <div className="flex flex-col gap-1 w-full max-w-[320px] items-end">
+                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                    <span className="font-semibold text-gray-900 dark:text-white">Você</span>
+                                </div>
+                                <div className="leading-snug p-2 rounded-s-lg rounded-ee-lg bg-primary text-primary-foreground">
+                                   <p>Para você também!</p>
+                                </div>
+                            </div>
+                             <ChatAvatar player={humanPlayer} />
                         </div>
-                    </div>
+                    )}
                 </div>
            </ScrollArea>
            <div className="flex gap-2">
@@ -359,7 +380,7 @@ export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog,
             <PlayerList allPlayers={allPlayers} currentPlayerId={currentPlayerId} />
         </TabsContent>
         <TabsContent value="chat">
-            <GameChat />
+            <GameChat allPlayers={allPlayers} />
         </TabsContent>
         <TabsContent value="log">
             <EventLog log={gameLog} />
@@ -368,5 +389,3 @@ export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog,
     </Card>
   );
 }
-
-    

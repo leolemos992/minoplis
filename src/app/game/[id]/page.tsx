@@ -5,10 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
-import { PlayerHud } from '@/components/game/player-hud';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -18,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { GameControls } from '@/components/game/game-controls';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { motion } from 'framer-motion';
+import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -242,8 +242,14 @@ export default function GamePage({
   const [chanceDeck, setChanceDeck] = useState<GameCard[]>([]);
   const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
   
+  const [gameLog, setGameLog] = useState<GameLog[]>([]);
+
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
   const player = players[currentPlayerIndex];
+
+  const addLog = useCallback((message: string) => {
+    setGameLog(prev => [{ message, timestamp: new Date() }, ...prev]);
+  }, []);
 
   // Initialize players and decks on game start
   useEffect(() => {
@@ -280,30 +286,37 @@ export default function GamePage({
         inJail: false,
     };
     setPlayers([initialPlayer, opponent]);
-  }, [playerName, totemId, colorId]);
+    addLog(`O jogo ${gameName} começou!`);
+  }, [playerName, totemId, colorId, gameName, addLog]);
 
 
   const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Player)) => {
     setPlayers(prevPlayers => prevPlayers.map(p => {
         if (p.id === playerId) {
-            return typeof updates === 'function' ? updates(p) : { ...p, ...updates };
+            const updatedPlayer = typeof updates === 'function' ? updates(p) : { ...p, ...updates };
+            return updatedPlayer;
         }
         return p;
     }));
   }, []);
 
   const goToJail = useCallback((playerId: string) => {
-    updatePlayer(playerId, { position: JAIL_POSITION, inJail: true });
+    updatePlayer(playerId, (p) => {
+        addLog(`${p.name} foi para a prisão.`);
+        return { position: JAIL_POSITION, inJail: true };
+    });
     toast({
         variant: "destructive",
         title: "Encrenca!",
         description: "Você foi para a prisão!"
     });
-  }, [JAIL_POSITION, toast, updatePlayer]);
+  }, [JAIL_POSITION, toast, updatePlayer, addLog]);
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
     if (!space || !player) return;
+
+    addLog(`${player.name} parou em ${space.name}.`);
 
     if (space.type === 'jail' && !player.inJail) {
         toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
@@ -319,6 +332,7 @@ export default function GamePage({
             // Pay rent
             if (owner.mortgagedProperties.includes(property.id)) {
                  toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então você não paga aluguel.` });
+                 addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
                  return;
             }
 
@@ -338,11 +352,13 @@ export default function GamePage({
             if(rentAmount > 0) {
                  if (player.money < rentAmount) {
                     toast({ variant: 'destructive', title: 'Falência!', description: `Você não tem dinheiro para pagar R$${rentAmount} a ${owner.name}.` });
+                    addLog(`${player.name} faliu ao tentar pagar R$${rentAmount} a ${owner.name}.`);
                     // Handle bankruptcy logic here
                 } else {
                     updatePlayer(player.id, p => ({ ...p, money: p.money - rentAmount }));
                     updatePlayer(owner.id, p => ({ ...p, money: p.money + rentAmount }));
                     toast({ variant: 'destructive', title: `Aluguel!`, description: `Você pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
+                    addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
                 }
             }
 
@@ -363,6 +379,7 @@ export default function GamePage({
                 setCommunityChestDeck([...rest, card]); // Move card to bottom
             }
             setDrawnCard(card);
+            addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
             setAnimateCardPile(null);
         }, 500);
 
@@ -370,14 +387,16 @@ export default function GamePage({
         const taxAmount = Math.floor(player.money * 0.1);
         updatePlayer(player.id, p => ({...p, money: p.money - taxAmount}));
         toast({ variant: "destructive", title: "Imposto!", description: `Você pagou R$${taxAmount} de Imposto de Renda (10% do seu dinheiro).` });
+        addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
     } else if (space.type === 'luxury-tax') {
         updatePlayer(player.id, p => ({...p, money: p.money - 100}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Taxa das Blusinhas." });
+        addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
     }
 
-  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll]);
+  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
@@ -409,8 +428,10 @@ export default function GamePage({
           if (newPosition !== -1) {
               if (action.collectGo && newPosition < newPlayerState.position) {
                   newPlayerState.money += 200;
-                  // This toast is queued and shown after the state update cycle
-                  setTimeout(() => toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' }), 0);
+                  setTimeout(() => {
+                      toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
+                      addLog(`${newPlayerState.name} coletou R$200 por passar pelo Início.`);
+                  }, 0);
               }
               newPlayerState.position = newPosition;
               postAction = () => handleLandedOnSpace(newPosition, true);
@@ -442,6 +463,7 @@ export default function GamePage({
                 title: 'Manutenção!',
                 description: `Você pagou R$${repairCost.toLocaleString()} em reparos.`,
             };
+            addLog(`${newPlayerState.name} pagou R$${repairCost} em reparos.`);
             break;
         default:
           break;
@@ -450,7 +472,7 @@ export default function GamePage({
     });
 
     return { toastInfo, postAction };
-  }, [player, JAIL_POSITION, handleLandedOnSpace, toast, updatePlayer]);
+  }, [player, JAIL_POSITION, handleLandedOnSpace, toast, updatePlayer, addLog]);
 
   useEffect(() => {
     if (!cardToExecute) return;
@@ -471,11 +493,13 @@ export default function GamePage({
   const handleDiceRoll = (dice1: number, dice2: number) => {
     if (!player) return;
     setLastDiceRoll([dice1, dice2]);
+    addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
 
     if (player.inJail) {
         if (dice1 === dice2) {
             updatePlayer(player.id, { inJail: false });
             toast({ title: "Sorte!", description: "Você rolou dados duplos e saiu da prisão!" });
+            addLog(`${player.name} saiu da prisão rolando dados duplos.`);
         } else {
             toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
         }
@@ -499,6 +523,7 @@ export default function GamePage({
                 title: "Você passou pelo início!",
                 description: `Você coletou R$200.`,
             });
+            addLog(`${player.name} passou pelo início e coletou R$200.`);
         }
         return updatedPlayer;
     });
@@ -519,6 +544,7 @@ export default function GamePage({
         title: "Propriedade Comprada!",
         description: `Você comprou ${property.name}.`,
       });
+      addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
       setSelectedSpace(null);
     } else {
         toast({
@@ -538,6 +564,7 @@ export default function GamePage({
             title: "Você pagou a fiança!",
             description: "Você está livre da prisão."
         });
+        addLog(`${player.name} pagou R$50 de fiança e saiu da prisão.`);
     } else if (player.inJail) {
          toast({
             variant: "destructive",
@@ -594,6 +621,9 @@ export default function GamePage({
       }
       const newHouses = currentHouses + amount;
       
+      const logMessage = `Você construiu ${amount > 0 ? 'uma casa' : 'um hotel'} em ${property.name}.`;
+      addLog(logMessage);
+
       return {
         ...p,
         money: p.money - cost,
@@ -632,6 +662,8 @@ export default function GamePage({
         newHousesState[propertyId] = newHouses;
       }
       
+      addLog(`${p.name} vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`);
+
       return {
         ...p,
         money: p.money + saleValue,
@@ -651,11 +683,14 @@ export default function GamePage({
     if (!property) return;
     
     const mortgageValue = property.price / 2;
-    updatePlayer(player.id, p => ({
-        ...p,
-        money: p.money + mortgageValue,
-        mortgagedProperties: [...p.mortgagedProperties, propertyId]
-    }));
+    updatePlayer(player.id, p => {
+        addLog(`${p.name} hipotecou ${property.name} por R$${mortgageValue}.`);
+        return {
+            ...p,
+            money: p.money + mortgageValue,
+            mortgagedProperties: [...p.mortgagedProperties, propertyId]
+        }
+    });
 
     toast({
         title: "Propriedade Hipotecada!",
@@ -678,11 +713,14 @@ export default function GamePage({
         return;
     }
 
-    updatePlayer(player.id, p => ({
-        ...p,
-        money: p.money - unmortgageCost,
-        mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
-    }));
+    updatePlayer(player.id, p => {
+        addLog(`${p.name} pagou a hipoteca de ${property.name}.`);
+        return {
+            ...p,
+            money: p.money - unmortgageCost,
+            mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
+        }
+    });
      toast({
         title: "Hipoteca Paga!",
         description: `Você pagou a hipoteca de ${property.name}.`
@@ -710,7 +748,15 @@ export default function GamePage({
           />
         </div>
         <aside className="lg:col-span-1 space-y-8">
-          <PlayerHud player={player} />
+          <MultiplayerPanel
+            player={player}
+            allPlayers={allPlayers}
+            gameLog={gameLog}
+            onBuild={handleBuild}
+            onSell={handleSell}
+            onMortgage={handleMortgage}
+            onUnmortgage={handleUnmortgage}
+          />
           <GameActions 
             onDiceRoll={handleDiceRoll} 
             isPlayerInJail={player.inJail}
@@ -757,18 +803,6 @@ export default function GamePage({
             )}
         </DialogContent>
       </Dialog>
-
-      <ManagePropertiesDialog
-        isOpen={isManageOpen}
-        onOpenChange={setManageOpen}
-        player={player}
-        onBuild={handleBuild}
-        onSell={handleSell}
-        onMortgage={handleMortgage}
-        onUnmortgage={handleUnmortgage}
-      />
     </>
   );
 }
-
-    

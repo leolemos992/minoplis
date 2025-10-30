@@ -53,3 +53,8 @@ export type GameCard = {
     perHotel?: number;
   };
 };
+
+export type GameLog = {
+  message: string;
+  timestamp: Date;
+}

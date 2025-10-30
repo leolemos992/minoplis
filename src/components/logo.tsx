@@ -13,7 +13,7 @@ export function Logo({ className }: { className?: string }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="mr-2 h-6 w-6 text-accent"
+        className="mr-2 h-6 w-6 text-primary"
       >
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
         <path d="M2 17l10 5 10-5" />

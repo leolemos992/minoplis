@@ -143,14 +143,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
-        "space-18 center   center   center   center   center   center   center   center   center   center   space-32"
-        "space-17 center   center   center   center   center   center   center   center   center   center   space-33"
-        "space-16 center   center   center   center   center   center   center   center   center   center   space-34"
-        "space-15 center   center   center   center   center   center   center   center   center   center   space-35"
-        "space-14 center   center   center   center   center   center   center   center   center   center   space-36"
-        "space-13 center   center   center   center   center   center   center   center   center   center   space-37"
-        "space-12 center   center   center   center   center   center   center   center   center   center   space-38"
-        "space-11 center   center   center   center   center   center   center   center   center   center   space-39"
+        "space-18 center   center   center   center   center   center   center   center   center   space-32"
+        "space-17 center   center   center   center   center   center   center   center   center   space-33"
+        "space-16 center   center   center   center   center   center   center   center   center   space-34"
+        "space-15 center   center   center   center   center   center   center   center   center   space-35"
+        "space-14 center   center   center   center   center   center   center   center   center   space-36"
+        "space-13 center   center   center   center   center   center   center   center   center   space-37"
+        "space-12 center   center   center   center   center   center   center   center   center   space-38"
+        "space-11 center   center   center   center   center   center   center   center   center   space-39"
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
 
@@ -294,22 +294,21 @@ export default function GamePage({
 
   }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck]);
   
-  useEffect(() => {
-    if (!cardToExecute) return;
-    
-    let postAction: (() => void) | null = null;
+  const applyCardAction = useCallback((card: GameCard) => {
     let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
+    let postAction: (() => void) | null = null;
   
     setPlayer(prevPlayer => {
       let newPlayerState = { ...prevPlayer };
-      const { action } = cardToExecute;
+      const { action } = card;
   
       switch (action.type) {
         case 'money':
           newPlayerState.money += action.amount || 0;
           toastInfo = {
-            title: cardToExecute.type === 'chance' ? 'Sorte!' : 'Azar...',
+            title: card.type === 'chance' ? 'Sorte!' : 'Azar...',
             description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
+            variant: action.amount! < 0 ? 'destructive' : undefined,
           };
           break;
         case 'move_to':
@@ -323,8 +322,8 @@ export default function GamePage({
           if (newPosition !== -1) {
               if (action.collectGo && newPosition < newPlayerState.position) {
                   newPlayerState.money += 200;
-                  // This toast is safe because it's outside the main render path
-                  toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
+                  // This toast is queued and shown after the state update cycle
+                  setTimeout(() => toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' }), 0);
               }
               newPlayerState.position = newPosition;
               postAction = () => handleLandedOnSpace(newPosition, true);
@@ -363,14 +362,23 @@ export default function GamePage({
       return newPlayerState;
     });
 
+    return { toastInfo, postAction };
+  }, [JAIL_POSITION, handleLandedOnSpace, toast]);
+
+  useEffect(() => {
+    if (!cardToExecute) return;
+  
+    const { toastInfo, postAction } = applyCardAction(cardToExecute);
+  
     if (toastInfo) {
-        toast(toastInfo);
+      setTimeout(() => toast(toastInfo), 0);
     }
     if (postAction) {
-        postAction();
+      setTimeout(postAction, 0);
     }
+  
     setCardToExecute(null);
-  }, [cardToExecute, JAIL_POSITION, handleLandedOnSpace, toast]);
+  }, [cardToExecute, applyCardAction, toast]);
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {

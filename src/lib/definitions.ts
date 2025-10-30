@@ -58,3 +58,12 @@ export type GameLog = {
   message: string;
   timestamp: Date;
 }
+
+export type TradeOffer = {
+  fromId: string;
+  toId: string;
+  propertiesFrom: string[];
+  propertiesTo: string[];
+  moneyFrom: number;
+  moneyTo: number;
+};

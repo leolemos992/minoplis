@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, GameLog } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog, TradeOffer } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
+import { TradeDialog } from '@/components/game/trade-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 
@@ -243,6 +244,7 @@ export default function GamePage({
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
+  const [isTradeOpen, setTradeOpen] = useState(false);
   const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
   const [lastDiceRoll, setLastDiceRoll] = useState<[number, number]>([1, 1]);
   
@@ -810,6 +812,36 @@ export default function GamePage({
         description: `Você pagou a hipoteca de ${property.name}.`
     });
   };
+
+  const handleProposeTrade = (offer: TradeOffer) => {
+    const fromPlayer = players.find(p => p.id === offer.fromId);
+    const toPlayer = players.find(p => p.id === offer.toId);
+    if (!fromPlayer || !toPlayer) return;
+
+    // Simple AI logic for now
+    if (toPlayer.id.startsWith('player-2')) {
+        const valueToAI = offer.propertiesTo.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyTo;
+        const valueFromAI = offer.propertiesFrom.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyFrom;
+
+        if (valueToAI > valueFromAI * 1.2) { // AI wants a good deal
+            // Accept trade
+            updatePlayer(fromPlayer.id, p => ({
+                money: p.money + offer.moneyFrom - offer.moneyTo,
+                properties: [...p.properties.filter(id => !offer.propertiesTo.includes(id)), ...offer.propertiesFrom],
+            }));
+            updatePlayer(toPlayer.id, p => ({
+                money: p.money + offer.moneyTo - offer.moneyFrom,
+                properties: [...p.properties.filter(id => !offer.propertiesFrom.includes(id)), ...offer.propertiesTo],
+            }));
+            toast({ title: 'Troca Aceita!', description: `${toPlayer.name} aceitou sua proposta.`});
+            addLog(`${fromPlayer.name} e ${toPlayer.name} realizaram uma troca.`);
+        } else {
+             toast({ variant: 'destructive', title: 'Troca Recusada', description: `${toPlayer.name} recusou sua proposta.`});
+             addLog(`${toPlayer.name} recusou uma proposta de troca de ${fromPlayer.name}.`);
+        }
+    }
+    setTradeOpen(false);
+  };
   
     const handleAiLogic = () => {
     if (!player || !player.id.startsWith('player-2')) return;
@@ -903,6 +935,7 @@ export default function GamePage({
                 onPayBail={handlePayBail}
                 canPayBail={player?.money >= 50}
                 onManageProperties={() => setManageOpen(true)}
+                onTrade={() => setTradeOpen(true)}
                 playerHasProperties={humanPlayer?.properties.length > 0}
                 isTurnActive={isMyTurn}
                 hasRolled={hasRolled}
@@ -1002,6 +1035,14 @@ export default function GamePage({
         onSell={handleSell}
         onMortgage={handleMortgage}
         onUnmortgage={handleUnmortgage}
+      />
+      
+      <TradeDialog
+        isOpen={isTradeOpen}
+        onOpenChange={setTradeOpen}
+        player={humanPlayer}
+        otherPlayers={allPlayers.filter(p => p.id !== humanPlayer.id)}
+        onProposeTrade={handleProposeTrade}
       />
     </>
   );

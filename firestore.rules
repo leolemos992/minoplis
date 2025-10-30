@@ -1,107 +1,87 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a game-based authorization model for Localopoly.
+ * @description This ruleset enforces a role-based security model for the Localopoly application.
  *
  * Data Structure:
  * - /games/{gameId}: Represents a single game session.
- *   - /games/{gameId}/players/{playerId}: Represents a player within the game.
+ *   - /players/{playerId}: Represents a player within a game.
  *
  * Key Security Decisions:
- * - Any authenticated user can list and read games.
- * - Only the player or the host can modify player data.
- * - Data validation is relaxed to allow for rapid prototyping. Only authorization-related fields are validated.
- * - Listing of player subcollections is restricted to the game host only.
+ * - Games are publicly readable, but only the host can modify them.
+ * - Players can only modify their own data within a game.
+ * - Listing players within a game is restricted to authenticated users.
  *
  * Denormalization for Authorization:
- * - The 'hostId' field on the /games/{gameId} document is used for authorization, avoiding the need for separate lookups.
+ * - The `hostId` field is used on the `/games/{gameId}` document to easily authorize host-only operations.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to the /games collection. Games are publicly readable, but only the host can modify the game and players can modify their player data.
+     * @description Rules for the /games collection. Games are publicly readable, but only the host can modify them.
      * @path /games/{gameId}
-     * @allow (get, list): Any authenticated user can read any game.
-     * @allow (create): The user creating the game must be authenticated and set the hostId to their own UID.
-     * @allow (update, delete): Only the host (creator) of the game can update or delete it.
-     * @deny (create): If the hostId does not match the authenticated user's UID.
-     * @deny (update, delete): If the request is not made by the host of the game.
-     * @principle Allows public read access to game data while restricting write access to game data. Enforces data integrity by validating the hostId on creation.
+     * @allow get, list: Any authenticated user can read game data.
+     * @allow create: Only authenticated users can create games, and the hostId must match their UID.
+     * @allow update, delete: Only the host of the game can update or delete it.
+     * @deny create: A user cannot create a game with a hostId that doesn't match their own UID.
+     * @deny update, delete: A non-host user cannot update or delete a game.
+     * @principle Enforces public read access with owner-only writes for game management.
      */
     match /games/{gameId} {
-      // Anyone can read or list games
       allow get, list: if true;
-
-      // Only the host can create the game, and the hostId must match their UID
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-
-      // Only the host can update or delete the game
-      allow update, delete: if isSignedIn() && isGameHost(gameId);
-
-      /**
-       * @description Controls access to the /players subcollection within a game. Players can only modify their own data. The game host can list all players.
-       * @path /games/{gameId}/players/{playerId}
-       * @allow (get): Any authenticated user can read any player's data within a game.
-       * @allow (list): Only the host of the game can list players.
-       * @allow (create): Creating a player document is disallowed. Players are automatically added to the game.
-       * @allow (update): Only the player themselves can update their data.
-       * @allow (delete): Deleting a player is disallowed. Players can only leave the game, not be deleted.
-       * @deny (create, delete): Players can only be added and removed via game logic.
-       * @deny (update): If the request is not made by the player themselves.
-       * @principle Enforces player-ownership for modifying player data within a game. The game host can list all players.
-       */
-      match /players/{playerId} {
-        // Anyone signed in can get player data
-        allow get: if isSignedIn();
-
-        // Only the host of the game can list players
-        allow list: if isSignedIn() && isGameHost(gameId);
-
-        // Players cannot be created or deleted directly
-        allow create, delete: if false;
-
-        // Only the player can update their own data
-        allow update: if isSignedIn() && isOwner(playerId);
-      }
+      allow update, delete: if isExistingHost(gameId);
     }
-  }
-
-  // --- Helper functions ---
-
-  /**
-   * @description Checks if the user is signed in.
-   * @return {bool} True if the user is signed in, false otherwise.
-   */
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  /**
-   * @description Checks if the user is the owner of the resource.
-   * @param {string} userId The user ID to compare against the request's auth UID.
-   * @return {bool} True if the user is the owner, false otherwise.
-   */
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  /**
-   * @description Checks if the user is the owner of the resource and the resource exists.
-   * @param {string} resourceId The resource ID to compare against the request's auth UID.
-   * @param {string} ownerId The owner id of the resource.
-   * @return {bool} True if the user is the owner and the resource exists, false otherwise.
-   */
-  //function isExistingOwner(resourceId, ownerId) {
-  //  return isOwner(ownerId) && resource != null;
-  //}
 
     /**
-   * @description Checks if the current user is the host of the game.
-   * @param {string} gameId The ID of the game.
-   * @return {bool} True if the user is the host, false otherwise.
-   */
-  function isGameHost(gameId) {
-    return get(/databases/$(database)/documents/games/$(gameId)).data.hostId == request.auth.uid;
+     * @description Rules for the /games/{gameId}/players collection. Only the player or the host can modify player data.
+     * @path /games/{gameId}/players/{playerId}
+     * @allow get: Any authenticated user can read player data within a game.
+     * @allow list: Any authenticated user can list players within a game.
+     * @allow create: Only authenticated users can create player documents where the userId matches their UID.
+     * @allow update, delete: Only the player or the host of the game can update or delete player data.
+     * @deny create: A user cannot create a player with a userId that doesn't match their own UID.
+     * @deny update, delete: A non-player/non-host user cannot update or delete player data.
+     * @principle Enforces document ownership and shared access for player management.
+     */
+    match /games/{gameId}/players/{playerId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (isOwner(playerId) || isExistingHost(gameId));
+    }
+
+    // ---- Helper functions ----
+
+    /**
+     * @description Checks if the user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @param {string} userId - The user ID to compare against.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is the host of the game.
+     * @param {string} gameId - The ID of the game.
+     */
+    function isHost(gameId) {
+      return get(/databases/$(database)/documents/games/$(gameId)).data.hostId == request.auth.uid;
+    }
+
+      /**
+       * @description Checks if the game exists and if the authenticated user is the host.
+       * @param {string} gameId - The ID of the game.
+       */
+    function isExistingHost(gameId) {
+          return isHost(gameId) && resource != null;
+      }
   }
 }

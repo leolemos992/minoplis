@@ -9,6 +9,15 @@ import { Separator } from '@/components/ui/separator';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 
+const playerColors: { [key: string]: { border: string, text: string } } = {
+  red: { border: 'border-red-500', text: 'text-red-500' },
+  blue: { border: 'border-blue-500', text: 'text-blue-500' },
+  green: { border: 'border-green-500', text: 'text-green-500' },
+  yellow: { border: 'border-yellow-500', text: 'text-yellow-500' },
+  purple: { border: 'border-purple-500', text: 'text-purple-500' },
+  orange: { border: 'border-orange-500', text: 'text-orange-500' },
+};
+
 
 interface PlayerHudProps {
     player: Player;
@@ -24,15 +33,15 @@ export function PlayerHud({ player }: PlayerHudProps) {
 
   const totem = totems.find(t => t.id === player.totem);
   const TotemIcon = totem ? totem.icon : null;
-
+  const color = playerColors[player.color] || { border: 'border-gray-500', text: 'text-gray-500' };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-            <Avatar className={cn("h-16 w-16 border-2", player.color)}>
+            <Avatar className={cn("h-16 w-16 border-2", color.border)}>
                 <div className={cn("h-full w-full flex items-center justify-center rounded-full bg-white dark:bg-zinc-800")}>
-                    {TotemIcon && <TotemIcon className="h-8 w-8 text-current" />}
+                    {TotemIcon && <TotemIcon className={cn("h-8 w-8", color.text)} />}
                 </div>
             </Avatar>
             <div>

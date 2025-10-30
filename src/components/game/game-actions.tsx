@@ -6,14 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dices, Handshake, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export function GameActions() {
+interface GameActionsProps {
+  onDiceRoll: (dice1: number, dice2: number) => void;
+}
+
+export function GameActions({ onDiceRoll }: GameActionsProps) {
   const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([0, 0]);
   const [isRolling, setIsRolling] = useState(false);
 
   const rollDice = () => {
     setIsRolling(true);
-    //
   };
 
   useEffect(() => {
@@ -30,6 +33,7 @@ export function GameActions() {
         const d1 = Math.floor(Math.random() * 6) + 1;
         const d2 = Math.floor(Math.random() * 6) + 1;
         setDice([d1, d2]);
+        onDiceRoll(d1, d2);
         toast({
           title: "Você Rolou!",
           description: `Você rolou um ${d1} e um ${d2} para um total de ${d1 + d2}.`,
@@ -41,7 +45,7 @@ export function GameActions() {
         clearTimeout(stopTimeout);
       };
     }
-  }, [isRolling, toast]);
+  }, [isRolling, toast, onDiceRoll]);
   
   return (
     <Card>
@@ -79,19 +83,23 @@ export function GameActions() {
 
 function DiceIcon({ value }: { value: number }) {
     const pips = Array.from({ length: value }, (_, i) => i);
-    const pipClasses = [
-        "row-start-2 col-start-2", // 1
-        "row-start-1 col-start-1", "row-start-3 col-start-3", // 2
-        "row-start-1 col-start-1", "row-start-2 col-start-2", "row-start-3 col-start-3", // 3
-        "row-start-1 col-start-1", "row-start-1 col-start-3", "row-start-3 col-start-1", "row-start-3 col-start-3", // 4
-        "row-start-1 col-start-1", "row-start-1 col-start-3", "row-start-2 col-start-2", "row-start-3 col-start-1", "row-start-3 col-start-3", // 5
-        "row-start-1 col-start-1", "row-start-1 col-start-3", "row-start-2 col-start-1", "row-start-2 col-start-3", "row-start-3 col-start-1", "row-start-3 col-start-3", // 6
-    ]
+    
+    // Grid areas for each pip count
+    const pipPatterns: {[key: number]: string[]} = {
+        1: ["center"],
+        2: ["top-left", "bottom-right"],
+        3: ["top-left", "center", "bottom-right"],
+        4: ["top-left", "top-right", "bottom-left", "bottom-right"],
+        5: ["top-left", "top-right", "center", "bottom-left", "bottom-right"],
+        6: ["top-left", "top-right", "mid-left", "mid-right", "bottom-left", "bottom-right"],
+    };
+
+    const pipGridAreas = pipPatterns[value] || [];
 
     return (
-        <div className="w-10 h-10 rounded-md border-2 bg-white grid grid-cols-3 grid-rows-3 p-1">
-            {pips.map(i => (
-                <div key={i} className={`w-2 h-2 rounded-full bg-black ${pipClasses[i]}`}></div>
+        <div className="w-10 h-10 rounded-md border-2 bg-white grid grid-cols-3 grid-rows-3 p-1 gap-[2px]">
+            {pipGridAreas.map(area => (
+                 <div key={area} className={`w-full h-full rounded-full bg-black`} style={{ gridArea: area }}></div>
             ))}
         </div>
     );

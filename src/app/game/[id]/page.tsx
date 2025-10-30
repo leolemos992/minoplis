@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { characters, boardSpaces, totems } from '@/lib/game-data';
+import { boardSpaces, totems } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Property } from '@/lib/definitions';
+import type { Player, Property } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
+import { PlayerToken } from '@/components/game/player-token';
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -44,7 +45,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, index }: { space: any, index: number }) => {
+const BoardSpace = ({ space, index, children }: { space: any, index: number, children?: React.ReactNode }) => {
     const isProperty = 'price' in space;
     const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative";
     const rotationClasses: { [key: number]: string } = {
@@ -105,6 +106,7 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
+                 {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
             </div>
         )
     }
@@ -112,11 +114,12 @@ const BoardSpace = ({ space, index }: { space: any, index: number }) => {
     return (
          <div style={{ gridArea: `space-${index}`}} className={cn(baseClasses, rotationClasses[index])}>
             {content}
+            {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
          </div>
     )
 };
 
-const GameBoard = () => {
+const GameBoard = ({ players }: { players: Player[] }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -145,7 +148,13 @@ const GameBoard = () => {
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index} />
+                    <BoardSpace key={space.name + index} space={space} index={index}>
+                         <div className="relative w-full h-full flex flex-wrap items-center justify-center gap-1 p-1">
+                            {players.filter(p => p.position === index).map(p => (
+                                <PlayerToken key={p.id} player={p} />
+                            ))}
+                        </div>
+                    </BoardSpace>
                 ))}
             </div>
         </div>
@@ -162,27 +171,39 @@ export default function GamePage({
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
-  const gameName = searchParams.get('gameName') || 'MINOPLIS';
+  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
 
-  const mockPlayer = {
+  const [player, setPlayer] = useState<Player>({
     id: 'player-1',
     name: playerName,
     money: 1500,
     properties: [],
     position: 0,
-    color: `bg-${colorId}-500`,
+    color: colorId,
     totem: totemId,
+  });
+
+  const handleDiceRoll = (dice1: number, dice2: number) => {
+    const total = dice1 + dice2;
+    setPlayer(prevPlayer => {
+        const newPosition = (prevPlayer.position + total) % 40;
+        // Handle passing GO
+        if (newPosition < prevPlayer.position) {
+            return { ...prevPlayer, position: newPosition, money: prevPlayer.money + 200 };
+        }
+        return { ...prevPlayer, position: newPosition };
+    });
   };
 
   return (
     <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
       <div className="lg:col-span-3">
         <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-        <GameBoard />
+        <GameBoard players={[player]}/>
       </div>
       <aside className="lg:col-span-1 space-y-8">
-        <PlayerHud player={mockPlayer} />
-        <GameActions />
+        <PlayerHud player={player} />
+        <GameActions onDiceRoll={handleDiceRoll} />
       </aside>
     </div>
   );

@@ -554,7 +554,7 @@ export default function GamePage({
   }, [cardToExecute, applyCardAction, toast, player]);
 
 
-  const handleDiceRoll = (dice1: number, dice2: number) => {
+  const handleDiceRoll = (dice1: number, dice2: number, fromCard = false) => {
     if (!player) return;
     setHasRolled(true);
     setLastDiceRoll([dice1, dice2]);
@@ -594,7 +594,7 @@ export default function GamePage({
         return updatedPlayer;
     });
     
-    setTimeout(() => handleLandedOnSpace(newPosition), 500);
+    setTimeout(() => handleLandedOnSpace(newPosition, fromCard), 500);
   };
 
   const handleEndTurn = () => {
@@ -666,22 +666,6 @@ export default function GamePage({
         setGameOver(players[0]);
     }
   }, [players]);
-
-  useEffect(() => {
-    if (gameOver) return;
-    if (player && player.id.startsWith('player-2') && !hasRolled) {
-      // AI's turn
-      setTimeout(() => {
-        const dice1 = Math.floor(Math.random() * 6) + 1;
-        const dice2 = Math.floor(Math.random() * 6) + 1;
-        handleDiceRoll(dice1, dice2);
-      }, 1000); // Wait 1 sec before AI rolls
-
-      setTimeout(() => {
-        handleEndTurn();
-      }, 3000); // AI ends turn after 3 seconds
-    }
-  }, [currentPlayerIndex, player, hasRolled, gameOver]);
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
@@ -820,6 +804,73 @@ export default function GamePage({
         description: `Você pagou a hipoteca de ${property.name}.`
     });
   };
+  
+    const handleAiLogic = () => {
+    if (!player || !player.id.startsWith('player-2')) return;
+
+    // 1. Build houses if possible
+    const colorGroups = boardSpaces.reduce((acc, space) => {
+      if (space.type === 'property' && space.color) {
+        if (!acc[space.color]) acc[space.color] = [];
+        acc[space.color].push(space.id);
+      }
+      return acc;
+    }, {} as { [color: string]: string[] });
+
+    for (const color in colorGroups) {
+      const groupProperties = colorGroups[color];
+      const ownedGroupProperties = groupProperties.filter(id => player.properties.includes(id));
+
+      // Check if AI owns the full set
+      if (ownedGroupProperties.length === groupProperties.length) {
+        // AI owns the full set, let's build
+        for (const propId of ownedGroupProperties) {
+          const property = boardSpaces.find(s => 'id' in s && s.id === propId) as Property;
+          const houseCount = player.houses[propId] || 0;
+          if (property.houseCost && player.money > property.houseCost * 2 && houseCount < 5) {
+            // Simple logic: build one house if we have more than double the cost
+            updatePlayer(player.id, p => ({
+              money: p.money - property.houseCost!,
+              houses: { ...p.houses, [propId]: (p.houses[propId] || 0) + 1 }
+            }));
+            addLog(`${player.name} construiu uma casa em ${property.name}.`);
+          }
+        }
+      }
+    }
+
+    // 2. Unmortgage properties if it has enough money
+    if (player.mortgagedProperties.length > 0 && player.money > 1000) { // Arbitrary high cash amount
+        const propToUnmortgageId = player.mortgagedProperties[0];
+        const property = boardSpaces.find(p => 'id' in p && p.id === propToUnmortgageId) as Property;
+        const unmortgageCost = (property.price / 2) * 1.1;
+        if (player.money > unmortgageCost + 500) { // Keep a buffer
+             updatePlayer(player.id, p => ({
+                money: p.money - unmortgageCost,
+                mortgagedProperties: p.mortgagedProperties.filter(id => id !== propToUnmortgageId)
+            }));
+            addLog(`${player.name} pagou a hipoteca de ${property.name}.`);
+        }
+    }
+  };
+
+  useEffect(() => {
+    if (gameOver) return;
+    if (player && player.id.startsWith('player-2') && !hasRolled) {
+      // AI's turn
+      setTimeout(() => {
+        const dice1 = Math.floor(Math.random() * 6) + 1;
+        const dice2 = Math.floor(Math.random() * 6) + 1;
+        handleDiceRoll(dice1, dice2);
+      }, 1000); // Wait 1 sec before AI rolls
+
+      setTimeout(() => {
+        handleAiLogic();
+        handleEndTurn();
+      }, 4000); // AI thinks and ends turn after 4 seconds
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayerIndex, player, hasRolled, gameOver]);
 
   if (!player && !gameOver) {
     return <div>Carregando...</div>;

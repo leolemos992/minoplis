@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "char-capitalist",
+      "description": "A savvy investor in a sharp suit.",
+      "imageUrl": "https://images.unsplash.com/photo-1491336477066-31156b5e4f35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFuJTIwc3VpdHxlbnwwfHx8fDE3NjE4MDQzNjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man suit"
+    },
+    {
+      "id": "char-innovator",
+      "description": "A creative genius with a futuristic visor.",
+      "imageUrl": "https://images.unsplash.com/photo-1575295204460-e651299ad79e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3b21hbiUyMGZ1dHVyaXN0aWN8ZW58MHx8fHwxNzYxNzM2NzcyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman futuristic"
+    },
+    {
+      "id": "char-globetrotter",
+      "description": "An adventurous explorer with a backpack.",
+      "imageUrl": "https://images.unsplash.com/photo-1571694074943-58ae4e7dd4bd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBiYWNrcGFja3xlbnwwfHx8fDE3NjE3NDU4NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person backpack"
+    },
+    {
+      "id": "char-popstar",
+      "description": "A charismatic performer with a microphone.",
+      "imageUrl": "https://images.unsplash.com/photo-1563681543778-002ee8f3cd8a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzaW5nZXIlMjBzdGFnZXxlbnwwfHx8fDE3NjE3MzE5Nzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "singer stage"
+    }
+  ]
 }

@@ -143,14 +143,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
-        "space-18 center   center   center   center   center   center   center   center   center   space-32"
-        "space-17 center   center   center   center   center   center   center   center   center   space-33"
-        "space-16 center   center   center   center   center   center   center   center   center   space-34"
-        "space-15 center   center   center   center   center   center   center   center   center   space-35"
-        "space-14 center   center   center   center   center   center   center   center   center   space-36"
-        "space-13 center   center   center   center   center   center   center   center   center   space-37"
-        "space-12 center   center   center   center   center   center   center   center   center   space-38"
-        "space-11 center   center   center   center   center   center   center   center   center   space-39"
+        "space-18 center   center   center   center   center   center   center   center   center   center   space-32"
+        "space-17 center   center   center   center   center   center   center   center   center   center   space-33"
+        "space-16 center   center   center   center   center   center   center   center   center   center   space-34"
+        "space-15 center   center   center   center   center   center   center   center   center   center   space-35"
+        "space-14 center   center   center   center   center   center   center   center   center   center   space-36"
+        "space-13 center   center   center   center   center   center   center   center   center   center   space-37"
+        "space-12 center   center   center   center   center   center   center   center   center   center   space-38"
+        "space-11 center   center   center   center   center   center   center   center   center   center   space-39"
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
 
@@ -227,7 +227,19 @@ export default function GamePage({
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
   const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
+  
+  const [chanceDeck, setChanceDeck] = useState<GameCard[]>([]);
+  const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
+  
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
+
+  // Shuffle decks on game start
+  useEffect(() => {
+    const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
+    setChanceDeck(shuffle(chanceCards));
+    setCommunityChestDeck(shuffle(communityChestCards));
+  }, []);
+
 
   const goToJail = useCallback(() => {
     setPlayer(p => ({...p, position: JAIL_POSITION, inJail: true}));
@@ -254,13 +266,20 @@ export default function GamePage({
              setSelectedSpace(space);
         }
     } else if (space.type === 'chance' || space.type === 'community-chest') {
-        const deck = space.type === 'chance' ? chanceCards : communityChestCards;
-        const card = deck[Math.floor(Math.random() * deck.length)];
         setAnimateCardPile(space.type);
         setTimeout(() => {
-          setDrawnCard(card);
-          setAnimateCardPile(null);
+            if (space.type === 'chance') {
+                const [card, ...rest] = chanceDeck;
+                setChanceDeck([...rest, card]); // Move card to bottom
+                setDrawnCard(card);
+            } else {
+                const [card, ...rest] = communityChestDeck;
+                setCommunityChestDeck([...rest, card]); // Move card to bottom
+                setDrawnCard(card);
+            }
+            setAnimateCardPile(null);
         }, 500);
+
     } else if (space.type === 'income-tax') {
         setPlayer(p => ({...p, money: p.money - 200}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
@@ -271,9 +290,9 @@ export default function GamePage({
         goToJail();
     }
 
-  }, [player.properties, player.inJail, toast, goToJail]);
+  }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck]);
   
-  const applyCardAction = useCallback((card: GameCard) => {
+ const applyCardAction = useCallback((card: GameCard) => {
     let postAction: (() => void) | null = null;
     let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
 

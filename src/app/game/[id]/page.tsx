@@ -395,7 +395,9 @@ export default function GamePage({
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
         addLog(`${p.name} foi para a prisão.`);
-        addNotification('Você foi para a prisão!', 'destructive');
+        if (p.id === 'player-1') {
+          addNotification('Você foi para a prisão!', 'destructive');
+        }
         return { position: JAIL_POSITION, inJail: true };
     });
     setDoublesCount(0); // Reset doubles count when going to jail
@@ -416,102 +418,118 @@ export default function GamePage({
   }, [players, addLog, addNotification]);
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
-    const space = boardSpaces[spaceIndex];
-    if (!space || !player) return;
-
-    addLog(`${player.name} parou em ${space.name}.`);
-
-    if (space.type === 'jail' && !player.inJail) {
-        addNotification("Você está apenas visitando a prisão.");
-        return;
-    }
-
-    const isProperty = 'price' in space;
-    if(isProperty) {
-        const property = space as Property;
-        const owner = players.find(p => p.properties.includes(property.id));
-        
-        if (owner && owner.id !== player.id) {
-            if (owner.mortgagedProperties.includes(property.id)) {
-                 addNotification(`${owner.name} hipotecou ${property.name}, sem aluguel.`);
-                 addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
-                 return;
-            }
-
-            let rentAmount = 0;
-            if (property.type === 'property') {
-                const houseCount = owner.houses[property.id] || 0;
-                rentAmount = property.rent[houseCount];
-            } else if (property.type === 'railroad') {
-                const railroadCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'railroad').length;
-                rentAmount = property.rent[railroadCount - 1];
-            } else if (property.type === 'utility') {
-                const utilityCount = owner.properties.filter(pId => (boardSpaces.find(p => 'id' in p && p.id === pId) as Property)?.type === 'utility').length;
-                const multiplier = utilityCount === 1 ? 4 : 10;
-                rentAmount = (lastDiceRoll[0] + lastDiceRoll[1]) * multiplier;
-            }
-
-            if(rentAmount > 0) {
-                 if (makePayment(player.id, owner.id, rentAmount)) {
-                    addNotification(`${player.name} pagou R$${rentAmount} a ${owner.name}.`, 'destructive');
-                    addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
+    return new Promise<void>(resolve => {
+        const space = boardSpaces[spaceIndex];
+        if (!space || !player) return resolve();
+    
+        addLog(`${player.name} parou em ${space.name}.`);
+    
+        if (space.type === 'jail' && !player.inJail) {
+            addNotification("Você está apenas visitando a prisão.");
+            return resolve();
+        }
+    
+        const isProperty = 'price' in space;
+        if(isProperty) {
+            const property = space as Property;
+            const owner = players.find(p => p.properties.includes(property.id));
+            
+            if (owner && owner.id !== player.id) {
+                if (owner.mortgagedProperties.includes(property.id)) {
+                     addNotification(`${owner.name} hipotecou ${property.name}, sem aluguel.`);
+                     addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
+                     return resolve();
                 }
-            }
-
-        } else if (!owner) {
-             if (player.id === 'player-1') {
-                setSelectedSpace(space);
-             } else { // AI Logic to buy
-                 if (player.money >= property.price * 1.5) { // AI is a bit picky
-                    updatePlayer(player.id, prev => ({
-                        money: prev.money - property.price,
-                        properties: [...prev.properties, property.id],
-                    }));
-                    addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
-                 } else {
-                     startAuction(property);
+    
+                let rentAmount = 0;
+                if (property.type === 'property') {
+                    const houseCount = owner.houses[property.id] || 0;
+                    rentAmount = property.rent[houseCount];
+                } else if (property.type === 'railroad') {
+                    const railroadCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'railroad').length;
+                    rentAmount = property.rent[railroadCount - 1];
+                } else if (property.type === 'utility') {
+                    const utilityCount = owner.properties.filter(pId => (boardSpaces.find(p => 'id' in p && p.id === pId) as Property)?.type === 'utility').length;
+                    const multiplier = utilityCount === 1 ? 4 : 10;
+                    rentAmount = (lastDiceRoll[0] + lastDiceRoll[1]) * multiplier;
+                }
+    
+                if(rentAmount > 0) {
+                     if (makePayment(player.id, owner.id, rentAmount)) {
+                        addNotification(`${player.name} pagou R$${rentAmount} a ${owner.name}.`, 'destructive');
+                        addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
+                    }
+                }
+                return resolve();
+    
+            } else if (!owner) {
+                 if (player.id === 'player-1') {
+                    setSelectedSpace(space);
+                    // Resolve is handled by dialog close/buy actions
+                 } else { // AI Logic to buy
+                     setTimeout(() => {
+                        if (player.money >= property.price * 1.5) { // AI is a bit picky
+                           updatePlayer(player.id, prev => ({
+                               money: prev.money - property.price,
+                               properties: [...prev.properties, property.id],
+                           }));
+                           addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
+                        } else {
+                            startAuction(property);
+                        }
+                        resolve();
+                     }, 1000);
                  }
-             }
-        }
-    } else if (space.type === 'chance' || space.type === 'community-chest') {
-        setAnimateCardPile(space.type);
-        setTimeout(() => {
-            let card: GameCard;
-            if (space.type === 'chance') {
-                const [first, ...rest] = chanceDeck;
-                card = first;
-                setChanceDeck([...rest, card]); // Move card to bottom
             } else {
-                const [first, ...rest] = communityChestDeck;
-                card = first;
-                setCommunityChestDeck([...rest, card]); // Move card to bottom
+                return resolve();
             }
-
-            addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
-            
-            if (player.id === 'player-1') {
-                setDrawnCard(card);
-            } else {
-                setCardToExecute(card);
+        } else if (space.type === 'chance' || space.type === 'community-chest') {
+            setAnimateCardPile(space.type);
+            setTimeout(() => {
+                let card: GameCard;
+                if (space.type === 'chance') {
+                    const [first, ...rest] = chanceDeck;
+                    card = first;
+                    setChanceDeck([...rest, card]); // Move card to bottom
+                } else {
+                    const [first, ...rest] = communityChestDeck;
+                    card = first;
+                    setCommunityChestDeck([...rest, card]); // Move card to bottom
+                }
+    
+                addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
+                
+                if (player.id === 'player-1') {
+                    setDrawnCard(card);
+                    // Resolve will be handled by card dialog close
+                } else {
+                    setCardToExecute(card);
+                    resolve();
+                }
+                
+                setAnimateCardPile(null);
+            }, 500);
+    
+        } else if (space.type === 'income-tax') {
+            const taxAmount = Math.floor(player.money * 0.1);
+            if (makePayment(player.id, null, taxAmount)) {
+                addNotification(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
+                addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
             }
-            
-            setAnimateCardPile(null);
-        }, 500);
-
-    } else if (space.type === 'income-tax') {
-        const taxAmount = Math.floor(player.money * 0.1);
-        if (makePayment(player.id, null, taxAmount)) {
-            addNotification(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
-            addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
+            resolve();
+        } else if (space.type === 'luxury-tax') {
+            if(makePayment(player.id, null, 100)) {
+                addNotification(`${player.name} pagou R$100 de Taxa das Blusinhas.`, 'destructive');
+                addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
+            }
+            resolve();
+        } else if (space.type === 'go-to-jail') {
+            goToJail(player.id);
+            resolve();
+        } else {
+            resolve();
         }
-    } else if (space.type === 'luxury-tax') {
-        if(makePayment(player.id, null, 100)) {
-            addNotification(`${player.name} pagou R$100 de Taxa das Blusinhas.`, 'destructive');
-            addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
-        }
-    } else if (space.type === 'go-to-jail') {
-        goToJail(player.id);
-    }
+    });
 
   }, [player, players, addNotification, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction]);
   
@@ -665,7 +683,7 @@ export default function GamePage({
         setHasRolled(false); // Allow another roll
     }
     
-    setTimeout(() => handleLandedOnSpace(newPosition), 500);
+    setTimeout(() => handleLandedOnSpace(newPosition), 800);
 };
 
   const handleEndTurn = () => {
@@ -724,7 +742,7 @@ export default function GamePage({
   }
 
   const handleDebugMove = (space: any, index: number) => {
-    if (!player || player.id !== 'player-1') return;
+    if (process.env.NODE_ENV !== 'development' || !player || player.id !== 'player-1') return;
     updatePlayer(player.id, p => ({ position: index }));
     handleLandedOnSpace(index);
   };
@@ -977,52 +995,61 @@ export default function GamePage({
   }, [auctionState, endAuction, players]);
 
   const handleAiLogic = (aiPlayer: Player) => {
-    if (!aiPlayer) return;
-
-    // 1. Build houses if possible
-    const colorGroups = boardSpaces.reduce((acc, space) => {
-      if (space.type === 'property' && space.color) {
-        if (!acc[space.color]) acc[space.color] = [];
-        acc[space.color].push(space.id);
-      }
-      return acc;
-    }, {} as { [color: string]: string[] });
-
-    for (const color in colorGroups) {
-      const groupProperties = colorGroups[color];
-      const ownedGroupProperties = groupProperties.filter(id => aiPlayer.properties.includes(id));
-
-      // Check if AI owns the full set
-      if (ownedGroupProperties.length === groupProperties.length) {
-        // AI owns the full set, let's build
-        for (const propId of ownedGroupProperties) {
-          const property = boardSpaces.find(s => 'id' in s && s.id === propId) as Property;
-          const houseCount = aiPlayer.houses[propId] || 0;
-          if (property.houseCost && aiPlayer.money > property.houseCost * 2 && houseCount < 5) {
-            // Simple logic: build one house if we have more than double the cost
-            updatePlayer(aiPlayer.id, p => ({
-              money: p.money - property.houseCost!,
-              houses: { ...p.houses, [propId]: (p.houses[propId] || 0) + 1 }
-            }));
-            addLog(`${aiPlayer.name} construiu uma casa em ${property.name}.`);
+    return new Promise<void>(resolve => {
+        if (!aiPlayer) return resolve();
+    
+        // 1. Unmortgage properties if it has enough money
+        if (aiPlayer.mortgagedProperties.length > 0 && aiPlayer.money > 1000) { // Arbitrary high cash amount
+            const propToUnmortgageId = aiPlayer.mortgagedProperties[0];
+            const property = boardSpaces.find(p => 'id' in p && p.id === propToUnmortgageId) as Property;
+            const unmortgageCost = (property.price / 2) * 1.1;
+            if (aiPlayer.money > unmortgageCost + 500) { // Keep a buffer
+                 updatePlayer(aiPlayer.id, p => ({
+                    money: p.money - unmortgageCost,
+                    mortgagedProperties: p.mortgagedProperties.filter(id => id !== propToUnmortgageId)
+                }));
+                addLog(`${aiPlayer.name} pagou a hipoteca de ${property.name}.`);
+                setTimeout(resolve, 1000); // Wait after action
+                return;
+            }
+        }
+    
+        // 2. Build houses if possible
+        const colorGroups = boardSpaces.reduce((acc, space) => {
+          if (space.type === 'property' && space.color) {
+            if (!acc[space.color]) acc[space.color] = [];
+            acc[space.color].push(space.id);
+          }
+          return acc;
+        }, {} as { [color: string]: string[] });
+    
+        for (const color in colorGroups) {
+          const groupProperties = colorGroups[color];
+          const ownedGroupProperties = groupProperties.filter(id => aiPlayer.properties.includes(id));
+    
+          // Check if AI owns the full set
+          if (ownedGroupProperties.length === groupProperties.length) {
+            // AI owns the full set, let's build
+            for (const propId of ownedGroupProperties) {
+              const property = boardSpaces.find(s => 'id' in s && s.id === propId) as Property;
+              const houseCount = aiPlayer.houses[propId] || 0;
+              if (property.houseCost && aiPlayer.money > property.houseCost * 2 && houseCount < 5) {
+                // Simple logic: build one house if we have more than double the cost
+                updatePlayer(aiPlayer.id, p => ({
+                  money: p.money - property.houseCost!,
+                  houses: { ...p.houses, [propId]: (p.houses[propId] || 0) + 1 }
+                }));
+                addLog(`${aiPlayer.name} construiu uma casa em ${property.name}.`);
+                setTimeout(resolve, 1000); // Wait after action
+                return;
+              }
+            }
           }
         }
-      }
-    }
-
-    // 2. Unmortgage properties if it has enough money
-    if (aiPlayer.mortgagedProperties.length > 0 && aiPlayer.money > 1000) { // Arbitrary high cash amount
-        const propToUnmortgageId = aiPlayer.mortgagedProperties[0];
-        const property = boardSpaces.find(p => 'id' in p && p.id === propToUnmortgageId) as Property;
-        const unmortgageCost = (property.price / 2) * 1.1;
-        if (aiPlayer.money > unmortgageCost + 500) { // Keep a buffer
-             updatePlayer(aiPlayer.id, p => ({
-                money: p.money - unmortgageCost,
-                mortgagedProperties: p.mortgagedProperties.filter(id => id !== propToUnmortgageId)
-            }));
-            addLog(`${aiPlayer.name} pagou a hipoteca de ${property.name}.`);
-        }
-    }
+        
+        // If no action was taken, resolve immediately
+        resolve();
+    });
   };
 
   const handleRollToStart = (playerId: string, roll: number) => {
@@ -1089,7 +1116,7 @@ export default function GamePage({
       // AI's turn
       let aiDoublesCount = doublesCount;
       const playAiTurn = () => {
-        setTimeout(() => {
+        setTimeout(async () => {
           const dice1 = Math.floor(Math.random() * 6) + 1;
           const dice2 = Math.floor(Math.random() * 6) + 1;
           
@@ -1120,20 +1147,19 @@ export default function GamePage({
             return updated;
           });
           
-          setTimeout(() => {
-            handleLandedOnSpace(newPosition);
+          await new Promise(resolve => setTimeout(resolve, 800)); // Wait for token to move
+          await handleLandedOnSpace(newPosition);
             
-            if (dice1 === dice2) {
-              playAiTurn(); // Play again
-            } else {
-              setTimeout(() => {
-                  handleAiLogic(player);
-                  handleEndTurn();
-              }, 2000);
-            }
-          }, 500);
-
-        }, 1000);
+          if (dice1 === dice2) {
+            playAiTurn(); // Play again
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await handleAiLogic(player);
+            setTimeout(() => {
+                handleEndTurn();
+            }, 1000);
+          }
+        }, 1500);
       };
       playAiTurn();
     }
@@ -1303,5 +1329,7 @@ export default function GamePage({
     </>
   );
 }
+
+    
 
     

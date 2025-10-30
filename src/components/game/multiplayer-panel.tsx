@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import {
   Wallet,
@@ -38,6 +37,7 @@ import { Input } from '../ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 const playerColors: { [key: string]: { border: string; text: string; bg: string } } = {
     red: { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-500' },
@@ -318,22 +318,48 @@ export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions 
   return (
     <Card>
       <Tabs defaultValue="assets">
-        <CardHeader className="p-2">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="assets" className="h-auto py-1.5 text-xs">
-              <Landmark className="h-4 w-4 mb-1" /> Ativos
-            </TabsTrigger>
-            <TabsTrigger value="players" className="h-auto py-1.5 text-xs">
-              <Users className="h-4 w-4 mb-1" /> Jogadores
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="h-auto py-1.5 text-xs">
-              <MessageCircle className="h-4 w-4 mb-1" /> Chat
-            </TabsTrigger>
-            <TabsTrigger value="log" className="h-auto py-1.5 text-xs">
-              <ClipboardList className="h-4 w-4 mb-1" /> Eventos
-            </TabsTrigger>
-          </TabsList>
-        </CardHeader>
+        <TooltipProvider>
+            <CardHeader className="p-2">
+                <TabsList className="grid w-full grid-cols-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <TabsTrigger value="assets">
+                                <Landmark className="h-5 w-5" />
+                                <span className="sr-only">Ativos</span>
+                            </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Ativos</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <TabsTrigger value="players">
+                                <Users className="h-5 w-5" />
+                                <span className="sr-only">Jogadores</span>
+                            </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Jogadores</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <TabsTrigger value="chat">
+                                <MessageCircle className="h-5 w-5" />
+                                <span className="sr-only">Chat</span>
+                            </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Chat</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <TabsTrigger value="log">
+                                <ClipboardList className="h-5 w-5" />
+                                <span className="sr-only">Eventos</span>
+                            </TabsTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Eventos</TooltipContent>
+                    </Tooltip>
+                </TabsList>
+            </CardHeader>
+        </TooltipProvider>
 
         <TabsContent value="assets">
             <PlayerAssets player={player} {...assetActions} />

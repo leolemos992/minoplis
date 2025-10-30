@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
-import { GameControls } from '@/components/game/game-controls';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
@@ -148,7 +147,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged 
     )
 };
 
-const GameBoard = ({ players, onSpaceClick, houses, mortgagedProperties, animateCardPile }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number }, mortgagedProperties: string[], animateCardPile: 'chance' | 'community-chest' | null }) => {
+const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile, children }: { players: Player[]; onSpaceClick: (space: any, index: number) => void; mortgagedProperties: string[]; animateCardPile: 'chance' | 'community-chest' | null; children: React.ReactNode }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -177,23 +176,30 @@ const GameBoard = ({ players, onSpaceClick, houses, mortgagedProperties, animate
                     gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr',
                 }}
             >
-                <div className="bg-muted flex items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
+                <div className="bg-muted flex flex-col items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
+                    <div className="absolute top-8">
+                       <Logo className="text-3xl sm:text-5xl" />
+                    </div>
+                    
+                    <div className="w-full max-w-sm scale-90">
+                      {children}
+                    </div>
+
                     <motion.div
-                        className="absolute w-[35%] h-[20%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[22%] left-[12%]"
+                        className="absolute w-[35%] h-[20%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[15%] left-[5%]"
                         animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
                         <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[35%] h-[20%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[22%] right-[12%]"
+                        className="absolute w-[35%] h-[20%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 bottom-[15%] right-[5%]"
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
                         <Box className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
                     </motion.div>
 
-                    <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
                     <BoardSpace 
@@ -885,14 +891,24 @@ export default function GamePage({
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
-          <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
           <GameBoard 
             players={allPlayers} 
             onSpaceClick={handleDebugMove} 
-            houses={humanPlayer ? humanPlayer.houses : {}} 
             mortgagedProperties={humanPlayer ? humanPlayer.mortgagedProperties : []} 
             animateCardPile={animateCardPile} 
-          />
+          >
+            <GameActions 
+                onDiceRoll={handleDiceRoll} 
+                isPlayerInJail={player?.inJail ?? false}
+                onPayBail={handlePayBail}
+                canPayBail={player?.money >= 50}
+                onManageProperties={() => setManageOpen(true)}
+                playerHasProperties={humanPlayer?.properties.length > 0}
+                isTurnActive={isMyTurn}
+                hasRolled={hasRolled}
+                onEndTurn={handleEndTurn}
+             />
+          </GameBoard>
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <MultiplayerPanel
@@ -905,18 +921,6 @@ export default function GamePage({
             onMortgage={handleMortgage}
             onUnmortgage={handleUnmortgage}
           />
-          <GameActions 
-            onDiceRoll={handleDiceRoll} 
-            isPlayerInJail={player?.inJail ?? false}
-            onPayBail={handlePayBail}
-            canPayBail={player?.money >= 50}
-            onManageProperties={() => setManageOpen(true)}
-            playerHasProperties={humanPlayer?.properties.length > 0}
-            isTurnActive={isMyTurn}
-            hasRolled={hasRolled}
-            onEndTurn={handleEndTurn}
-          />
-          <GameControls />
         </aside>
       </div>
 

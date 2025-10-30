@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dices, Handshake, Building, Gavel, CheckSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -103,13 +102,10 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, isPlayerInJail, 
   }, [isRolling, onDiceRoll, toast, isPlayerInJail]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ações</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="p-4 rounded-lg bg-card/80 backdrop-blur-sm">
+      <div className="space-y-2">
         <div className="flex h-20 items-center justify-center gap-4">
-          <div className="flex gap-4 rounded-lg border bg-background p-4">
+          <div className="flex gap-4 rounded-lg border bg-background p-2">
             <DiceIcon value={dice[0]} />
             <DiceIcon value={dice[1]} />
           </div>
@@ -160,7 +156,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, isPlayerInJail, 
             <CheckSquare className="mr-2 h-5 w-5" />
             Encerrar Turno
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

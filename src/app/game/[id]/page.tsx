@@ -306,7 +306,7 @@ export default function GamePage({
         case 'money':
           newPlayerState.money += action.amount || 0;
           toastInfo = {
-            title: card.type === 'chance' ? 'Sorte!' : 'Do Baú...',
+            title: card.type === 'chance' ? 'Sorte!' : 'Baú Comunitário',
             description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
             variant: action.amount! < 0 ? 'destructive' : undefined,
           };

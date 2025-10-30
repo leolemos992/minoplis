@@ -15,6 +15,7 @@ export type Player = {
   position: number;
   color: string;
   totem: string;
+  getOutOfJailFreeCards: number;
 };
 
 export type Property = {
@@ -27,10 +28,24 @@ export type Property = {
 };
 
 export type Game = {
-  id: string;
+  id:string;
   name: string;
   players: Player[];
   board: (Property | { type: string, name: string })[];
   currentPlayerId: string;
   status: 'waiting' | 'active' | 'finished';
+};
+
+
+export type GameCard = {
+  type: 'chance' | 'community-chest';
+  description: string;
+  action: {
+    type: 'money' | 'move' | 'move_to' | 'get_out_of_jail' | 'go_to_jail' | 'repairs';
+    amount?: number;
+    position?: number | string;
+    collectGo?: boolean;
+    perHouse?: number;
+    perHotel?: number;
+  };
 };

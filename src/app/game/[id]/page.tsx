@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { boardSpaces, totems } from '@/lib/game-data';
+import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property } from '@/lib/definitions';
+import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,8 +36,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'jail': return <Building className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
-        case 'community-chest': return <HelpCircle className={size} />;
-        case 'chance': return <HelpCircle className={size} />;
+        case 'community-chest': return <ShieldAlert className={cn(size, "text-red-600")} />;
+        case 'chance': return <ShieldCheck className={cn(size, "text-green-600")} />;
         case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
         case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
         case 'railroad': return <Train className={size} />
@@ -185,33 +186,125 @@ export default function GamePage({
     position: 0,
     color: colorId,
     totem: totemId,
+    getOutOfJailFreeCards: 0,
   });
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
+  const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
+
+  const applyCardAction = useCallback((card: GameCard) => {
+    setPlayer(prevPlayer => {
+      let newPlayerState = { ...prevPlayer };
+      const { action } = card;
+
+      switch (action.type) {
+        case 'money':
+          newPlayerState.money += action.amount || 0;
+          toast({
+            title: card.type === 'chance' ? 'Sorte!' : 'Azar...',
+            description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
+          });
+          break;
+        case 'move_to':
+          let newPosition = -1;
+          if (typeof action.position === 'string') {
+              newPosition = boardSpaces.findIndex(s => 'id' in s && s.id === action.position);
+          } else if (typeof action.position === 'number') {
+              newPosition = action.position;
+          }
+
+          if (newPosition !== -1) {
+              if (action.collectGo && newPosition < newPlayerState.position) {
+                  newPlayerState.money += 200;
+                  toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
+              }
+              newPlayerState.position = newPosition;
+          }
+          break;
+        case 'go_to_jail':
+          newPlayerState.position = boardSpaces.findIndex(s => s.type === 'jail');
+           toast({
+            variant: "destructive",
+            title: 'Que azar!',
+            description: 'Você foi para a prisão!',
+          });
+          break;
+        case 'get_out_of_jail':
+          newPlayerState.getOutOfJailFreeCards += 1;
+          toast({
+            title: 'Sorte Grande!',
+            description: 'Você recebeu uma carta para sair da prisão!',
+          });
+          break;
+        // A lógica de 'repairs' precisa saber quais propriedades o jogador tem
+        // Para simplificar, vamos tratar como um pagamento fixo por agora.
+        case 'repairs':
+             const repairCost = action.perHouse! * 2; // Simulação: 2 casas
+             newPlayerState.money -= repairCost;
+             toast({
+                variant: "destructive",
+                title: 'Manutenção!',
+                description: `Você pagou R$${repairCost.toLocaleString()} em reparos.`,
+            });
+            break;
+        default:
+          break;
+      }
+      return newPlayerState;
+    });
+  }, [toast]);
+
+  const handleLandedOnSpace = useCallback((spaceIndex: number) => {
+    const space = boardSpaces[spaceIndex];
+    if (!space) return;
+
+    const isProperty = 'price' in space;
+    if(isProperty) {
+        const property = space as Property;
+        // Se a propriedade não pertence a ninguém
+        if(!player.properties.includes(property.id)) { // Simplificando - precisa verificar todos os jogadores
+             setSelectedSpace(space);
+        }
+        // Se pertence a outro jogador, pague aluguel (lógica a ser adicionada)
+    } else if (space.type === 'chance' || space.type === 'community-chest') {
+        const deck = space.type === 'chance' ? chanceCards : communityChestCards;
+        const card = deck[Math.floor(Math.random() * deck.length)];
+        setDrawnCard(card);
+    } else if (space.type === 'income-tax') {
+        setPlayer(p => ({...p, money: p.money - 200}));
+        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
+    } else if (space.type === 'luxury-tax') {
+        setPlayer(p => ({...p, money: p.money - 100}));
+        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Imposto de Luxo." });
+    } else if (space.type === 'go-to-jail') {
+        setPlayer(p => ({...p, position: boardSpaces.findIndex(s => s.type === 'jail')}));
+        toast({ variant: "destructive", title: "Encrenca!", description: "Você foi para a prisão!" });
+    }
+
+  }, [player.properties, toast]);
+
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
     const total = dice1 + dice2;
     let newPosition = 0;
     setPlayer(prevPlayer => {
-        newPosition = (prevPlayer.position + total) % 40;
+        const currentPosition = prevPlayer.position;
+        newPosition = (currentPosition + total) % 40;
+        
+        let updatedPlayer = { ...prevPlayer, position: newPosition };
+
         // Handle passing GO
-        if (newPosition < prevPlayer.position) {
-            return { ...prevPlayer, position: newPosition, money: prevPlayer.money + 200 };
+        if (newPosition < currentPosition) {
+            updatedPlayer.money += 200;
+            toast({
+                title: "Você passou pelo início!",
+                description: `Você coletou R$200.`,
+            });
         }
-        return { ...prevPlayer, position: newPosition };
+        return updatedPlayer;
     });
     
-    // Automatically open property card if landing on a new space
-    setTimeout(() => {
-        const space = boardSpaces[newPosition];
-        const isProperty = 'price' in space;
-        if(isProperty) {
-            const property = space as Property;
-            if(!player.properties.includes(property.id)) {
-                 setSelectedSpace(space);
-            }
-        }
-    }, 500); // Delay to allow player state to update
+    setTimeout(() => handleLandedOnSpace(newPosition), 500);
   };
 
   const handleBuyProperty = (property: Property) => {
@@ -235,6 +328,14 @@ export default function GamePage({
     }
   };
 
+  const closeCardDialog = () => {
+      if (drawnCard) {
+          applyCardAction(drawnCard);
+          setDrawnCard(null);
+      }
+  }
+
+
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -257,6 +358,27 @@ export default function GamePage({
                     onBuy={handleBuyProperty}
                     onClose={() => setSelectedSpace(null)} 
                 />
+            )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!drawnCard} onOpenChange={(open) => !open && closeCardDialog()}>
+        <DialogContent>
+            {drawnCard && (
+                <>
+                    <DialogHeader>
+                        <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-green-600' : 'text-red-600')}>
+                            {drawnCard.type === 'chance' ? <ShieldCheck/> : <ShieldAlert/>}
+                            {drawnCard.type === 'chance' ? 'Carta Sorte!' : 'Carta Azar!'}
+                        </DialogTitle>
+                        <DialogDescription className="pt-4 text-lg text-foreground text-center">
+                            {drawnCard.description}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={closeCardDialog}>Ok</Button>
+                    </DialogFooter>
+                </>
             )}
         </DialogContent>
       </Dialog>

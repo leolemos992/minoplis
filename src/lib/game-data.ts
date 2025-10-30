@@ -1,5 +1,5 @@
 
-import type { Character, Game, Property } from '@/lib/definitions';
+import type { Character, Game, Property, GameCard } from '@/lib/definitions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Car, Dog, Ship, Rocket, Bot, Cat } from 'lucide-react';
 
@@ -91,4 +91,40 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: 'havan', name: 'Avenida da Havan', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: 'darkblue', type: 'property' },
   { type: 'luxury-tax', name: 'Imposto de Luxo' },
   { id: 'centro-ii', name: 'Centro II', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: 'darkblue', type: 'property' },
+];
+
+export const chanceCards: GameCard[] = [
+  { type: 'chance', description: 'Você ganhou na loteria — Receba R$ 200.000', action: { type: 'money', amount: 200000 } },
+  { type: 'chance', description: 'Recebeu herança de um parente distante — Receba R$ 100.000', action: { type: 'money', amount: 100000 } },
+  { type: 'chance', description: 'A prefeitura devolve imposto pago a mais — Receba R$ 40.000', action: { type: 'money', amount: 40000 } },
+  { type: 'chance', description: 'Seu título da dívida vence — Receba R$ 100.000', action: { type: 'money', amount: 100000 } },
+  { type: 'chance', description: 'Lucros de seus investimentos — Receba R$ 50.000', action: { type: 'money', amount: 50000 } },
+  { type: 'chance', description: 'Você foi escolhido presidente do conselho da companhia — Receba R$ 20.000', action: { type: 'money', amount: 20000 } },
+  { type: 'chance', description: 'Venda de ações com lucro — Receba R$ 60.000', action: { type: 'money', amount: 60000 } },
+  { type: 'chance', description: 'Seu imóvel foi valorizado — Receba R$ 70.000', action: { type: 'money', amount: 70000 } },
+  { type: 'chance', description: 'Avance até o ponto de partida (“Partida”) — Receba R$ 200.000', action: { type: 'move_to', position: 0, collectGo: true } },
+  { type: 'chance', description: 'Vá até a Estação Ferroviária e receba R$ 20.000', action: { type: 'money', amount: 20000 } },
+  { type: 'chance', description: 'Vá até a Avenida Central — Se passar pela Partida, receba R$ 200.000', action: { type: 'move_to', position: 'centro-i', collectGo: true } },
+  { type: 'chance', description: 'O banco errou a seu favor — Receba R$ 20.000', action: { type: 'money', amount: 20000 } },
+  { type: 'chance', description: 'Saia da prisão, se estiver preso — (guarde esta carta para uso futuro)', action: { type: 'get_out_of_jail' } },
+  { type: 'chance', description: 'Sua empresa de energia pagou dividendos — Receba R$ 50.000', action: { type: 'money', amount: 50000 } },
+  { type: 'chance', description: 'Descoberta de petróleo em seu terreno — Receba R$ 100.000', action: { type: 'money', amount: 100000 } },
+];
+
+export const communityChestCards: GameCard[] = [
+  { type: 'community-chest', description: 'Pague imposto de renda — Pague R$ 100.000', action: { type: 'money', amount: -100000 } },
+  { type: 'community-chest', description: 'Pague taxa de reparos nas suas propriedades — Pague R$ 25.000 por casa e R$ 100.000 por hotel', action: { type: 'repairs', perHouse: 25000, perHotel: 100000 } },
+  { type: 'community-chest', description: 'Pague conta do médico — Pague R$ 50.000', action: { type: 'money', amount: -50000 } },
+  { type: 'community-chest', description: 'Foi multado por excesso de velocidade — Pague R$ 20.000', action: { type: 'money', amount: -20000 } },
+  { type: 'community-chest', description: 'Pague conserto do carro — Pague R$ 30.000', action: { type: 'money', amount: -30000 } },
+  { type: 'community-chest', description: 'Vá para a prisão — Não passe pela Partida', action: { type: 'go_to_jail' } },
+  { type: 'community-chest', description: 'Vá até a Avenida Paulista — Pague aluguel se houver dono', action: { type: 'move_to', position: 'havan', collectGo: false } },
+  { type: 'community-chest', description: 'Foi flagrado estacionando em local proibido — Pague R$ 10.000', action: { type: 'money', amount: -10000 } },
+  { type: 'community-chest', description: 'Seus imóveis foram danificados pela chuva — Pague R$ 40.000', action: { type: 'money', amount: -40000 } },
+  { type: 'community-chest', description: 'Pague taxa escolar — Pague R$ 30.000', action: { type: 'money', amount: -30000 } },
+  { type: 'community-chest', description: 'Pague conta de hospital — Pague R$ 50.000', action: { type: 'money', amount: -50000 } },
+  { type: 'community-chest', description: 'Conserto urgente no imóvel — Pague R$ 25.000', action: { type: 'money', amount: -25000 } },
+  { type: 'community-chest', description: 'Multa de construção irregular — Pague R$ 20.000', action: { type: 'money', amount: -20000 } },
+  { type: 'community-chest', description: 'Pague ao banco R$ 15.000 por empréstimo', action: { type: 'money', amount: -15000 } },
+  { type: 'community-chest', description: 'Vá para o ponto de Partida, sem receber nada', action: { type: 'move_to', position: 0, collectGo: false } },
 ];

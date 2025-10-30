@@ -292,7 +292,7 @@ function EventLog({ log }: { log: GameLog[] }) {
     return (
         <CardContent>
             <ScrollArea className="h-96">
-                <div className="space-y-3 font-mono text-xs">
+                <div className="space-y-3 font-mono text-[11px]">
                     {log.map((entry, index) => (
                         <div key={index} className="flex items-start gap-3">
                             <div className="text-muted-foreground/80 pt-px">
@@ -370,5 +370,7 @@ export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog,
     </Card>
   );
 }
+
+    
 
     

@@ -45,7 +45,7 @@ interface PropertyCardProps {
   player: Player;
   owner?: Player | null;
   onBuy?: (property: Property) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export function PropertyCard({ space, player, owner, onBuy, onClose }: PropertyCardProps) {
@@ -126,8 +126,8 @@ export function PropertyCard({ space, player, owner, onBuy, onClose }: PropertyC
 
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4">
-        {isProperty && !owner && player.money >= (property?.price || Infinity) && (
-          <Button className="w-full" onClick={handleBuy}>Comprar Propriedade</Button>
+        {onBuy && isProperty && !owner && player.money >= (property?.price || Infinity) && (
+            <Button className="w-full" onClick={handleBuy}>Comprar Propriedade</Button>
         )}
          {owner && (
              <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
@@ -135,16 +135,16 @@ export function PropertyCard({ space, player, owner, onBuy, onClose }: PropertyC
                 <span>Proprietário: {owner.name}</span>
              </div>
          )}
-         {isProperty && !owner && player.money < (property?.price || Infinity) && (
+         {onBuy && isProperty && !owner && player.money < (property?.price || Infinity) && (
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}
 
-        <Button variant="ghost" className="w-full" onClick={onClose}>
-          Fechar
-        </Button>
+        {onClose && (
+            <Button variant={onBuy ? "ghost" : "default"} className="w-full" onClick={onClose}>
+              {onBuy && !owner ? "Leiloar" : "Fechar"}
+            </Button>
+        )}
       </CardFooter>
     </Card>
   );
 }
-
-    

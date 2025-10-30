@@ -67,3 +67,11 @@ export type TradeOffer = {
   moneyFrom: number;
   moneyTo: number;
 };
+
+export type AuctionState = {
+  property: Property;
+  currentBid: number;
+  highestBidderId: string | null;
+  playersInAuction: string[];
+  turnIndex: number;
+};

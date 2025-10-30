@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, GameLog, TradeOffer } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { TradeDialog } from '@/components/game/trade-dialog';
+import { AuctionDialog } from '@/components/game/auction-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 
@@ -183,14 +184,14 @@ const GameBoard = ({ players, onSpaceClick, mortgagedProperties, animateCardPile
                     </div>
                     
                     <motion.div
-                        className="absolute w-[30%] h-[18%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[25%] left-[5%]"
+                        className="absolute w-[30%] h-[18%] bg-blue-200 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 top-[35%] left-[10%]"
                         animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
                         <HelpCircle className="h-1/2 w-1/2 text-blue-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[30%] h-[18%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 top-[25%] right-[5%]"
+                        className="absolute w-[30%] h-[18%] bg-yellow-200 border-2 border-yellow-800 rounded-lg flex items-center justify-center rotate-12 top-[35%] right-[10%]"
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
@@ -253,6 +254,8 @@ export default function GamePage({
   
   const [gameLog, setGameLog] = useState<GameLog[]>([]);
   const [gameOver, setGameOver] = useState<Player | null>(null);
+  
+  const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
 
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
   const player = players[currentPlayerIndex];
@@ -299,6 +302,7 @@ export default function GamePage({
     setHasRolled(false);
     setGameLog([]);
     setGameOver(null);
+    setAuctionState(null);
     addLog(`O jogo ${gameName} começou!`);
     addLog(`É a vez de ${humanPlayer.name}.`);
   }, [playerName, totemId, colorId, gameName, addLog]);
@@ -375,6 +379,19 @@ export default function GamePage({
     });
   }, [JAIL_POSITION, toast, updatePlayer, addLog]);
 
+  const startAuction = useCallback((property: Property) => {
+      addLog(`${property.name} foi a leilão!`);
+      toast({ title: "Leilão!", description: `${property.name} está sendo leiloado.` });
+      const playersInAuction = players.map(p => p.id);
+      setAuctionState({
+          property,
+          currentBid: 10,
+          highestBidderId: null,
+          playersInAuction,
+          turnIndex: 0
+      });
+  }, [players, addLog, toast]);
+
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
     if (!space || !player) return;
@@ -406,7 +423,7 @@ export default function GamePage({
                 const railroadCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'railroad').length;
                 rentAmount = property.rent[railroadCount - 1];
             } else if (property.type === 'utility') {
-                const utilityCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'utility').length;
+                const utilityCount = owner.properties.filter(pId => (boardSpaces.find(p => 'id' in p && p.id === pId) as Property)?.type === 'utility').length;
                 const multiplier = utilityCount === 1 ? 4 : 10;
                 rentAmount = (lastDiceRoll[0] + lastDiceRoll[1]) * multiplier;
             }
@@ -422,12 +439,14 @@ export default function GamePage({
              if (player.id === 'player-1') {
                 setSelectedSpace(space);
              } else { // AI Logic to buy
-                 if (player.money >= property.price) {
+                 if (player.money >= property.price * 1.5) { // AI is a bit picky
                     updatePlayer(player.id, prev => ({
                         money: prev.money - property.price,
                         properties: [...prev.properties, property.id],
                     }));
                     addLog(`${player.name} comprou ${property.name} por R$${property.price}.`);
+                 } else {
+                     startAuction(property);
                  }
              }
         }
@@ -471,7 +490,7 @@ export default function GamePage({
         goToJail(player.id);
     }
 
-  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment]);
+  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     if (!player) return;
@@ -642,6 +661,11 @@ export default function GamePage({
         });
     }
   };
+  
+  const handlePassOnBuy = (property: Property) => {
+    setSelectedSpace(null);
+    startAuction(property);
+  }
 
   const handlePayBail = () => {
     if (!player || !player.inJail) return;
@@ -843,7 +867,104 @@ export default function GamePage({
     setTradeOpen(false);
   };
   
-    const handleAiLogic = () => {
+  const handleAuctionBid = (playerId: string, bidAmount: number) => {
+    if (!auctionState) return;
+
+    const bidder = players.find(p => p.id === playerId);
+    if (!bidder || bidder.money < bidAmount) {
+        toast({ variant: "destructive", title: "Lance inválido", description: "Você não tem dinheiro suficiente." });
+        return;
+    }
+
+    addLog(`${bidder.name} deu um lance de R$${bidAmount} em ${auctionState.property.name}.`);
+    setAuctionState(prev => {
+        if (!prev) return null;
+        return {
+            ...prev,
+            currentBid: bidAmount,
+            highestBidderId: playerId,
+            turnIndex: (prev.turnIndex + 1) % prev.playersInAuction.length,
+        };
+    });
+  };
+
+  const handleAuctionPass = (playerId: string) => {
+      if (!auctionState) return;
+
+      const passer = players.find(p => p.id === playerId);
+      if (passer) {
+        addLog(`${passer.name} passou a vez no leilão.`);
+      }
+
+      const newPlayersInAuction = auctionState.playersInAuction.filter(id => id !== playerId);
+      
+      setAuctionState(prev => {
+          if (!prev) return null;
+          return {
+              ...prev,
+              playersInAuction: newPlayersInAuction,
+              turnIndex: prev.turnIndex % (newPlayersInAuction.length || 1),
+          }
+      });
+  };
+
+  const endAuction = useCallback(() => {
+    if (!auctionState) return;
+
+    if (auctionState.highestBidderId) {
+        const winner = players.find(p => p.id === auctionState.highestBidderId);
+        if (winner) {
+            addLog(`${winner.name} venceu o leilão de ${auctionState.property.name} por R$${auctionState.currentBid}!`);
+            toast({ title: "Leilão Encerrado!", description: `${winner.name} arrematou ${auctionState.property.name}!` });
+            updatePlayer(winner.id, p => ({
+                money: p.money - auctionState.currentBid,
+                properties: [...p.properties, auctionState.property.id],
+            }));
+        }
+    } else {
+        addLog(`Ninguém deu lance por ${auctionState.property.name}. A propriedade continua do banco.`);
+        toast({ title: "Leilão Encerrado", description: "A propriedade não foi arrematada." });
+    }
+    setAuctionState(null);
+  }, [auctionState, players, addLog, toast, updatePlayer]);
+  
+  useEffect(() => {
+    if (!auctionState) return;
+
+    // End condition
+    if (auctionState.playersInAuction.length === 1 && auctionState.highestBidderId === auctionState.playersInAuction[0]) {
+        endAuction();
+        return;
+    }
+    if (auctionState.playersInAuction.length === 0) {
+        endAuction();
+        return;
+    }
+
+    // AI Logic for auction
+    const currentAuctionPlayerId = auctionState.playersInAuction[auctionState.turnIndex];
+    if (currentAuctionPlayerId === 'player-2') { // AI's turn to bid
+        const aiPlayer = players.find(p => p.id === 'player-2');
+        if (!aiPlayer) return;
+
+        const property = auctionState.property;
+        const currentBid = auctionState.currentBid;
+        const valueToAI = property.price * 0.9; // AI thinks it's worth 90% of price in auction
+
+        const nextBid = currentBid + 10;
+        
+        setTimeout(() => {
+          if (aiPlayer.money > nextBid && nextBid < valueToAI) {
+              handleAuctionBid('player-2', nextBid);
+          } else {
+              handleAuctionPass('player-2');
+          }
+        }, 1500);
+    }
+
+  }, [auctionState, endAuction, players]);
+
+  const handleAiLogic = () => {
     if (!player || !player.id.startsWith('player-2')) return;
 
     // 1. Build houses if possible
@@ -893,7 +1014,7 @@ export default function GamePage({
   };
 
   useEffect(() => {
-    if (gameOver) return;
+    if (gameOver || auctionState) return;
     if (player && player.id.startsWith('player-2') && !hasRolled) {
       // AI's turn
       setTimeout(() => {
@@ -908,7 +1029,7 @@ export default function GamePage({
       }, 4000); // AI thinks and ends turn after 4 seconds
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPlayerIndex, player, hasRolled, gameOver]);
+  }, [currentPlayerIndex, player, hasRolled, gameOver, auctionState]);
 
   if (!player && !gameOver) {
     return <div>Carregando...</div>;
@@ -992,7 +1113,15 @@ export default function GamePage({
         )}
       </AnimatePresence>
 
-      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
+      <Dialog open={!!selectedSpace} onOpenChange={(open) => {
+          if (!open) {
+              if (selectedSpace && !owner) {
+                handlePassOnBuy(selectedSpace);
+              } else {
+                setSelectedSpace(null)
+              }
+          }
+        }}>
         <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
              {selectedSpace && (
                 <PropertyCard 
@@ -1000,7 +1129,7 @@ export default function GamePage({
                     player={player}
                     owner={owner}
                     onBuy={handleBuyProperty}
-                    onClose={() => setSelectedSpace(null)} 
+                    onClose={() => handlePassOnBuy(selectedSpace)}
                 />
             )}
         </DialogContent>
@@ -1043,6 +1172,15 @@ export default function GamePage({
         player={humanPlayer}
         otherPlayers={allPlayers.filter(p => p.id !== humanPlayer.id)}
         onProposeTrade={handleProposeTrade}
+      />
+
+      <AuctionDialog
+        isOpen={!!auctionState}
+        auctionState={auctionState}
+        players={players}
+        onBid={handleAuctionBid}
+        onPass={handleAuctionPass}
+        humanPlayerId={humanPlayer.id}
       />
     </>
   );

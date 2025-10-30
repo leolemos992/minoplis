@@ -10,6 +10,41 @@ interface GameActionsProps {
   onDiceRoll: (dice1: number, dice2: number) => void;
 }
 
+function DiceIcon({ value }: { value: number }) {
+  const pips = Array.from({ length: value }, (_, i) => i);
+
+  const pipPatterns: { [key: number]: string[] } = {
+    1: ['center'],
+    2: ['top-left', 'bottom-right'],
+    3: ['top-left', 'center', 'bottom-right'],
+    4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+    5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
+    6: [
+      'top-left',
+      'top-right',
+      'mid-left',
+      'mid-right',
+      'bottom-left',
+      'bottom-right',
+    ],
+  };
+
+  const pipGridAreas = pipPatterns[value] || [];
+
+  return (
+    <div className="grid h-10 w-10 grid-cols-3 grid-rows-3 gap-[2px] rounded-md border-2 bg-white p-1">
+      {pipGridAreas.map((area) => (
+        <div
+          key={area}
+          className={`w-full h-full rounded-full bg-black`}
+          style={{ gridArea: area }}
+        ></div>
+      ))}
+    </div>
+  );
+}
+
+
 export function GameActions({ onDiceRoll }: GameActionsProps) {
   const { toast } = useToast();
   const [dice, setDice] = useState<[number, number]>([0, 0]);
@@ -17,6 +52,10 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
 
   const rollDice = () => {
     setIsRolling(true);
+    // Initialize dice to a rolling state if they haven't been rolled yet
+    if (dice[0] === 0) {
+      setDice([1, 1]);
+    }
   };
 
   useEffect(() => {
@@ -30,13 +69,15 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
       const stopTimeout = setTimeout(() => {
         clearInterval(rollInterval);
         setIsRolling(false);
-        const d1 = Math.floor(Math.random() * 6) + 1;
-        const d2 = Math.floor(Math.random() * 6) + 1;
-        setDice([d1, d2]);
-        onDiceRoll(d1, d2);
+        const finalD1 = Math.floor(Math.random() * 6) + 1;
+        const finalD2 = Math.floor(Math.random() * 6) + 1;
+        setDice([finalD1, finalD2]);
+        onDiceRoll(finalD1, finalD2);
         toast({
-          title: "Você Rolou!",
-          description: `Você rolou um ${d1} e um ${d2} para um total de ${d1 + d2}.`,
+          title: 'Você Rolou!',
+          description: `Você rolou um ${finalD1} e um ${finalD2} para um total de ${
+            finalD1 + finalD2
+          }.`,
         });
       }, 1000);
 
@@ -45,62 +86,42 @@ export function GameActions({ onDiceRoll }: GameActionsProps) {
         clearTimeout(stopTimeout);
       };
     }
-  }, [isRolling, toast, onDiceRoll]);
-  
+  }, [isRolling, onDiceRoll, toast]);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Ações</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex justify-center items-center gap-4 h-20">
-            {dice[0] > 0 && (
-                <div className="flex gap-4 p-4 border rounded-lg bg-background">
-                    <DiceIcon value={dice[0]} />
-                    <DiceIcon value={dice[1]} />
-                </div>
-            )}
+        <div className="flex h-20 items-center justify-center gap-4">
+          {dice[0] > 0 && (
+            <div className="flex gap-4 rounded-lg border bg-background p-4">
+              <DiceIcon value={dice[0]} />
+              <DiceIcon value={dice[1]} />
+            </div>
+          )}
         </div>
-        <Button size="lg" className="w-full group" onClick={rollDice} disabled={isRolling}>
+        <Button
+          size="lg"
+          className="group w-full"
+          onClick={rollDice}
+          disabled={isRolling}
+        >
           <Dices className="mr-2 h-5 w-5 transition-transform group-hover:rotate-12" />
           {isRolling ? 'Rolando...' : 'Rolar Dados'}
         </Button>
         <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" className="w-full group">
-                <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-                Negociar
-            </Button>
-            <Button variant="outline" className="w-full group">
-                <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-                Gerenciar
-            </Button>
+          <Button variant="outline" className="group w-full">
+            <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
+            Negociar
+          </Button>
+          <Button variant="outline" className="group w-full">
+            <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
+            Gerenciar
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
-}
-
-
-function DiceIcon({ value }: { value: number }) {
-    const pips = Array.from({ length: value }, (_, i) => i);
-    
-    // Grid areas for each pip count
-    const pipPatterns: {[key: number]: string[]} = {
-        1: ["center"],
-        2: ["top-left", "bottom-right"],
-        3: ["top-left", "center", "bottom-right"],
-        4: ["top-left", "top-right", "bottom-left", "bottom-right"],
-        5: ["top-left", "top-right", "center", "bottom-left", "bottom-right"],
-        6: ["top-left", "top-right", "mid-left", "mid-right", "bottom-left", "bottom-right"],
-    };
-
-    const pipGridAreas = pipPatterns[value] || [];
-
-    return (
-        <div className="w-10 h-10 rounded-md border-2 bg-white grid grid-cols-3 grid-rows-3 p-1 gap-[2px]">
-            {pipGridAreas.map(area => (
-                 <div key={area} className={`w-full h-full rounded-full bg-black`} style={{ gridArea: area }}></div>
-            ))}
-        </div>
-    );
 }

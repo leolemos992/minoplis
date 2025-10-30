@@ -147,7 +147,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
         </div>
         <Button
             size="lg"
-            variant="secondary"
+            variant={canEndTurn ? 'default' : 'secondary'}
             className={cn("w-full", canEndTurn && "animate-pulse")}
             onClick={onEndTurn}
             disabled={!isTurnActive || isRolling || !hasRolled}

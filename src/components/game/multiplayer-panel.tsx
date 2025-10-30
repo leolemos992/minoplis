@@ -316,7 +316,7 @@ interface MultiplayerPanelProps {
 
 export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions }: MultiplayerPanelProps) {
   return (
-    <Card>
+    <Card className="font-sans">
       <Tabs defaultValue="assets">
         <TooltipProvider>
             <CardHeader className="p-2">
@@ -377,3 +377,5 @@ export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions 
     </Card>
   );
 }
+
+    

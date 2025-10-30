@@ -106,7 +106,7 @@ const BoardSpace = ({ space, index, children }: { space: any, index: number, chi
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
-                 {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
+                 {children && <div className="absolute inset-0 flex items-center justify-center p-2">{children}</div>}
             </div>
         )
     }
@@ -149,9 +149,9 @@ const GameBoard = ({ players }: { players: Player[] }) => {
                 </div>
                 {boardSpaces.map((space, index) => (
                     <BoardSpace key={space.name + index} space={space} index={index}>
-                         <div className="relative w-full h-full flex flex-wrap items-center justify-center gap-1 p-1">
+                         <div className="relative w-full h-full grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1">
                             {players.filter(p => p.position === index).map(p => (
-                                <PlayerToken key={p.id} player={p} />
+                                <PlayerToken key={p.id} player={p} size={6}/>
                             ))}
                         </div>
                     </BoardSpace>

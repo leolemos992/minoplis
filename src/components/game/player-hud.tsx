@@ -8,6 +8,7 @@ import { Wallet, Landmark } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
+import { PlayerToken } from './player-token';
 
 const playerColors: { [key: string]: { border: string, text: string } } = {
   red: { border: 'border-red-500', text: 'text-red-500' },
@@ -31,19 +32,15 @@ export function PlayerHud({ player }: PlayerHudProps) {
     setFormattedMoney(player.money.toLocaleString('pt-BR'));
   }, [player.money]);
 
-  const totem = totems.find(t => t.id === player.totem);
-  const TotemIcon = totem ? totem.icon : null;
   const color = playerColors[player.color] || { border: 'border-gray-500', text: 'text-gray-500' };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-            <Avatar className={cn("h-16 w-16 border-2", color.border)}>
-                <div className={cn("h-full w-full flex items-center justify-center rounded-full bg-white dark:bg-zinc-800")}>
-                    {TotemIcon && <TotemIcon className={cn("h-8 w-8", color.text)} />}
-                </div>
-            </Avatar>
+            <div className={cn("h-16 w-16 border-2 rounded-full flex items-center justify-center", color.border)}>
+                 <PlayerToken player={player} size={10}/>
+            </div>
             <div>
                 <CardTitle>{player.name}</CardTitle>
             </div>

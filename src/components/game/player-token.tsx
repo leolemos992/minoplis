@@ -14,7 +14,7 @@ const playerColors: { [key: string]: string } = {
 };
 
 
-export function PlayerToken({ player }: { player: Player }) {
+export function PlayerToken({ player, size = 8 }: { player: Player, size?: number }) {
   const totem = totems.find((t) => t.id === player.totem);
   const TotemIcon = totem ? totem.icon : null;
   const colorClass = playerColors[player.color] || 'text-black';
@@ -24,7 +24,7 @@ export function PlayerToken({ player }: { player: Player }) {
   return (
     <motion.div
         layoutId={`player-token-${player.id}`}
-        className={cn("h-6 w-6 transform transition-all duration-500 ease-in-out", colorClass)}
+        className={cn(`h-${size} w-${size} transform transition-all duration-500 ease-in-out`, colorClass)}
         initial={{ scale: 0.8, opacity: 0.8 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}

@@ -82,6 +82,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
 }) {
     const { toast } = useToast();
     const allPlayerProperties = useMemo(() => {
+        if (!player) return [];
         return player.properties
         .map(id => {
             const property = boardSpaces.find(p => 'id' in p && p.id === id) as Property | undefined;
@@ -94,7 +95,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
             if (a.color > b.color) return 1;
             return 0;
         });
-    }, [player.properties, player.mortgagedProperties]);
+    }, [player]);
 
     const groupedProperties = useMemo(() => {
         const groups: { [color: string]: (Property & { isMortgaged: boolean })[] } = {};
@@ -126,6 +127,8 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
         return sets;
     }, [groupedProperties]);
   
+    if (!player) return <CardContent><p className="text-center text-muted-foreground">Selecione um jogador</p></CardContent>;
+
   return (
     <CardContent className="p-0">
       <div className="flex items-center justify-between p-3 text-base font-semibold bg-muted/50">
@@ -229,14 +232,15 @@ function PlayerList({ allPlayers, currentPlayerId }: { allPlayers: Player[], cur
                         const totemData = totems.find(t => t.id === p.totem);
                         const TotemIcon = totemData?.icon;
                         const color = playerColors[p.color] || playerColors.blue;
+                        const isCurrentTurn = p.id === currentPlayerId;
                         return (
-                            <div key={p.id} className={cn("flex items-center justify-between p-2 rounded-md", p.id === currentPlayerId ? "bg-primary/10 border border-primary" : "bg-muted/50")}>
+                            <div key={p.id} className={cn("flex items-center justify-between p-2 rounded-md", isCurrentTurn ? "bg-primary/10 border border-primary" : "bg-muted/50")}>
                                 <div className="flex items-center gap-3">
                                     <Avatar className={cn("h-10 w-10", color.bg)}>
                                         {TotemIcon && <TotemIcon className="h-6 w-6 text-white" />}
                                     </Avatar>
                                     <div>
-                                        <p className="font-semibold">{p.name} {p.id === currentPlayerId && '(Você)'}</p>
+                                        <p className="font-semibold">{p.name} {p.id === 'player-1' && '(Você)'}</p>
                                         <p className="text-sm text-green-600 font-medium">R${p.money.toLocaleString('pt-BR')}</p>
                                     </div>
                                 </div>
@@ -258,10 +262,10 @@ function GameChat() {
                     {/* Placeholder chat messages */}
                     <div className="flex items-start gap-2">
                         <Avatar className="h-8 w-8 bg-red-500">
-                             <div className="text-white font-bold">O</div>
+                             <div className="text-white font-bold">IA</div>
                         </Avatar>
                         <div>
-                            <p className="font-semibold">Oponente</p>
+                            <p className="font-semibold">IA-Bot</p>
                             <p className="p-2 rounded-md bg-muted">Boa sorte! Que vença o melhor.</p>
                         </div>
                     </div>
@@ -277,8 +281,8 @@ function GameChat() {
                 </div>
            </ScrollArea>
            <div className="flex gap-2">
-                <Input placeholder="Digite sua mensagem..."/>
-                <Button>Enviar</Button>
+                <Input placeholder="Digite sua mensagem..." disabled/>
+                <Button disabled>Enviar</Button>
            </div>
         </CardContent>
     )
@@ -307,6 +311,7 @@ function EventLog({ log }: { log: GameLog[] }) {
 interface MultiplayerPanelProps {
   player: Player;
   allPlayers: Player[];
+  currentPlayerId: string;
   gameLog: GameLog[];
   onBuild: (propertyId: string, amount: number) => void;
   onSell: (propertyId: string, amount: number) => void;
@@ -314,7 +319,7 @@ interface MultiplayerPanelProps {
   onUnmortgage: (propertyId: string) => void;
 }
 
-export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions }: MultiplayerPanelProps) {
+export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog, ...assetActions }: MultiplayerPanelProps) {
   return (
     <Card className="font-sans">
       <Tabs defaultValue="assets">
@@ -365,7 +370,7 @@ export function MultiplayerPanel({ player, allPlayers, gameLog, ...assetActions 
             <PlayerAssets player={player} {...assetActions} />
         </TabsContent>
         <TabsContent value="players">
-            <PlayerList allPlayers={allPlayers} currentPlayerId={player.id} />
+            <PlayerList allPlayers={allPlayers} currentPlayerId={currentPlayerId} />
         </TabsContent>
         <TabsContent value="chat">
             <GameChat />

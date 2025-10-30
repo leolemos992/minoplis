@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/game-data';
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard, GameLog } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -16,7 +16,7 @@ import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 import { GameControls } from '@/components/game/game-controls';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 
 
@@ -244,6 +244,7 @@ export default function GamePage({
   const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
   
   const [gameLog, setGameLog] = useState<GameLog[]>([]);
+  const [gameOver, setGameOver] = useState<Player | null>(null);
 
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
   const player = players[currentPlayerIndex];
@@ -252,8 +253,7 @@ export default function GamePage({
     setGameLog(prev => [{ message, timestamp: new Date() }, ...prev]);
   }, []);
 
-  // Initialize players and decks on game start
-  useEffect(() => {
+  const initializeGame = useCallback(() => {
     const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
     setChanceDeck(shuffle(chanceCards));
     setCommunityChestDeck(shuffle(communityChestCards));
@@ -287,9 +287,18 @@ export default function GamePage({
     };
     
     setPlayers([humanPlayer, aiPlayer]);
+    setCurrentPlayerIndex(0);
+    setHasRolled(false);
+    setGameLog([]);
+    setGameOver(null);
     addLog(`O jogo ${gameName} começou!`);
     addLog(`É a vez de ${humanPlayer.name}.`);
   }, [playerName, totemId, colorId, gameName, addLog]);
+
+  // Initialize game
+  useEffect(() => {
+    initializeGame();
+  }, [initializeGame]);
 
 
   const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Partial<Player>)) => {
@@ -301,6 +310,50 @@ export default function GamePage({
         return p;
     }));
   }, []);
+  
+  const handleBankruptcy = useCallback((bankruptPlayerId: string, creditor?: Player) => {
+    const bankruptPlayer = players.find(p => p.id === bankruptPlayerId);
+    if (!bankruptPlayer) return;
+
+    addLog(`${bankruptPlayer.name} foi à falência!`);
+    toast({ variant: 'destructive', title: 'Falência!', description: `${bankruptPlayer.name} foi removido do jogo.` });
+
+    if (creditor) {
+      addLog(`${creditor.name} recebe todos os ativos de ${bankruptPlayer.name}.`);
+      // Transfer assets
+      updatePlayer(creditor.id, p => ({
+        money: p.money + bankruptPlayer.money,
+        properties: [...p.properties, ...bankruptPlayer.properties],
+        // Note: simplified - does not handle mortgages transfer yet.
+      }));
+    } else {
+        // Assets go back to the bank, properties become unowned.
+        addLog(`As propriedades de ${bankruptPlayer.name} voltaram para o banco.`);
+    }
+
+    setPlayers(prev => prev.filter(p => p.id !== bankruptPlayerId));
+
+  }, [players, addLog, toast, updatePlayer]);
+
+
+  const makePayment = useCallback((payerId: string, receiverId: string | null, amount: number) => {
+      const payer = players.find(p => p.id === payerId);
+      if (!payer) return false;
+
+      if (payer.money < amount) {
+          // Not enough cash, check assets later. For now, bankruptcy.
+          const receiver = receiverId ? players.find(p => p.id === receiverId) : undefined;
+          handleBankruptcy(payerId, receiver);
+          return false;
+      }
+
+      updatePlayer(payerId, p => ({ money: p.money - amount }));
+      if (receiverId) {
+          updatePlayer(receiverId, p => ({ money: p.money + amount }));
+      }
+      return true;
+
+  }, [players, handleBankruptcy, updatePlayer]);
 
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
@@ -331,7 +384,6 @@ export default function GamePage({
         const owner = players.find(p => p.properties.includes(property.id));
         
         if (owner && owner.id !== player.id) {
-            // Pay rent
             if (owner.mortgagedProperties.includes(property.id)) {
                  toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então ${player.name} não paga aluguel.` });
                  addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
@@ -352,13 +404,7 @@ export default function GamePage({
             }
 
             if(rentAmount > 0) {
-                 if (player.money < rentAmount) {
-                    toast({ variant: 'destructive', title: 'Falência!', description: `${player.name} não tem dinheiro para pagar R$${rentAmount} a ${owner.name}.` });
-                    addLog(`${player.name} faliu ao tentar pagar R$${rentAmount} a ${owner.name}.`);
-                    // Handle bankruptcy logic here
-                } else {
-                    updatePlayer(player.id, p => ({ money: p.money - rentAmount }));
-                    updatePlayer(owner.id, p => ({ money: p.money + rentAmount }));
+                 if (makePayment(player.id, owner.id, rentAmount)) {
                     toast({ variant: 'destructive', title: `Aluguel!`, description: `${player.name} pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
                     addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
                 }
@@ -404,18 +450,20 @@ export default function GamePage({
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(player.money * 0.1);
-        updatePlayer(player.id, p => ({money: p.money - taxAmount}));
-        toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$${taxAmount} de Imposto de Renda.` });
-        addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
+        if (makePayment(player.id, null, taxAmount)) {
+            toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$${taxAmount} de Imposto de Renda.` });
+            addLog(`${player.name} pagou R$${taxAmount} de Imposto de Renda.`);
+        }
     } else if (space.type === 'luxury-tax') {
-        updatePlayer(player.id, p => ({money: p.money - 100}));
-        toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$100 de Taxa das Blusinhas.` });
-        addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
+        if(makePayment(player.id, null, 100)) {
+            toast({ variant: "destructive", title: "Imposto!", description: `${player.name} pagou R$100 de Taxa das Blusinhas.` });
+            addLog(`${player.name} pagou R$100 de Taxa das Blusinhas.`);
+        }
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
     }
 
-  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog]);
+  }, [player, players, toast, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     if (!player) return;
@@ -426,7 +474,12 @@ export default function GamePage({
   
       switch (action.type) {
         case 'money':
-          newPlayerState.money = p.money + (action.amount || 0);
+          const amount = action.amount || 0;
+          if (amount < 0) {
+            makePayment(p.id, null, Math.abs(amount));
+          } else {
+            newPlayerState.money = p.money + amount;
+          }
           break;
         case 'move_to':
           let newPosition = -1;
@@ -456,8 +509,9 @@ export default function GamePage({
              const houseCount = Object.values(p.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
              const hotelCount = Object.values(p.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
              const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
-             newPlayerState.money = p.money - repairCost;
-             addLog(`${p.name} pagou R$${repairCost} em reparos.`);
+             if (makePayment(p.id, null, repairCost)) {
+                addLog(`${p.name} pagou R$${repairCost} em reparos.`);
+             }
             break;
         default:
           break;
@@ -467,7 +521,7 @@ export default function GamePage({
     
     updatePlayer(player.id, actionResult);
 
-  }, [player, JAIL_POSITION, handleLandedOnSpace, updatePlayer, addLog]);
+  }, [player, JAIL_POSITION, handleLandedOnSpace, updatePlayer, addLog, makePayment]);
 
   useEffect(() => {
     if (!cardToExecute || !player) return;
@@ -514,6 +568,7 @@ export default function GamePage({
         } else {
             toast({ title: "Azar...", description: "Você não rolou dados duplos. Tente na próxima rodada." });
         }
+        // Rolling dice in jail (even if you don't get out) counts as your move
         return;
     }
     
@@ -526,7 +581,7 @@ export default function GamePage({
         
         let updatedPlayer: Partial<Player> = { position: newPosition };
 
-        if (newPosition < currentPosition) {
+        if (newPosition < currentPosition && !fromCard) {
             updatedPlayer.money = prevPlayer.money + 200;
             setTimeout(() => {
                 toast({
@@ -543,10 +598,18 @@ export default function GamePage({
   };
 
   const handleEndTurn = () => {
+    // Check for game over
+    if (players.length <= 1) {
+        setGameOver(players[0] || null);
+        return;
+    }
+
     const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
     setCurrentPlayerIndex(nextPlayerIndex);
     setHasRolled(false);
-    addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
+    if(players[nextPlayerIndex]) {
+       addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
+    }
   };
 
   const handleBuyProperty = (property: Property) => {
@@ -573,21 +636,15 @@ export default function GamePage({
   };
 
   const handlePayBail = () => {
-    if (!player) return;
+    if (!player || !player.inJail) return;
 
-    if (player.inJail && player.money >= 50) {
-        updatePlayer(player.id, p => ({money: p.money - 50, inJail: false}));
+    if (makePayment(player.id, null, 50)) {
+        updatePlayer(player.id, { inJail: false });
         toast({
             title: "Você pagou a fiança!",
             description: "Você está livre da prisão."
         });
         addLog(`${player.name} pagou R$50 de fiança e saiu da prisão.`);
-    } else if (player.inJail) {
-         toast({
-            variant: "destructive",
-            title: "Dinheiro insuficiente!",
-            description: "Você não tem R$50 para pagar a fiança.",
-        });
     }
   }
 
@@ -603,9 +660,16 @@ export default function GamePage({
     updatePlayer(player.id, p => ({ position: index }));
     handleLandedOnSpace(index);
   };
+  
+  useEffect(() => {
+    if (players.length <= 1 && players.length > 0) {
+        setGameOver(players[0]);
+    }
+  }, [players]);
 
   useEffect(() => {
-    if (player && player.id === 'player-2' && !hasRolled) {
+    if (gameOver) return;
+    if (player && player.id.startsWith('player-2') && !hasRolled) {
       // AI's turn
       setTimeout(() => {
         const dice1 = Math.floor(Math.random() * 6) + 1;
@@ -617,7 +681,7 @@ export default function GamePage({
         handleEndTurn();
       }, 3000); // AI ends turn after 3 seconds
     }
-  }, [currentPlayerIndex, player, hasRolled]); // Re-run when turn changes
+  }, [currentPlayerIndex, player, hasRolled, gameOver]);
 
  const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
@@ -757,14 +821,14 @@ export default function GamePage({
     });
   };
 
-  if (!player) {
+  if (!player && !gameOver) {
     return <div>Carregando...</div>;
   }
 
   const allPlayers = players;
   const humanPlayer = allPlayers.find(p => p.id === 'player-1') || player;
   const owner = selectedSpace ? allPlayers.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
-  const isMyTurn = player.id === 'player-1';
+  const isMyTurn = player && player.id === 'player-1';
 
   return (
     <>
@@ -774,8 +838,8 @@ export default function GamePage({
           <GameBoard 
             players={allPlayers} 
             onSpaceClick={handleDebugMove} 
-            houses={player.houses} 
-            mortgagedProperties={player.mortgagedProperties} 
+            houses={humanPlayer ? humanPlayer.houses : {}} 
+            mortgagedProperties={humanPlayer ? humanPlayer.mortgagedProperties : []} 
             animateCardPile={animateCardPile} 
           />
         </div>
@@ -783,6 +847,7 @@ export default function GamePage({
           <MultiplayerPanel
             player={humanPlayer}
             allPlayers={allPlayers}
+            currentPlayerId={player ? player.id : ''}
             gameLog={gameLog}
             onBuild={handleBuild}
             onSell={handleSell}
@@ -791,11 +856,11 @@ export default function GamePage({
           />
           <GameActions 
             onDiceRoll={handleDiceRoll} 
-            isPlayerInJail={player.inJail}
+            isPlayerInJail={player?.inJail ?? false}
             onPayBail={handlePayBail}
-            canPayBail={player.money >= 50}
+            canPayBail={player?.money >= 50}
             onManageProperties={() => setManageOpen(true)}
-            playerHasProperties={player.properties.length > 0}
+            playerHasProperties={humanPlayer?.properties.length > 0}
             isTurnActive={isMyTurn}
             hasRolled={hasRolled}
             onEndTurn={handleEndTurn}
@@ -803,6 +868,41 @@ export default function GamePage({
           <GameControls />
         </aside>
       </div>
+
+      <AnimatePresence>
+        {gameOver && (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
+            >
+                <Dialog open={!!gameOver} onOpenChange={() => {}}>
+                    <DialogContent className="max-w-md text-center p-8">
+                        <DialogHeader>
+                            <motion.div
+                                initial={{ scale: 0.5, rotate: -15 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}
+                            >
+                                <Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" />
+                            </motion.div>
+                            <DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle>
+                            <DialogDescription className="text-lg mt-2">
+                                Parabéns, <span className="font-bold text-primary">{gameOver.name}</span>! Você é o grande vencedor!
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
+                            <Button size="lg" onClick={initializeGame}>Jogar Novamente</Button>
+                            <Button size="lg" variant="outline" asChild>
+                                <Link href="/">Voltar ao Início</Link>
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
       <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
         <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">

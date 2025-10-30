@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import type { Player, Property } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Wallet, Landmark, Shield, Home, Hotel, Gavel } from 'lucide-react';
+import { Wallet, Landmark, Shield, Home, Hotel, Gavel, Banknote } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { totems, boardSpaces } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
@@ -64,6 +64,19 @@ export function PlayerHud({ player }: PlayerHudProps) {
     )
   };
 
+  const allPlayerProperties = useMemo(() => {
+    return player.properties.map(id => {
+      const property = boardSpaces.find(p => 'id' in p && p.id === id) as Property | undefined;
+      const isMortgaged = player.mortgagedProperties.includes(id);
+      return { ...property, id, isMortgaged };
+    }).sort((a, b) => {
+        if (!a.color || !b.color) return 0;
+        if (a.color < b.color) return -1;
+        if (a.color > b.color) return 1;
+        return 0;
+    });
+  }, [player.properties, player.mortgagedProperties]);
+
   return (
     <Card>
       <CardHeader>
@@ -115,25 +128,20 @@ export function PlayerHud({ player }: PlayerHudProps) {
                   <p className="text-sm text-muted-foreground text-center py-4 bg-muted/50 rounded-md">Nenhuma propriedade ainda.</p>
               ) : (
                   <ul className="space-y-2 pr-4">
-                    {player.properties.sort((a, b) => {
-                      const propA = boardSpaces.find(p => 'id' in p && p.id === a) as Property | undefined;
-                      const propB = boardSpaces.find(p => 'id' in p && p.id === b) as Property | undefined;
-                      if (!propA || !propB) return 0;
-                      if (propA.color < propB.color) return -1;
-                      if (propA.color > propB.color) return 1;
-                      return 0;
-                    }).map(id => {
-                      const property = boardSpaces.find(p => 'id' in p && p.id === id) as Property | undefined;
-                      if (!property) return null;
-                      const houseCount = player.houses[id] || 0;
+                    {allPlayerProperties.map(property => {
+                      if (!property || !property.id) return null;
+                      const houseCount = player.houses[property.id] || 0;
 
                       return (
-                        <li key={id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                        <li key={property.id} className={cn("flex items-center justify-between text-sm p-2 rounded-md", property.isMortgaged ? "bg-destructive/10" : "bg-muted/50")}>
                           <div className="flex items-center gap-2">
                             <div className={cn("w-2 h-6 rounded-sm", property.color && propertyColorClasses[property.color])}></div>
-                            <span className="font-medium">{property.name}</span>
+                            <span className={cn("font-medium", property.isMortgaged && 'line-through')}>{property.name}</span>
                           </div>
-                          <HouseDisplay count={houseCount} />
+                          <div className="flex items-center gap-2">
+                            {property.isMortgaged && <Banknote className="h-4 w-4 text-destructive" title="Hipotecado" />}
+                            <HouseDisplay count={houseCount} />
+                          </div>
                         </li>
                       )
                     })}

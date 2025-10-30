@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Hotel, Minus, Plus } from 'lucide-react';
+import { Home, Hotel, Minus, Plus, Banknote, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,8 @@ interface ManagePropertiesDialogProps {
   player: Player;
   onBuild: (propertyId: string, amount: number) => void;
   onSell: (propertyId: string, amount: number) => void;
+  onMortgage: (propertyId: string) => void;
+  onUnmortgage: (propertyId: string) => void;
 }
 
 const propertyColorClasses: { [key: string]: string } = {
@@ -43,6 +45,8 @@ export function ManagePropertiesDialog({
   player,
   onBuild,
   onSell,
+  onMortgage,
+  onUnmortgage,
 }: ManagePropertiesDialogProps) {
   const { toast } = useToast();
 
@@ -91,6 +95,18 @@ export function ManagePropertiesDialog({
       onSell(property.id, 1);
   }
 
+  const handleMortgageClick = (property: Property) => {
+      const houseCount = player.houses[property.id] || 0;
+      if (houseCount > 0) {
+          toast({ variant: 'destructive', title: 'Venda as construções primeiro', description: 'Você deve vender todas as casas/hotéis antes de hipotecar.' });
+          return;
+      }
+      onMortgage(property.id);
+  };
+
+  const handleUnmortgageClick = (property: Property) => {
+      onUnmortgage(property.id);
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -98,7 +114,7 @@ export function ManagePropertiesDialog({
         <DialogHeader>
           <DialogTitle>Gerenciar Propriedades</DialogTitle>
           <DialogDescription>
-            Construa casas e hotéis para aumentar o valor dos seus aluguéis.
+            Construa, venda, e hipoteque suas propriedades.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -114,10 +130,15 @@ export function ManagePropertiesDialog({
                   <div className="space-y-2 pl-5">
                     {props.map(prop => {
                         const houseCount = player.houses[prop.id] || 0;
-                        const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0);
+                        const isMortgaged = player.mortgagedProperties.includes(prop.id);
+
+                        const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0) && !isMortgaged;
                         const canSell = houseCount > 0;
+                        const canMortgage = houseCount === 0 && !isMortgaged;
+                        const canUnmortgage = isMortgaged && player.money >= (prop.price / 2 * 1.1);
+
                         return (
-                            <div key={prop.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                            <div key={prop.id} className={cn("flex items-center justify-between p-2 rounded-md bg-muted/50", isMortgaged && 'bg-destructive/10')}>
                                 <div className="flex-1">
                                     <p className="font-medium">{prop.name}</p>
                                     <div className="flex items-center gap-1 mt-1">
@@ -126,15 +147,27 @@ export function ManagePropertiesDialog({
                                         ) : (
                                             Array.from({length: houseCount}).map((_, i) => <Home key={i} className="w-4 h-4 text-green-600" />)
                                         )}
+                                        {isMortgaged && <Badge variant="destructive">Hipotecado</Badge>}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canSell} onClick={() => handleSellClick(prop)}>
-                                        <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canBuild} onClick={() => handleBuildClick(prop)}>
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
+                                     {!isMortgaged ? (
+                                        <>
+                                            <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canSell} onClick={() => handleSellClick(prop)}>
+                                                <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canBuild} onClick={() => handleBuildClick(prop)}>
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                            <Button size="icon" variant="destructive-outline" className="h-7 w-7" disabled={!canMortgage} onClick={() => handleMortgageClick(prop)}>
+                                                <Banknote className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                     ) : (
+                                        <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canUnmortgage} onClick={() => handleUnmortgageClick(prop)}>
+                                            <Landmark className="h-4 w-4" />
+                                        </Button>
+                                     )}
                                 </div>
                             </div>
                         )

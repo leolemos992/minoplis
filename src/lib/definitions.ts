@@ -12,6 +12,7 @@ export type Player = {
   name: string;
   money: number;
   properties: string[];
+  mortgagedProperties: string[];
   houses: { [propertyId: string]: number };
   position: number;
   color: string;

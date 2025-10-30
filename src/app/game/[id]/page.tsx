@@ -32,6 +32,7 @@ const colorClasses: { [key: string]: string } = {
   darkblue: 'bg-[#0072bb]',
   railroad: 'bg-transparent',
   utility: 'bg-transparent',
+  mortgaged: 'bg-gray-400'
 };
 
 const getIcon = (space: any, size = "w-8 h-8") => {
@@ -53,7 +54,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
     }
 }
 
-const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void, houses?: number }) => {
+const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void, houses?: number, isMortgaged?: boolean }) => {
     const isProperty = 'price' in space;
     const baseClasses = "border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors";
     
@@ -99,7 +100,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
                     index > 10 && index < 20 && "right-0 w-5 h-full", // left row
                     index > 20 && index < 30 && "bottom-0 h-5 w-full", // top row
                     index > 30 && index < 40 && "left-0 w-5 h-full", // right row
-                    colorClasses[(space as Property).color]
+                    colorClasses[isMortgaged ? 'mortgaged' : (space as Property).color]
                 )} />
             )}
              {houses !== undefined && houses > 0 && (
@@ -109,7 +110,8 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
             )}
             <div className={cn(
                 "relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full",
-                textRotation[index]
+                textRotation[index],
+                isMortgaged && 'opacity-50'
             )}>
                  {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
@@ -146,7 +148,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
     )
 };
 
-const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number }, animateCardPile: 'chance' | 'community-chest' | null }) => {
+const GameBoard = ({ players, onSpaceClick, houses, mortgagedProperties, animateCardPile }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number }, mortgagedProperties: string[], animateCardPile: 'chance' | 'community-chest' | null }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -190,7 +192,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
-                    <BoardSpace key={space.name + index} space={space} index={index} onSpaceClick={onSpaceClick} houses={ 'id' in space ? houses[space.id] : undefined}>
+                    <BoardSpace 
+                        key={space.name + index} 
+                        space={space} 
+                        index={index} 
+                        onSpaceClick={onSpaceClick} 
+                        houses={ 'id' in space ? houses[space.id] : undefined}
+                        isMortgaged={ 'id' in space && mortgagedProperties.includes(space.id)}
+                    >
                          <>
                             {players.filter(p => p.position === index).map(p => (
                                 <PlayerToken key={p.id} player={p} size={10}/>
@@ -221,6 +230,7 @@ export default function GamePage({
     name: playerName,
     money: 1500,
     properties: [],
+    mortgagedProperties: [],
     houses: {},
     position: 0,
     color: colorId,
@@ -554,12 +564,54 @@ export default function GamePage({
     });
   };
 
+  const handleMortgage = (propertyId: string) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property) return;
+    
+    const mortgageValue = property.price / 2;
+    setPlayer(p => ({
+        ...p,
+        money: p.money + mortgageValue,
+        mortgagedProperties: [...p.mortgagedProperties, propertyId]
+    }));
+
+    toast({
+        title: "Propriedade Hipotecada!",
+        description: `Você hipotecou ${property.name} e recebeu R$${mortgageValue}.`
+    });
+  };
+
+  const handleUnmortgage = (propertyId: string) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property) return;
+
+    const unmortgageCost = (property.price / 2) * 1.1; // 10% interest
+    if (player.money < unmortgageCost) {
+        toast({
+            variant: "destructive",
+            title: "Dinheiro insuficiente!",
+            description: `Você precisa de R$${unmortgageCost.toFixed(2)} para pagar a hipoteca de ${property.name}.`
+        });
+        return;
+    }
+
+    setPlayer(p => ({
+        ...p,
+        money: p.money - unmortgageCost,
+        mortgagedProperties: p.mortgagedProperties.filter(id => id !== propertyId)
+    }));
+     toast({
+        title: "Hipoteca Paga!",
+        description: `Você pagou a hipoteca de ${property.name}.`
+    });
+  };
+
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses} animateCardPile={animateCardPile} />
+          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses} mortgagedProperties={player.mortgagedProperties} animateCardPile={animateCardPile} />
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />
@@ -615,6 +667,8 @@ export default function GamePage({
         player={player}
         onBuild={handleBuild}
         onSell={handleSell}
+        onMortgage={handleMortgage}
+        onUnmortgage={handleUnmortgage}
       />
     </>
   );

@@ -44,7 +44,7 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
     const isProperty = 'price' in space;
 
     const cornerSpaces: { [key:number]: string } = {
-        0: 'br', 20: 'tl', 10: 'bl', 30: 'tr'
+        0: 'br', 20: 'bl', 10: 'tr', 30: 'tl'
     }
 
     if (position === 'corner') {
@@ -52,16 +52,12 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
         return (
             <div className={cn(
                 "w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative",
-                {'col-start-1 row-start-1': cornerPos === 'tl'},
-                {'col-start-11 row-start-1': cornerPos === 'tr'},
-                {'col-start-1 row-start-11': cornerPos === 'bl'},
-                {'col-start-11 row-start-11': cornerPos === 'br'},
             )}>
-                 <div className={cn("flex flex-col items-center justify-center", 
-                    {'rotate-45': cornerPos === 'bl', '-rotate-45': cornerPos === 'tr', 'rotate-135': cornerPos === 'tl', '-rotate-135': cornerPos === 'br'}
+                 <div className={cn("flex flex-col items-center justify-center space-y-1", 
+                    {'rotate-45': cornerPos === 'tr', '-rotate-45': cornerPos === 'tl', 'rotate-135': cornerPos === 'br', '-rotate-135': cornerPos === 'bl'}
                  )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
-                    <span className="font-bold">{space.name}</span>
+                    <span className="font-bold block w-20">{space.name}</span>
                 </div>
             </div>
         )
@@ -70,8 +66,8 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
     const textRotation = {
       top: '',
       bottom: '',
-      left: 'transform -rotate-90',
-      right: 'transform rotate-90'
+      left: 'transform rotate-90',
+      right: 'transform -rotate-90'
     };
     
     if (isProperty) {
@@ -79,8 +75,8 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
       return (
         <div className={cn("border border-black flex", {
           'flex-col': position === 'top' || position === 'bottom',
-          'flex-row-reverse': position === 'left',
-          'flex-row': position === 'right',
+          'flex-row-reverse': position === 'right',
+          'flex-row': position === 'left',
           'h-28': position === 'top' || position === 'bottom',
           'w-28': position === 'left' || position === 'right',
         })}>
@@ -112,27 +108,51 @@ const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top
 }
 
 const GameBoard = () => {
+    // Bottom row (indices 9 to 1)
+    const bottomRow = boardSpaces.slice(1, 10).reverse();
+    // Left row (indices 19 to 11)
+    const leftRow = boardSpaces.slice(11, 20).reverse();
+    // Top row (indices 21 to 29)
+    const topRow = boardSpaces.slice(21, 30);
+    // Right row (indices 31 to 39)
+    const rightRow = boardSpaces.slice(31, 40);
+
     return (
         <div className="bg-green-200/40 p-4 aspect-square max-w-[900px] mx-auto">
             <div className="grid grid-cols-11 grid-rows-11 w-full h-full relative">
-                {boardSpaces.map((space, index) => {
-                    const props = {
-                        ...space,
-                        position: index,
-                    }
-                    if (index === 0 || index === 10 || index === 20 || index === 30) {
-                        return <BoardSpace key={index} space={props} position="corner" />;
-                    } else if (index > 0 && index < 10) {
-                        return <div key={index} className={cn("col-start-11", `row-start-${11-index}`)}><BoardSpace space={props} position="bottom" /></div>;
-                    } else if (index > 10 && index < 20) {
-                        return <div key={index} className={cn(`col-start-${11-(index-10)}`, "row-start-1")}><BoardSpace space={props} position="left" /></div>
-                    } else if (index > 20 && index < 30) {
-                        return <div key={index} className={cn("col-start-1", `row-start-${index-19}`)}><BoardSpace space={props} position="top" /></div>
-                    } else if (index > 30 && index < 40) {
-                        return <div key={index} className={cn(`col-start-${index-29}`, "row-start-11")}><BoardSpace space={props} position="right" /></div>
-                    }
-                    return null;
-                })}
+                {/* Corners */}
+                <div className="col-start-11 row-start-11"><BoardSpace space={{...boardSpaces[0], position: 0}} position="corner" /></div>
+                <div className="col-start-1 row-start-11"><BoardSpace space={{...boardSpaces[10], position: 10}} position="corner" /></div>
+                <div className="col-start-1 row-start-1"><BoardSpace space={{...boardSpaces[20], position: 20}} position="corner" /></div>
+                <div className="col-start-11 row-start-1"><BoardSpace space={{...boardSpaces[30], position: 30}} position="corner" /></div>
+                
+                {/* Bottom Row */}
+                {bottomRow.map((space, index) => (
+                    <div key={space.id || space.name} className={`col-start-${index + 2} row-start-11`}>
+                        <BoardSpace space={space} position="bottom" />
+                    </div>
+                ))}
+                
+                {/* Left Row */}
+                {leftRow.map((space, index) => (
+                     <div key={space.id || space.name} className={`col-start-1 row-start-${index + 2}`}>
+                        <BoardSpace space={space} position="left" />
+                    </div>
+                ))}
+
+                {/* Top Row */}
+                {topRow.map((space, index) => (
+                    <div key={space.id || space.name} className={`col-start-${index + 2} row-start-1`}>
+                        <BoardSpace space={space} position="top" />
+                    </div>
+                ))}
+
+                {/* Right Row */}
+                {rightRow.map((space, index) => (
+                    <div key={space.id || space.name} className={`col-start-11 row-start-${index + 2}`}>
+                        <BoardSpace space={space} position="right" />
+                    </div>
+                ))}
 
                 {/* Center Logo */}
                 <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-muted flex items-center justify-center">

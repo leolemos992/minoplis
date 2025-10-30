@@ -102,7 +102,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
                     colorClasses[(space as Property).color]
                 )} />
             )}
-             {houses && houses > 0 && (
+             {houses !== undefined && houses > 0 && (
                 <div className={cn("absolute z-10 flex items-center justify-center p-px", houseContainerClasses[index])}>
                     <HouseDisplay count={houses} />
                 </div>
@@ -268,15 +268,17 @@ export default function GamePage({
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         setAnimateCardPile(space.type);
         setTimeout(() => {
+            let card: GameCard;
             if (space.type === 'chance') {
-                const [card, ...rest] = chanceDeck;
+                const [first, ...rest] = chanceDeck;
+                card = first;
                 setChanceDeck([...rest, card]); // Move card to bottom
-                setDrawnCard(card);
             } else {
-                const [card, ...rest] = communityChestDeck;
+                const [first, ...rest] = communityChestDeck;
+                card = first;
                 setCommunityChestDeck([...rest, card]); // Move card to bottom
-                setDrawnCard(card);
             }
+            setDrawnCard(card);
             setAnimateCardPile(null);
         }, 500);
 
@@ -292,7 +294,7 @@ export default function GamePage({
 
   }, [player.properties, player.inJail, toast, goToJail, chanceDeck, communityChestDeck]);
   
- const applyCardAction = useCallback((card: GameCard) => {
+  const applyCardAction = useCallback((card: GameCard) => {
     let postAction: (() => void) | null = null;
     let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
 
@@ -362,20 +364,82 @@ export default function GamePage({
   }, [JAIL_POSITION, handleLandedOnSpace, toast]);
 
   useEffect(() => {
-    if (cardToExecute) {
-      const { toastInfo, postAction } = applyCardAction(cardToExecute);
-      // Use a timeout to ensure state update has propagated before next action
-      setTimeout(() => {
-        if (toastInfo) {
-          toast(toastInfo);
-        }
-        if (postAction) {
-          postAction();
-        }
-      }, 100); 
-      setCardToExecute(null);
+    if (!cardToExecute) return;
+    
+    let postAction: (() => void) | null = null;
+    let toastInfo: { title: string; description: string; variant?: 'destructive' } | null = null;
+  
+    setPlayer(prevPlayer => {
+      let newPlayerState = { ...prevPlayer };
+      const { action } = cardToExecute;
+  
+      switch (action.type) {
+        case 'money':
+          newPlayerState.money += action.amount || 0;
+          toastInfo = {
+            title: cardToExecute.type === 'chance' ? 'Sorte!' : 'Azar...',
+            description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
+          };
+          break;
+        case 'move_to':
+          let newPosition = -1;
+          if (typeof action.position === 'string') {
+              newPosition = boardSpaces.findIndex(s => 'id' in s && s.id === action.position);
+          } else if (typeof action.position === 'number') {
+              newPosition = action.position;
+          }
+
+          if (newPosition !== -1) {
+              if (action.collectGo && newPosition < newPlayerState.position) {
+                  newPlayerState.money += 200;
+                  // This toast is safe because it's outside the main render path
+                  toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
+              }
+              newPlayerState.position = newPosition;
+              postAction = () => handleLandedOnSpace(newPosition, true);
+          }
+          break;
+        case 'go_to_jail':
+          newPlayerState.position = JAIL_POSITION;
+          newPlayerState.inJail = true;
+          toastInfo = {
+            variant: "destructive",
+            title: 'Que azar!',
+            description: 'Você foi para a prisão!',
+          };
+          break;
+        case 'get_out_of_jail':
+          newPlayerState.getOutOfJailFreeCards += 1;
+          toastInfo = {
+            title: 'Sorte Grande!',
+            description: 'Você recebeu uma carta para sair da prisão!',
+          };
+          break;
+        case 'repairs':
+             const houseCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
+             const hotelCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
+             const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
+             newPlayerState.money -= repairCost;
+             toastInfo = {
+                variant: "destructive",
+                title: 'Manutenção!',
+                description: `Você pagou R$${repairCost.toLocaleString()} em reparos.`,
+            };
+            break;
+        default:
+          break;
+      }
+      return newPlayerState;
+    });
+
+    if (toastInfo) {
+        toast(toastInfo);
     }
-  }, [cardToExecute, applyCardAction, toast]);
+    if (postAction) {
+        postAction();
+    }
+    setCardToExecute(null);
+  }, [cardToExecute, JAIL_POSITION, handleLandedOnSpace, toast]);
 
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
@@ -470,7 +534,7 @@ export default function GamePage({
       toast({
         variant: "destructive",
         title: "Grupo incompleto",
-        description: `Você precisa possuir todas as propriedades ${property.color} para construir.`
+        description: `Você precisa possuir todas as propriedades da cor ${property.color} para construir.`
       });
       return;
     }
@@ -514,7 +578,10 @@ export default function GamePage({
     if (!property || !property.houseCost) return;
 
     const currentHouses = player.houses[propertyId] || 0;
-    if (currentHouses < amount) return;
+    if (currentHouses < amount) {
+        toast({ variant: 'destructive', title: 'Venda inválida', description: 'Você não tem construções suficientes para vender.'});
+        return;
+    }
 
     const saleValue = (property.houseCost / 2) * amount;
 

@@ -1,7 +1,10 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import type { Player } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Wallet, Landmark, LandPlot } from 'lucide-react';
+import { Wallet, Landmark } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 interface PlayerHudProps {
@@ -9,6 +12,12 @@ interface PlayerHudProps {
 }
 
 export function PlayerHud({ player }: PlayerHudProps) {
+  const [formattedMoney, setFormattedMoney] = useState(player.money.toString());
+
+  useEffect(() => {
+    setFormattedMoney(player.money.toLocaleString('pt-BR'));
+  }, [player.money]);
+
   return (
     <Card>
       <CardHeader>
@@ -29,7 +38,7 @@ export function PlayerHud({ player }: PlayerHudProps) {
                 <Wallet className="h-5 w-5" />
                 <span>Dinheiro</span>
             </div>
-            <span>R${player.money.toLocaleString()}</span>
+            <span>R${formattedMoney}</span>
         </div>
         <Separator/>
         <div>

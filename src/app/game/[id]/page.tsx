@@ -42,120 +42,108 @@ const getIcon = (space: any, size = "w-8 h-8") => {
 
 const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top' | 'bottom' | 'left' | 'right' }) => {
     const isProperty = 'price' in space;
+    const spaceIndex = boardSpaces.findIndex(s => s.name === space.name);
 
     if (position === 'corner') {
         const rotation: { [key: number]: string } = {
-            0: 'rotate-[225deg]',  // Go
-            10: 'rotate-[315deg]', // Jail
+            0: 'rotate-[135deg]',  // Go
+            10: 'rotate-[225deg]', // Jail
             20: '-rotate-45',   // Free Parking
             30: 'rotate-45',    // Go to Jail
         }
         return (
             <div className="w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative">
-                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[space.position] )}>
+                 <div className={cn("flex flex-col items-center justify-center space-y-1", rotation[spaceIndex] )}>
                     <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
                     <span className="font-bold block w-20">{space.name}</span>
                 </div>
             </div>
         )
     }
-
-    const textContainerClasses = {
-        top: 'text-center',
-        bottom: 'text-center',
-        left: 'text-center w-28 -rotate-90',
-        right: 'text-center w-28 rotate-90',
-    };
-
-    const mainDivClasses = {
-      top: 'flex-col-reverse h-28',
-      bottom: 'flex-col h-28',
-      left: 'flex-row w-28',
-      right: 'flex-row-reverse w-28',
-    }
-
-    const colorDivClasses = {
-        top: 'h-7 w-full',
-        bottom: 'h-7 w-full',
-        left: 'w-7 h-full',
-        right: 'w-7 h-full',
-    }
     
+    const contentWrapperClasses = "flex-1 flex flex-col justify-between items-center text-center p-1 text-[9px]";
+
     if (isProperty) {
       const property = space as Property;
+      if (position === 'top' || position === 'bottom') {
+        return (
+            <div className={cn("w-[70px] h-28 border border-black flex", position === 'top' ? 'flex-col-reverse' : 'flex-col')}>
+                <div className={cn("h-7 w-full flex-shrink-0", colorClasses[property.color])} />
+                <div className={contentWrapperClasses}>
+                    {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
+                    <span className="font-bold px-1 leading-tight">{property.name}</span>
+                    <span className="font-normal mt-1">${property.price}</span>
+                </div>
+            </div>
+        );
+      }
+      // Left or Right
       return (
-        <div className={cn("border border-black flex", mainDivClasses[position])}>
-            <div className={cn("flex-shrink-0", colorClasses[property.color], colorDivClasses[position])} />
-            <div className={cn("flex flex-col justify-around items-center p-1 flex-1", textContainerClasses[position])}>
+        <div className={cn("w-28 h-[70px] border border-black flex", position === 'left' ? 'flex-row' : 'flex-row-reverse')}>
+            <div className={cn("w-7 h-full flex-shrink-0", colorClasses[property.color])} />
+            <div className={cn(contentWrapperClasses, "justify-center w-full h-full", position === 'left' ? 'rotate-90' : '-rotate-90')}>
                 {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
-                <span className="text-[9px] font-bold px-1">{property.name}</span>
-                <span className="text-[9px] font-normal mt-1">${property.price}</span>
+                <span className="font-bold px-1 leading-tight">{property.name}</span>
+                <span className="font-normal mt-1">${property.price}</span>
             </div>
         </div>
-      )
+      );
     }
 
     // Not a property, not a corner
-    return (
-        <div className={cn("border border-black flex items-center justify-center", mainDivClasses[position])}>
-            <div className={cn("text-[9px] p-1 space-y-1 flex flex-col justify-around items-center", textContainerClasses[position])}>
-                {getIcon(space)}
-                <p className="font-bold">{space.name}</p>
+     if (position === 'top' || position === 'bottom') {
+        return (
+            <div className="w-[70px] h-28 border border-black flex items-center justify-center">
+                <div className={cn(contentWrapperClasses, "justify-center space-y-1")}>
+                    <p className="font-bold leading-tight">{space.name}</p>
+                    {getIcon(space, 'w-8 h-8')}
+                </div>
+            </div>
+        );
+     }
+     // Left or Right
+     return (
+        <div className="w-28 h-[70px] border border-black flex items-center justify-center">
+            <div className={cn(contentWrapperClasses, "justify-center space-y-1 w-full h-full", position === 'left' ? 'rotate-90' : '-rotate-90')}>
+                <p className="font-bold leading-tight">{space.name}</p>
+                {getIcon(space, 'w-8 h-8')}
             </div>
         </div>
-    )
+     );
 }
 
 const GameBoard = () => {
-    // Bottom row (indices 9 to 1)
-    const bottomRow = boardSpaces.slice(1, 10).reverse();
-    // Left row (indices 19 to 11)
-    const leftRow = boardSpaces.slice(11, 20).reverse();
-    // Top row (indices 21 to 29)
+    const bottomRow = boardSpaces.slice(1, 10);
+    const leftRow = boardSpaces.slice(11, 20);
     const topRow = boardSpaces.slice(21, 30);
-    // Right row (indices 31 to 39)
     const rightRow = boardSpaces.slice(31, 40);
 
     return (
         <div className="bg-green-200/40 p-4 aspect-square max-w-[900px] mx-auto">
-            <div className="grid grid-cols-11 grid-rows-11 w-full h-full relative">
-                {/* Corners */}
-                <div className="col-start-11 row-start-11"><BoardSpace space={{...boardSpaces[0], position: 0}} position="corner" /></div>
-                <div className="col-start-1 row-start-11"><BoardSpace space={{...boardSpaces[10], position: 10}} position="corner" /></div>
-                <div className="col-start-1 row-start-1"><BoardSpace space={{...boardSpaces[20], position: 20}} position="corner" /></div>
-                <div className="col-start-11 row-start-1"><BoardSpace space={{...boardSpaces[30], position: 30}} position="corner" /></div>
-                
-                {/* Bottom Row */}
-                {bottomRow.map((space, index) => (
-                    <div key={space.id || space.name} className={`col-start-${index + 2} row-start-11`}>
-                        <BoardSpace space={space} position="bottom" />
-                    </div>
-                ))}
-                
-                {/* Left Row */}
-                {leftRow.map((space, index) => (
-                     <div key={space.id || space.name} className={`col-start-1 row-start-${index + 2}`}>
-                        <BoardSpace space={space} position="left" />
-                    </div>
-                ))}
-
-                {/* Top Row */}
-                {topRow.map((space, index) => (
-                    <div key={space.id || space.name} className={`col-start-${index + 2} row-start-1`}>
-                        <BoardSpace space={space} position="top" />
-                    </div>
-                ))}
-
-                {/* Right Row */}
-                {rightRow.map((space, index) => (
-                    <div key={space.id || space.name} className={`col-start-11 row-start-${index + 2}`}>
-                        <BoardSpace space={space} position="right" />
-                    </div>
-                ))}
-
+            <div className="w-full h-full relative">
                 {/* Center Logo */}
-                <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-muted flex items-center justify-center">
+                <div className="absolute top-28 left-28 right-28 bottom-28 bg-muted flex items-center justify-center">
                     <Logo className="text-5xl" />
+                </div>
+                
+                {/* Corners */}
+                <div className="absolute bottom-0 left-0"><BoardSpace space={boardSpaces[0]} position="corner" /></div>
+                <div className="absolute bottom-0 right-0"><BoardSpace space={boardSpaces[10]} position="corner" /></div>
+                <div className="absolute top-0 right-0"><BoardSpace space={boardSpaces[20]} position="corner" /></div>
+                <div className="absolute top-0 left-0"><BoardSpace space={boardSpaces[30]} position="corner" /></div>
+
+                {/* Rows */}
+                <div className="absolute bottom-0 left-28 right-28 flex flex-row-reverse">
+                    {bottomRow.map((space) => <BoardSpace key={space.name} space={space} position="bottom" />)}
+                </div>
+                <div className="absolute top-28 bottom-28 right-0 flex flex-col-reverse">
+                    {leftRow.map((space) => <BoardSpace key={space.name} space={space} position="left" />)}
+                </div>
+                <div className="absolute top-0 left-28 right-28 flex">
+                    {topRow.map((space) => <BoardSpace key={space.name} space={space} position="top" />)}
+                </div>
+                <div className="absolute top-28 bottom-28 left-0 flex flex-col">
+                    {rightRow.map((space) => <BoardSpace key={space.name} space={space} position="right" />)}
                 </div>
             </div>
         </div>

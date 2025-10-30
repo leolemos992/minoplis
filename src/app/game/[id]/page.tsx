@@ -6,7 +6,7 @@ import { boardSpaces, totems, chanceCards, communityChestCards } from '@/lib/gam
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, ShieldAlert, Gavel, Hotel, Landmark, ShowerHead, TreasureChest } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -40,7 +40,7 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'jail': return <Landmark className={size} />;
         case 'free-parking': return <Briefcase className={size}/>;
         case 'go-to-jail': return <Zap className={size} />;
-        case 'community-chest': return <TreasureChest className={cn(size, "text-yellow-600")} />;
+        case 'community-chest': return <Box className={cn(size, "text-yellow-600")} />;
         case 'chance': return <HelpCircle className={cn(size, "text-blue-600")} />;
         case 'income-tax': return <div className="text-center text-[10px] leading-tight"><p className="font-bold">Imposto de Renda</p><p>R$200</p></div>;
         case 'luxury-tax': return <div className="text-center text-[10px] leading-tight"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>R$100</p></div>;
@@ -177,7 +177,7 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
                         animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
-                        <TreasureChest className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
+                        <Box className="h-1/2 w-1/2 text-yellow-800 opacity-60" />
                     </motion.div>
 
                     <Logo className="text-3xl sm:text-5xl" />
@@ -586,7 +586,7 @@ export default function GamePage({
                 <>
                     <DialogHeader>
                         <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-blue-600' : 'text-yellow-700')}>
-                            {drawnCard.type === 'chance' ? <HelpCircle/> : <TreasureChest/>}
+                            {drawnCard.type === 'chance' ? <HelpCircle/> : <Box/>}
                             {drawnCard.type === 'chance' ? 'Sorte!' : 'Baú Comunitário'}
                         </DialogTitle>
                         <DialogDescription className="pt-4 text-lg text-foreground text-center">

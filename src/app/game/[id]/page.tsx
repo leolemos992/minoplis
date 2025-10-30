@@ -253,6 +253,9 @@ export default function GamePage({
   }, [player.properties, player.inJail, toast, goToJail]);
 
   const applyCardAction = useCallback((card: GameCard) => {
+    let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
+    let postAction: (() => void) | null = null;
+
     setPlayer(prevPlayer => {
       let newPlayerState = { ...prevPlayer };
       const { action } = card;
@@ -260,10 +263,10 @@ export default function GamePage({
       switch (action.type) {
         case 'money':
           newPlayerState.money += action.amount || 0;
-          toast({
+          toastInfo = {
             title: card.type === 'chance' ? 'Sorte!' : 'Azar...',
             description: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!).toLocaleString()}`,
-          });
+          };
           break;
         case 'move_to':
           let newPosition = -1;
@@ -279,42 +282,48 @@ export default function GamePage({
                   toast({ title: 'Oba!', description: 'Você passou pelo Início e coletou R$200.' });
               }
               newPlayerState.position = newPosition;
-              // A ação de sacar outra carta/pagar aluguel acontece em handleLandedOnSpace
-              setTimeout(() => handleLandedOnSpace(newPosition, true), 500);
+              postAction = () => handleLandedOnSpace(newPosition, true);
           }
           break;
         case 'go_to_jail':
           newPlayerState.position = JAIL_POSITION;
           newPlayerState.inJail = true;
-           toast({
+          toastInfo = {
             variant: "destructive",
             title: 'Que azar!',
             description: 'Você foi para a prisão!',
-          });
+          };
           break;
         case 'get_out_of_jail':
           newPlayerState.getOutOfJailFreeCards += 1;
-          toast({
+          toastInfo = {
             title: 'Sorte Grande!',
             description: 'Você recebeu uma carta para sair da prisão!',
-          });
+          };
           break;
         case 'repairs':
              const houseCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
              const hotelCount = Object.values(newPlayerState.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
              const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
              newPlayerState.money -= repairCost;
-             toast({
+             toastInfo = {
                 variant: "destructive",
                 title: 'Manutenção!',
                 description: `Você pagou R$${repairCost.toLocaleString()} em reparos.`,
-            });
+            };
             break;
         default:
           break;
       }
       return newPlayerState;
     });
+
+    if (toastInfo) {
+      toast(toastInfo);
+    }
+    if (postAction) {
+      setTimeout(postAction, 500);
+    }
   }, [toast, JAIL_POSITION, handleLandedOnSpace]);
 
   useEffect(() => {

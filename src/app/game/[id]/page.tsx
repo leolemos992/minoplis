@@ -1,9 +1,10 @@
+'use client';
+
 import { characters, boardSpaces } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Home, Zap, Train, Building, HelpCircle, Briefcase, Gem, Users } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Users, Train } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Property } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -17,164 +18,126 @@ const colorClasses: { [key: string]: string } = {
   yellow: 'bg-[#fef200]',
   green: 'bg-[#1fb25a]',
   darkblue: 'bg-[#0072bb]',
-  railroad: 'bg-gray-400',
-  utility: 'bg-gray-300',
+  railroad: 'bg-transparent',
+  utility: 'bg-transparent',
 };
 
+const getIcon = (space: any, size = "w-8 h-8") => {
+    switch(space.type) {
+        case 'go': return <Home className={size} />;
+        case 'jail': return <Building className={size} />;
+        case 'free-parking': return <Briefcase className={size}/>;
+        case 'go-to-jail': return <Zap className={size} />;
+        case 'community-chest': return <Users className={size} />;
+        case 'chance': return <HelpCircle className={size} />;
+        case 'income-tax': return <div className="text-center text-[10px]"><p className="font-bold">Imposto de Renda</p><p>$200</p></div>;
+        case 'luxury-tax': return <div className="text-center text-[10px]"><Gem className="mx-auto" /><p className="font-bold">Imposto de Luxo</p><p>$100</p></div>;
+        case 'railroad': return <Train className={size} />
+        case 'utility': 
+            if(space.name.includes("Elétrica")) return <Zap className={size} />
+            return <Gem className={size} />; // Placeholder for water works
+        default: return null;
+    }
+}
 
-const BoardSpace = ({ space, isCorner, isSide }: { space: any, isCorner: boolean, isSide: boolean }) => {
+const BoardSpace = ({ space, position }: { space: any, position: 'corner' | 'top' | 'bottom' | 'left' | 'right' }) => {
     const isProperty = 'price' in space;
 
-    const getIcon = (type: string) => {
-        switch(type) {
-            case 'go': return <Home className="w-8 h-8"/>;
-            case 'jail': return <Building className="w-8 h-8"/>;
-            case 'free-parking': return <Briefcase className="w-8 h-8"/>;
-            case 'go-to-jail': return <Zap className="w-8 h-8"/>;
-            case 'community-chest': return <Users className="w-8 h-8"/>;
-            case 'chance': return <HelpCircle className="w-8 h-8"/>;
-            case 'income-tax': return <div className="text-center"><p className="font-bold text-xs">Imposto de Renda</p><p>$200</p></div>;
-            case 'luxury-tax': return <div className="text-center"><Gem className="mx-auto" /><p className="font-bold text-xs">Imposto de Luxo</p><p>$100</p></div>;
-            case 'railroad': return <Train className="w-8 h-8"/>
-            case 'utility': return <Zap className="w-8 h-8"/>
-            default: return null;
-        }
+    const cornerSpaces: { [key:number]: string } = {
+        0: 'br', 20: 'tl', 10: 'bl', 30: 'tr'
     }
 
-    if (isCorner) {
+    if (position === 'corner') {
+        const cornerPos = cornerSpaces[space.position];
         return (
-            <div className="w-24 h-24 border border-black flex items-center justify-center text-center text-xs p-1">
-                {getIcon(space.type)}
-                <span className="absolute bottom-1">{space.name}</span>
-            </div>
-        )
-    }
-
-    if (isSide) {
-         if (isProperty) {
-            return (
-                <div className="w-[4.5rem] h-24 border border-black flex flex-col justify-between">
-                    <div className={cn("h-6", colorClasses[space.color])}></div>
-                    <div className="text-center text-[8px] font-bold px-1 flex-1 flex items-center justify-center">{space.name}</div>
-                    <div className="text-center text-[8px] pb-1">${space.price}</div>
+            <div className={cn(
+                "w-28 h-28 border border-black flex items-center justify-center text-center text-xs p-1 relative",
+                {'col-start-1 row-start-1': cornerPos === 'tl'},
+                {'col-start-11 row-start-1': cornerPos === 'tr'},
+                {'col-start-1 row-start-11': cornerPos === 'bl'},
+                {'col-start-11 row-start-11': cornerPos === 'br'},
+            )}>
+                 <div className={cn("flex flex-col items-center justify-center", 
+                    {'rotate-45': cornerPos === 'bl', '-rotate-45': cornerPos === 'tr', 'rotate-135': cornerPos === 'tl', '-rotate-135': cornerPos === 'br'}
+                 )}>
+                    <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
+                    <span className="font-bold">{space.name}</span>
                 </div>
-            )
-        }
-        return (
-             <div className="w-[4.5rem] h-24 border border-black flex flex-col items-center justify-center text-center text-[8px] p-1">
-                {getIcon(space.type)}
-                <span className="font-bold mt-1">{space.name}</span>
             </div>
         )
     }
 
+    const textRotation = {
+      top: '',
+      bottom: '',
+      left: 'transform -rotate-90',
+      right: 'transform rotate-90'
+    };
+    
+    if (isProperty) {
+      const property = space as Property;
+      return (
+        <div className={cn("border border-black flex", {
+          'flex-col': position === 'top' || position === 'bottom',
+          'flex-row-reverse': position === 'left',
+          'flex-row': position === 'right',
+          'h-28': position === 'top' || position === 'bottom',
+          'w-28': position === 'left' || position === 'right',
+        })}>
+            <div className={cn("flex-shrink-0", colorClasses[property.color], {
+                'h-7 w-full': position === 'top' || position === 'bottom',
+                'w-7 h-full': position === 'left' || position === 'right',
+            })} />
+            <div className={cn("flex flex-col justify-between items-center text-center text-[9px] font-bold p-1 flex-1", textRotation[position])}>
+                {property.color === "railroad" || property.color === "utility" ? getIcon(property, "w-6 h-6") : null}
+                <span className="px-1">{property.name}</span>
+                <span className="font-normal mt-1">${property.price}</span>
+            </div>
+        </div>
+      )
+    }
 
-    return <div></div>
+    // Not a property, not a corner
+    return (
+        <div className={cn("border border-black flex items-center justify-center", {
+          'h-28': position === 'top' || position === 'bottom',
+          'w-28': position === 'left' || position === 'right',
+        })}>
+            <div className={cn("text-center text-[9px] p-1 space-y-1", textRotation[position])}>
+                {getIcon(space)}
+                <p className="font-bold">{space.name}</p>
+            </div>
+        </div>
+    )
 }
 
 const GameBoard = () => {
-    const topRow = boardSpaces.slice(20, 31).reverse();
-    const leftRow = boardSpaces.slice(11, 20).reverse();
-    const bottomRow = boardSpaces.slice(0, 11);
-    const rightRow = boardSpaces.slice(31, 40);
-
     return (
-        <div className="bg-green-200/40 p-4 aspect-square w-full">
-            <div className="grid grid-cols-[auto_repeat(9,1fr)_auto] grid-rows-[auto_repeat(9,1fr)_auto] w-full h-full">
-                 {/* Canto Superior Esquerdo */}
-                <BoardSpace space={boardSpaces[20]} isCorner={true} isSide={false} />
+        <div className="bg-green-200/40 p-4 aspect-square max-w-[900px] mx-auto">
+            <div className="grid grid-cols-11 grid-rows-11 w-full h-full relative">
+                {boardSpaces.map((space, index) => {
+                    const props = {
+                        ...space,
+                        position: index,
+                    }
+                    if (index === 0 || index === 10 || index === 20 || index === 30) {
+                        return <BoardSpace key={index} space={props} position="corner" />;
+                    } else if (index > 0 && index < 10) {
+                        return <div key={index} className={cn("col-start-11", `row-start-${11-index}`)}><BoardSpace space={props} position="bottom" /></div>;
+                    } else if (index > 10 && index < 20) {
+                        return <div key={index} className={cn(`col-start-${11-(index-10)}`, "row-start-1")}><BoardSpace space={props} position="left" /></div>
+                    } else if (index > 20 && index < 30) {
+                        return <div key={index} className={cn("col-start-1", `row-start-${index-19}`)}><BoardSpace space={props} position="top" /></div>
+                    } else if (index > 30 && index < 40) {
+                        return <div key={index} className={cn(`col-start-${index-29}`, "row-start-11")}><BoardSpace space={props} position="right" /></div>
+                    }
+                    return null;
+                })}
 
-                {/* Linha Superior */}
-                {topRow.slice(1).map((space, i) => (
-                    <div key={i} className="flex flex-col border border-black">
-                        { 'price' in space ? (
-                            <>
-                                <div className={cn("w-full h-5", colorClasses[(space as Property).color])}></div>
-                                <div className="text-center text-[8px] font-bold px-1 flex-1 flex items-center justify-center">{space.name}</div>
-                                <div className="text-center text-[8px] pb-1">${(space as Property).price}</div>
-                            </>
-                        ) : (
-                             <div className="flex-1 flex flex-col items-center justify-center text-center text-[8px] p-1">
-                                {space.type === 'chance' && <HelpCircle className="w-6 h-6" />}
-                                <span className="font-bold mt-1">{space.name}</span>
-                            </div>
-                        )}
-                    </div>
-                ))}
-                
-                {/* Canto Superior Direito */}
-                <BoardSpace space={boardSpaces[30]} isCorner={true} isSide={false} />
-
-                {/* Linha Esquerda */}
-                 {leftRow.map((space, i) => (
-                     <div key={i} className="flex border border-black">
-                         { 'price' in space ? (
-                             <>
-                                <div className={cn("w-5 h-full", colorClasses[(space as Property).color])}></div>
-                                <div className="text-center text-[8px] font-bold p-1 flex-1 flex items-center justify-center -rotate-90">{space.name}</div>
-                                <div className="text-center text-[8px] pb-1 self-center -rotate-90">${(space as Property).price}</div>
-                             </>
-                         ) : (
-                              <div className="flex-1 flex flex-col items-center justify-center text-center text-[8px] p-1">
-                                 {space.type === 'community-chest' && <Users className="w-6 h-6" />}
-                                 <span className="font-bold mt-1 -rotate-90">{space.name}</span>
-                             </div>
-                         )}
-                     </div>
-                ))}
-               
-                {/* Centro */}
-                <div className="col-span-9 row-span-9 bg-muted flex items-center justify-center">
-                    <Logo />
+                {/* Center Logo */}
+                <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-muted flex items-center justify-center">
+                    <Logo className="text-5xl" />
                 </div>
-
-                {/* Linha Direita */}
-                {rightRow.map((space, i) => (
-                    <div key={i} className="flex border border-black">
-                         { 'price' in space ? (
-                             <>
-                                <div className="text-center text-[8px] pb-1 self-center rotate-90">${(space as Property).price}</div>
-                                <div className="text-center text-[8px] font-bold p-1 flex-1 flex items-center justify-center rotate-90">{space.name}</div>
-                                <div className={cn("w-5 h-full", colorClasses[(space as Property).color])}></div>
-                             </>
-                         ) : (
-                              <div className="flex-1 flex flex-col items-center justify-center text-center text-[8px] p-1">
-                                 {space.type === 'chance' && <HelpCircle className="w-6 h-6" />}
-                                 {space.type === 'community-chest' && <Users className="w-6 h-6" />}
-                                 {space.type === 'luxury-tax' && <Gem className="w-6 h-6" />}
-                                 <span className="font-bold mt-1 rotate-90">{space.name}</span>
-                                 {space.type === 'luxury-tax' && <span className="font-bold mt-1 rotate-90">$100</span>}
-                             </div>
-                         )}
-                     </div>
-                ))}
-
-                {/* Canto Inferior Esquerdo */}
-                <BoardSpace space={boardSpaces[10]} isCorner={true} isSide={false} />
-                
-                {/* Bottom Row */}
-                {bottomRow.slice(1,10).reverse().map((space, i) => (
-                     <div key={i} className="flex flex-col border border-black">
-                        { 'price' in space ? (
-                            <>
-                                <div className="text-center text-[8px] pt-1">${(space as Property).price}</div>
-                                <div className="text-center text-[8px] font-bold px-1 flex-1 flex items-center justify-center">{space.name}</div>
-                                <div className={cn("w-full h-5", colorClasses[(space as Property).color])}></div>
-                            </>
-                        ) : (
-                             <div className="flex-1 flex flex-col items-center justify-center text-center text-[8px] p-1">
-                                {space.type === 'chance' && <HelpCircle className="w-6 h-6" />}
-                                {space.type === 'community-chest' && <Users className="w-6 h-6" />}
-                                 {space.type === 'income-tax' && <Gem className="w-6 h-6" />}
-                                <span className="font-bold mt-1">{space.name}</span>
-                                {space.type === 'income-tax' && <span className="font-bold mt-1">$200</span>}
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {/* Canto Inferior Direito */}
-                <BoardSpace space={boardSpaces[0]} isCorner={true} isSide={false} />
             </div>
         </div>
     )

@@ -333,7 +333,7 @@ export default function GamePage({
         if (owner && owner.id !== player.id) {
             // Pay rent
             if (owner.mortgagedProperties.includes(property.id)) {
-                 toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então você não paga aluguel.` });
+                 toast({ title: 'Propriedade Hipotecada', description: `${owner.name} hipotecou ${property.name}, então ${player.name} não paga aluguel.` });
                  addLog(`${player.name} não pagou aluguel por ${property.name} (hipotecada).`);
                  return;
             }
@@ -353,13 +353,13 @@ export default function GamePage({
 
             if(rentAmount > 0) {
                  if (player.money < rentAmount) {
-                    toast({ variant: 'destructive', title: 'Falência!', description: `Você não tem dinheiro para pagar R$${rentAmount} a ${owner.name}.` });
+                    toast({ variant: 'destructive', title: 'Falência!', description: `${player.name} não tem dinheiro para pagar R$${rentAmount} a ${owner.name}.` });
                     addLog(`${player.name} faliu ao tentar pagar R$${rentAmount} a ${owner.name}.`);
                     // Handle bankruptcy logic here
                 } else {
                     updatePlayer(player.id, p => ({ money: p.money - rentAmount }));
                     updatePlayer(owner.id, p => ({ money: p.money + rentAmount }));
-                    toast({ variant: 'destructive', title: `Aluguel!`, description: `Você pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
+                    toast({ variant: 'destructive', title: `Aluguel!`, description: `${player.name} pagou R$${rentAmount} a ${owner.name} por parar em ${property.name}.` });
                     addLog(`${player.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
                 }
             }
@@ -836,6 +836,16 @@ export default function GamePage({
             )}
         </DialogContent>
       </Dialog>
+
+       <ManagePropertiesDialog 
+        isOpen={isManageOpen}
+        onOpenChange={setManageOpen}
+        player={humanPlayer}
+        onBuild={handleBuild}
+        onSell={handleSell}
+        onMortgage={handleMortgage}
+        onUnmortgage={handleUnmortgage}
+      />
     </>
   );
 }

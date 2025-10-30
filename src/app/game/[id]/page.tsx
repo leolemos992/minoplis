@@ -166,16 +166,16 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
             >
                 <div className="bg-muted flex items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
                     <motion.div
-                        className="absolute w-[45%] h-[30%] bg-green-200 border-2 border-green-800 rounded-lg flex items-center justify-center -rotate-12 top-[15%] left-[5%]"
-                        animate={animateCardPile === 'chance' ? { scale: 1.05 } : { scale: 1 }}
-                        transition={{ duration: 0.2, yoyo: Infinity }}
+                        className="absolute w-[40%] h-[25%] bg-green-200 border-2 border-green-800 rounded-lg flex items-center justify-center -rotate-12 top-[20%] left-[10%]"
+                        animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                     >
                         <ShieldCheck className="h-1/2 w-1/2 text-green-800 opacity-60" />
                     </motion.div>
                      <motion.div
-                        className="absolute w-[45%] h-[30%] bg-red-200 border-2 border-red-800 rounded-lg flex items-center justify-center rotate-12 bottom-[15%] right-[5%]"
-                        animate={animateCardPile === 'community-chest' ? { scale: 1.05 } : { scale: 1 }}
-                        transition={{ duration: 0.2, yoyo: Infinity }}
+                        className="absolute w-[40%] h-[25%] bg-red-200 border-2 border-red-800 rounded-lg flex items-center justify-center rotate-12 bottom-[20%] right-[10%]"
+                        animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                      >
                         <ShieldAlert className="h-1/2 w-1/2 text-red-800 opacity-60" />
                     </motion.div>
@@ -238,7 +238,6 @@ export default function GamePage({
     });
   }, [JAIL_POSITION, toast]);
 
-  
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
     if (!space) return;
@@ -273,7 +272,7 @@ export default function GamePage({
     }
 
   }, [player.properties, player.inJail, toast, goToJail]);
-
+  
   const applyCardAction = useCallback((card: GameCard) => {
     let postAction: (() => void) | null = null;
     let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
@@ -346,13 +345,15 @@ export default function GamePage({
   useEffect(() => {
     if (cardToExecute) {
       const { toastInfo, postAction } = applyCardAction(cardToExecute);
-      if (toastInfo) {
-        toast(toastInfo);
-      }
-      if (postAction) {
-        // Use a timeout to ensure state update has propagated before next action
-        setTimeout(postAction, 500); 
-      }
+      // Use a timeout to ensure state update has propagated before next action
+      setTimeout(() => {
+        if (toastInfo) {
+          toast(toastInfo);
+        }
+        if (postAction) {
+          postAction();
+        }
+      }, 100); 
       setCardToExecute(null);
     }
   }, [cardToExecute, applyCardAction, toast]);

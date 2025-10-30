@@ -220,6 +220,38 @@ export default function GamePage({
     });
   }, [JAIL_POSITION, toast]);
 
+  
+  const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
+    const space = boardSpaces[spaceIndex];
+    if (!space) return;
+
+    if (space.type === 'jail' && !player.inJail) {
+        toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
+        return;
+    }
+
+    const isProperty = 'price' in space;
+    if(isProperty) {
+        const property = space as Property;
+        if(!player.properties.includes(property.id)) {
+             setSelectedSpace(space);
+        }
+    } else if (space.type === 'chance' || space.type === 'community-chest') {
+        const deck = space.type === 'chance' ? chanceCards : communityChestCards;
+        const card = deck[Math.floor(Math.random() * deck.length)];
+        setDrawnCard(card);
+    } else if (space.type === 'income-tax') {
+        setPlayer(p => ({...p, money: p.money - 200}));
+        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
+    } else if (space.type === 'luxury-tax') {
+        setPlayer(p => ({...p, money: p.money - 100}));
+        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Imposto de Luxo." });
+    } else if (space.type === 'go-to-jail') {
+        goToJail();
+    }
+
+  }, [player.properties, player.inJail, toast, goToJail]);
+
   const applyCardAction = useCallback((card: GameCard) => {
     setPlayer(prevPlayer => {
       let newPlayerState = { ...prevPlayer };
@@ -291,39 +323,6 @@ export default function GamePage({
       setCardToExecute(null);
     }
   }, [cardToExecute, applyCardAction]);
-
-
-  const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
-    const space = boardSpaces[spaceIndex];
-    if (!space) return;
-
-    if (space.type === 'jail' && !player.inJail) {
-        toast({ title: "Apenas Visitando", description: "Você está apenas visitando a prisão."});
-        return;
-    }
-
-    const isProperty = 'price' in space;
-    if(isProperty) {
-        const property = space as Property;
-        if(!player.properties.includes(property.id)) {
-             setSelectedSpace(space);
-        }
-    } else if (space.type === 'chance' || space.type === 'community-chest') {
-        const deck = space.type === 'chance' ? chanceCards : communityChestCards;
-        const card = deck[Math.floor(Math.random() * deck.length)];
-        setDrawnCard(card);
-    } else if (space.type === 'income-tax') {
-        setPlayer(p => ({...p, money: p.money - 200}));
-        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
-    } else if (space.type === 'luxury-tax') {
-        setPlayer(p => ({...p, money: p.money - 100}));
-        toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$100 de Imposto de Luxo." });
-    } else if (space.type === 'go-to-jail') {
-        goToJail();
-    }
-
-  }, [player.properties, player.inJail, toast, goToJail]);
-
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
     if (player.inJail) {

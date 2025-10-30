@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PlusCircle, Gamepad, Hourglass, Users, Trash2, RefreshCw } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -57,16 +57,39 @@ export default function MultiplayerLobbyPage() {
 
   const handleDeleteGame = async (gameId: string) => {
     if (!firestore) return;
-    const gameRef = doc(firestore, 'games', gameId);
+
     try {
-      await deleteDoc(gameRef);
-      // Data will refresh automatically due to useCollection, but we can force it
-      handleRefresh();
+        const batch = writeBatch(firestore);
+
+        // 1. Delete players in subcollection
+        const playersRef = collection(firestore, 'games', gameId, 'players');
+        const playersSnapshot = await getDocs(playersRef);
+        playersSnapshot.forEach((playerDoc) => {
+            batch.delete(playerDoc.ref);
+        });
+
+        // 2. Delete rolls-to-start in subcollection
+        const rollsRef = collection(firestore, 'games', gameId, 'rolls-to-start');
+        const rollsSnapshot = await getDocs(rollsRef);
+        rollsSnapshot.forEach((rollDoc) => {
+            batch.delete(rollDoc.ref);
+        });
+
+        // 3. Delete the game document itself
+        const gameRef = doc(firestore, 'games', gameId);
+        batch.delete(gameRef);
+
+        // 4. Commit the batch
+        await batch.commit();
+        
+        // Data will refresh automatically due to useCollection, but we can force it
+        handleRefresh();
     } catch (error) {
-      console.error("Error deleting game:", error);
-      // TODO: Add error toast
+        console.error("Error deleting game and its subcollections:", error);
+        // TODO: Add error toast
     }
   };
+
 
   return (
     <div className="container py-12">

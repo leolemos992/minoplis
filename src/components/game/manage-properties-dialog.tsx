@@ -63,7 +63,7 @@ export function ManagePropertiesDialog({
   const ownedColorSets = useMemo(() => {
     const sets: { [color: string]: boolean } = {};
     const totalInSets = boardSpaces.reduce((acc, space) => {
-        if ('color' in space && space.type === 'property' && 'color' in space && typeof space.color === 'string') {
+        if (space.type === 'property' && 'color' in space && typeof space.color === 'string') {
             acc[space.color] = (acc[space.color] || 0) + 1;
         }
         return acc;

@@ -17,6 +17,8 @@ import { PropertyCard } from '@/components/game/property-card';
 import { useToast } from '@/hooks/use-toast';
 import { GameControls } from '@/components/game/game-controls';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
+import { motion } from 'framer-motion';
+
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -137,7 +139,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses }: { space: a
     )
 };
 
-const GameBoard = ({ players, onSpaceClick, houses }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number } }) => {
+const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players: Player[]; onSpaceClick: (space: any, index: number) => void, houses: { [propertyId: string]: number }, animateCardPile: 'chance' | 'community-chest' | null }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -162,7 +164,22 @@ const GameBoard = ({ players, onSpaceClick, houses }: { players: Player[]; onSpa
                     gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr',
                 }}
             >
-                <div className="bg-muted flex items-center justify-center border-black border-[1.5px]" style={{ gridArea: 'center'}}>
+                <div className="bg-muted flex items-center justify-center border-black border-[1.5px] relative" style={{ gridArea: 'center'}}>
+                    <motion.div
+                        className="absolute w-[45%] h-[30%] bg-green-200 border-2 border-green-800 rounded-lg flex items-center justify-center -rotate-12 top-[15%] left-[5%]"
+                        animate={animateCardPile === 'chance' ? { scale: 1.05 } : { scale: 1 }}
+                        transition={{ duration: 0.2, yoyo: Infinity }}
+                    >
+                        <ShieldCheck className="h-1/2 w-1/2 text-green-800 opacity-60" />
+                    </motion.div>
+                     <motion.div
+                        className="absolute w-[45%] h-[30%] bg-red-200 border-2 border-red-800 rounded-lg flex items-center justify-center rotate-12 bottom-[15%] right-[5%]"
+                        animate={animateCardPile === 'community-chest' ? { scale: 1.05 } : { scale: 1 }}
+                        transition={{ duration: 0.2, yoyo: Infinity }}
+                     >
+                        <ShieldAlert className="h-1/2 w-1/2 text-red-800 opacity-60" />
+                    </motion.div>
+
                     <Logo className="text-3xl sm:text-5xl" />
                 </div>
                 {boardSpaces.map((space, index) => (
@@ -209,6 +226,7 @@ export default function GamePage({
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
+  const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
 
   const goToJail = useCallback(() => {
@@ -239,7 +257,11 @@ export default function GamePage({
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         const deck = space.type === 'chance' ? chanceCards : communityChestCards;
         const card = deck[Math.floor(Math.random() * deck.length)];
-        setDrawnCard(card);
+        setAnimateCardPile(space.type);
+        setTimeout(() => {
+          setDrawnCard(card);
+          setAnimateCardPile(null);
+        }, 500);
     } else if (space.type === 'income-tax') {
         setPlayer(p => ({...p, money: p.money - 200}));
         toast({ variant: "destructive", title: "Imposto!", description: "Você pagou R$200 de Imposto de Renda." });
@@ -253,8 +275,8 @@ export default function GamePage({
   }, [player.properties, player.inJail, toast, goToJail]);
 
   const applyCardAction = useCallback((card: GameCard) => {
-    let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
     let postAction: (() => void) | null = null;
+    let toastInfo: { title: string, description: string, variant?: 'destructive' } | null = null;
 
     setPlayer(prevPlayer => {
       let newPlayerState = { ...prevPlayer };
@@ -328,11 +350,13 @@ export default function GamePage({
         toast(toastInfo);
       }
       if (postAction) {
-        setTimeout(postAction, 500);
+        // Use a timeout to ensure state update has propagated before next action
+        setTimeout(postAction, 500); 
       }
       setCardToExecute(null);
     }
   }, [cardToExecute, applyCardAction, toast]);
+
 
   const handleDiceRoll = (dice1: number, dice2: number) => {
     if (player.inJail) {
@@ -501,7 +525,7 @@ export default function GamePage({
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <h1 className="text-2xl font-bold mb-4">Jogo: {gameName}</h1>
-          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses}/>
+          <GameBoard players={[player]} onSpaceClick={handleDebugMove} houses={player.houses} animateCardPile={animateCardPile} />
         </div>
         <aside className="lg:col-span-1 space-y-8">
           <PlayerHud player={player} />

@@ -10,13 +10,13 @@ import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { PlayerToken } from './player-token';
 
-const playerColors: { [key: string]: { border: string, text: string } } = {
-  red: { border: 'border-red-500', text: 'text-red-500' },
-  blue: { border: 'border-blue-500', text: 'text-blue-500' },
-  green: { border: 'border-green-500', text: 'text-green-500' },
-  yellow: { border: 'border-yellow-500', text: 'text-yellow-500' },
-  purple: { border: 'border-purple-500', text: 'text-purple-500' },
-  orange: { border: 'border-orange-500', text: 'text-orange-500' },
+const playerColors: { [key: string]: { border: string, text: string, bg: string } } = {
+  red: { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-500' },
+  blue: { border: 'border-blue-500', text: 'text-blue-500', bg: 'bg-blue-500' },
+  green: { border: 'border-green-500', text: 'text-green-500', bg: 'bg-green-500' },
+  yellow: { border: 'border-yellow-500', text: 'text-yellow-500', bg: 'bg-yellow-500' },
+  purple: { border: 'border-purple-500', text: 'text-purple-500', bg: 'bg-purple-500' },
+  orange: { border: 'border-orange-500', text: 'text-orange-500', bg: 'bg-orange-500' },
 };
 
 
@@ -26,20 +26,23 @@ interface PlayerHudProps {
 
 export function PlayerHud({ player }: PlayerHudProps) {
   const [formattedMoney, setFormattedMoney] = useState('');
+  const totemData = totems.find(t => t.id === player.totem);
+  const TotemIcon = totemData?.icon;
+
 
   useEffect(() => {
     // Format money on the client to avoid hydration mismatch
     setFormattedMoney(player.money.toLocaleString('pt-BR'));
   }, [player.money]);
 
-  const color = playerColors[player.color] || { border: 'border-gray-500', text: 'text-gray-500' };
+  const color = playerColors[player.color] || { border: 'border-gray-500', text: 'text-gray-500', bg: 'bg-gray-500' };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-            <div className={cn("h-16 w-16 border-2 rounded-full flex items-center justify-center", color.border)}>
-                 <PlayerToken player={player} size={10}/>
+            <div className={cn("h-16 w-16 rounded-full flex items-center justify-center p-1", color.bg)}>
+                 {TotemIcon && <TotemIcon className="h-10 w-10 text-white drop-shadow-md" />}
             </div>
             <div>
                 <CardTitle>{player.name}</CardTitle>

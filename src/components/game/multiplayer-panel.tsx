@@ -280,7 +280,7 @@ function GameChat({ allPlayers }: { allPlayers: Player[] }) {
         const TotemIcon = totemData?.icon;
         const color = playerColors[player.color] || playerColors.blue;
         return (
-            <Avatar className={cn("h-8 w-8 flex-shrink-0", color.bg)}>
+            <Avatar className={cn("h-8 w-8 flex-shrink-0 flex items-center justify-center", color.bg)}>
                 {TotemIcon && <TotemIcon className="h-5 w-5 text-white" />}
             </Avatar>
         )

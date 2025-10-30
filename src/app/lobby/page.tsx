@@ -19,15 +19,14 @@ export default function LobbyPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <PlusCircle className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Criar um Novo Jogo</CardTitle>
+          <CardTitle className="text-2xl">Criar Jogo Solo</CardTitle>
           <CardDescription>
-            Comece um novo jogo com um tabuleiro personalizado e convide seus
-            amigos.
+            Comece um novo jogo contra oponentes controlados por IA.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild size="lg">
-            <Link href="/create-board">Criar Jogo</Link>
+            <Link href="/character-selection?gameId=solo-game&gameName=Jogo%20Solo&host=true">Criar Jogo Solo</Link>
           </Button>
         </CardContent>
       </Card>

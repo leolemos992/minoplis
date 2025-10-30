@@ -96,13 +96,11 @@ export function TradeDialog({
 
   const handlePropose = () => {
     if (!selectedPlayer) {
-        // Toast removed
         console.error('Nenhum jogador selecionado');
         return;
     }
     
     if (playerOffer.properties.length === 0 && opponentOffer.properties.length === 0 && playerOffer.money === 0 && opponentOffer.money === 0) {
-        // Toast removed
         console.error('Oferta vazia');
         return;
     }

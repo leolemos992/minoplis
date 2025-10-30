@@ -9,6 +9,7 @@ export type Character = {
 
 export type Player = {
   id: string;
+  userId: string; // Firebase Auth UID
   name: string;
   money: number;
   properties: string[];
@@ -36,10 +37,12 @@ export type GameStatus = 'waiting' | 'rolling-to-start' | 'active' | 'finished';
 export type Game = {
   id:string;
   name: string;
+  hostId: string;
   players: Player[];
   board: (Property | { type: string, name: string })[];
-  currentPlayerId: string;
+  currentPlayerId: string | null;
   status: GameStatus;
+  createdAt: any; // serverTimestamp
 };
 
 

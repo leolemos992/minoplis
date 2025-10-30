@@ -20,6 +20,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 import { GameNotifications } from '@/components/game/game-notifications';
 import { RollToStartDialog } from '@/components/game/roll-to-start-dialog';
+import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, collection } from 'firebase/firestore';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -238,18 +240,26 @@ export default function GamePage({
 }: {
   params: { id: string };
 }) {
-  const searchParams = useSearchParams();
-  const playerName = searchParams.get('playerName') || 'Jogador 1';
-  const totemId = searchParams.get('totem') || 'car';
-  const colorId = searchParams.get('color') || 'blue';
-  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
-  const numOpponents = parseInt(searchParams.get('numOpponents') || '1', 10);
+  const { user } = useUser();
+  const firestore = useFirestore();
 
+  // Firestore data
+  const gameRef = useMemoFirebase(() => firestore ? doc(firestore, 'games', params.id) : null, [firestore, params.id]);
+  const { data: gameData } = useDoc(gameRef);
+  
+  const playersRef = useMemoFirebase(() => firestore ? collection(firestore, 'games', params.id, 'players') : null, [firestore, params.id]);
+  const { data: playersData } = useCollection<Player>(playersRef);
+  
+  // States derived from URL or props
+  const searchParams = useSearchParams();
+  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
+  
+  // Local game logic states
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [hasRolled, setHasRolled] = useState(false);
   const [doublesCount, setDoublesCount] = useState(0);
-  const [gameStatus, setGameStatus] = useState<GameStatus>('rolling-to-start');
+  const [gameStatus, setGameStatus] = useState<GameStatus>('waiting');
   const [rollsToStart, setRollsToStart] = useState<Record<string, number>>({});
 
   const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
@@ -269,6 +279,22 @@ export default function GamePage({
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  // Update local players state when Firestore data changes
+  useEffect(() => {
+    if (playersData) {
+      // TODO: Preserve order if game is active
+      setPlayers(playersData);
+    }
+  }, [playersData]);
+
+  // Update game status from Firestore
+  useEffect(() => {
+    if (gameData?.status) {
+      setGameStatus(gameData.status);
+    }
+  }, [gameData]);
+
+
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
   const player = players[currentPlayerIndex];
 
@@ -282,63 +308,24 @@ export default function GamePage({
 
   const addLog = useCallback((message: string) => {
     setGameLog(prev => [{ message, timestamp: new Date() }, ...prev]);
+    // TODO: Write log to Firestore
   }, []);
 
-  const initializeGame = useCallback(() => {
+  const initializeDecks = useCallback(() => {
     const shuffle = (deck: GameCard[]) => [...deck].sort(() => Math.random() - 0.5);
     setChanceDeck(shuffle(chanceCards));
     setCommunityChestDeck(shuffle(communityChestCards));
-  
-    const humanPlayer: Player = {
-      id: 'player-1',
-      name: playerName,
-      money: 1500,
-      properties: [],
-      mortgagedProperties: [],
-      houses: {},
-      position: 0,
-      color: colorId,
-      totem: totemId,
-      getOutOfJailFreeCards: 0,
-      inJail: false,
-    };
-  
-    const botColors = ['red', 'green', 'yellow', 'purple', 'orange'].filter(c => c !== colorId);
-    const botTotems = ['boot', 'cat', 'ship', 'rocket', 'dog'].filter(t => t !== totemId);
-  
-    const aiPlayers: Player[] = Array.from({ length: numOpponents }, (_, i) => ({
-      id: `player-${i + 2}`,
-      name: `IA-Bot ${i + 1}`,
-      money: 1500,
-      properties: [],
-      mortgagedProperties: [],
-      houses: {},
-      position: 0,
-      color: botColors[i % botColors.length],
-      totem: botTotems[i % botTotems.length],
-      getOutOfJailFreeCards: 0,
-      inJail: false,
-    }));
-  
-    setPlayers([humanPlayer, ...aiPlayers]);
-    setCurrentPlayerIndex(0);
-    setHasRolled(false);
-    setDoublesCount(0);
-    setGameLog([]);
-    setNotifications([]);
-    setGameStatus('rolling-to-start');
-    setRollsToStart({});
-    setAuctionState(null);
-    addLog(`O jogo ${gameName} começou! Rolando dados para decidir a ordem...`);
-  }, [playerName, totemId, colorId, gameName, addLog, numOpponents]);
+    // TODO: This should be done by the host and synced via Firestore
+  }, []);
 
-  // Initialize game
+  // Initialize decks once
   useEffect(() => {
-    initializeGame();
-  }, [initializeGame]);
+    initializeDecks();
+  }, [initializeDecks]);
 
 
   const updatePlayer = useCallback((playerId: string, updates: Partial<Player> | ((player: Player) => Partial<Player>)) => {
+    // This now only updates local state. Firestore updates should be separate.
     setPlayers(prevPlayers => prevPlayers.map(p => {
         if (p.id === playerId) {
             const newUpdates = typeof updates === 'function' ? updates(p) : updates;
@@ -346,6 +333,7 @@ export default function GamePage({
         }
         return p;
     }));
+    // TODO: Add Firestore update logic here (e.g., using setDoc with merge)
   }, []);
   
   const handleBankruptcy = useCallback((bankruptPlayerId: string, creditor?: Player) => {
@@ -369,6 +357,7 @@ export default function GamePage({
     }
 
     setPlayers(prev => prev.filter(p => p.id !== bankruptPlayerId));
+    // TODO: Firestore logic to remove player and handle assets
 
   }, [players, addLog, addNotification, updatePlayer]);
 
@@ -396,6 +385,7 @@ export default function GamePage({
     // Check for game over
     if (players.length <= 1) {
         setGameStatus('finished');
+        // TODO: Update Firestore game status
         return;
     }
 
@@ -406,19 +396,20 @@ export default function GamePage({
     if(players[nextPlayerIndex]) {
        addLog(`É a vez de ${players[nextPlayerIndex].name}.`);
     }
+    // TODO: Update currentPlayerId in Firestore
   }, [players, currentPlayerIndex]);
 
   const goToJail = useCallback((playerId: string) => {
     updatePlayer(playerId, (p) => {
         addLog(`${p.name} foi para a prisão.`);
-        if (p.id === 'player-1') {
+        if (p.id === user?.uid) {
           addNotification('Você foi para a prisão!', 'destructive');
         }
         return { position: JAIL_POSITION, inJail: true };
     });
     setDoublesCount(0); // Reset doubles count when going to jail
     handleEndTurn();
-  }, [JAIL_POSITION, addNotification, updatePlayer, addLog, handleEndTurn]);
+  }, [JAIL_POSITION, addNotification, updatePlayer, addLog, handleEndTurn, user]);
 
   const startAuction = useCallback((property: Property) => {
       addLog(`${property.name} foi a leilão!`);
@@ -431,6 +422,7 @@ export default function GamePage({
           playersInAuction,
           turnIndex: 0
       });
+       // TODO: Sync auction state to Firestore
   }, [players, addLog, addNotification]);
 
   const handleLandedOnSpace = useCallback((spaceIndex: number, fromCard = false) => {
@@ -479,7 +471,7 @@ export default function GamePage({
                 return resolve();
     
             } else if (!owner) {
-                 if (player.id === 'player-1') {
+                 if (player.userId === user?.uid) {
                     setSelectedSpace(space);
                     // Resolve is handled by dialog close/buy actions
                  } else { // AI Logic to buy
@@ -515,7 +507,7 @@ export default function GamePage({
     
                 addLog(`${player.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
                 
-                if (player.id === 'player-1') {
+                if (player.userId === user?.uid) {
                     setDrawnCard(card);
                     // Resolve will be handled by card dialog close
                 } else {
@@ -547,7 +539,7 @@ export default function GamePage({
         }
     });
 
-  }, [player, players, addNotification, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction]);
+  }, [player, players, addNotification, goToJail, chanceDeck, communityChestDeck, updatePlayer, lastDiceRoll, addLog, makePayment, startAuction, user]);
   
   const applyCardAction = useCallback((card: GameCard) => {
     if (!player) return;
@@ -671,7 +663,7 @@ export default function GamePage({
 
     setHasRolled(true);
 
-    if (player.id === 'player-1') {
+    if (player.userId === user?.uid) {
         addNotification(`Você rolou ${dice1 + dice2}.`);
         if (isDoubles) {
             addNotification("Dados duplos! Você joga de novo.");
@@ -690,7 +682,7 @@ export default function GamePage({
         if (newPosition < currentPosition) {
             updatedPlayer.money = prevPlayer.money + 200;
             setTimeout(() => {
-                if(player.id === 'player-1') addNotification(`Você coletou R$200.`);
+                if(player.userId === user?.uid) addNotification(`Você coletou R$200.`);
             }, 100);
             addLog(`${player.name} passou pelo início e coletou R$200.`);
         }
@@ -744,7 +736,7 @@ export default function GamePage({
   }
 
   const handleDebugMove = (space: any, index: number) => {
-    if (process.env.NODE_ENV !== 'development' || !player || player.id !== 'player-1') return;
+    if (process.env.NODE_ENV !== 'development' || !player || player.userId !== user?.uid) return;
     updatePlayer(player.id, p => ({ position: index }));
     handleLandedOnSpace(index);
   };
@@ -874,28 +866,8 @@ export default function GamePage({
     const toPlayer = players.find(p => p.id === offer.toId);
     if (!fromPlayer || !toPlayer) return;
 
-    // Simple AI logic for now
-    if (toPlayer.id.startsWith('player-')) { // target any bot
-        const valueToAI = offer.propertiesTo.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyTo;
-        const valueFromAI = offer.propertiesFrom.reduce((sum, id) => sum + (boardSpaces.find(s => 'id' in s && s.id === id) as Property).price, 0) + offer.moneyFrom;
-
-        if (valueToAI > valueFromAI * 1.2) { // AI wants a good deal
-            // Accept trade
-            updatePlayer(fromPlayer.id, p => ({
-                money: p.money + offer.moneyFrom - offer.moneyTo,
-                properties: [...p.properties.filter(id => !offer.propertiesTo.includes(id)), ...offer.propertiesFrom],
-            }));
-            updatePlayer(toPlayer.id, p => ({
-                money: p.money + offer.moneyTo - offer.moneyFrom,
-                properties: [...p.properties.filter(id => !offer.propertiesFrom.includes(id)), ...offer.propertiesTo],
-            }));
-            addNotification(`${toPlayer.name} aceitou sua proposta.`);
-            addLog(`${fromPlayer.name} e ${toPlayer.name} realizaram uma troca.`);
-        } else {
-             addNotification(`${toPlayer.name} recusou sua proposta.`, 'destructive');
-             addLog(`${toPlayer.name} recusou uma proposta de troca de ${fromPlayer.name}.`);
-        }
-    }
+    // TODO: Implement real-time trade proposal system via Firestore
+    addNotification(`Proposta de troca enviada para ${toPlayer.name}.`);
     setTradeOpen(false);
   };
   
@@ -975,9 +947,11 @@ export default function GamePage({
 
     // AI Logic for auction
     const currentAuctionPlayerId = auctionState.playersInAuction[auctionState.turnIndex];
-    if (currentAuctionPlayerId?.startsWith('player-')) { // AI's turn to bid
+    const isHumanPlayerTurn = currentAuctionPlayerId === user?.uid;
+    
+    if (currentAuctionPlayerId && !isHumanPlayerTurn) { // AI's turn to bid
         const aiPlayer = players.find(p => p.id === currentAuctionPlayerId);
-        if (!aiPlayer || aiPlayer.id === 'player-1') return;
+        if (!aiPlayer) return;
 
         const property = auctionState.property;
         const currentBid = auctionState.currentBid;
@@ -994,85 +968,20 @@ export default function GamePage({
         }, 1500);
     }
 
-  }, [auctionState, endAuction, players]);
+  }, [auctionState, endAuction, players, user]);
 
-  const handleAiLogic = (aiPlayer: Player) => {
-    return new Promise<void>(resolve => {
-        if (!aiPlayer) return resolve();
-    
-        // 1. Unmortgage properties if it has enough money
-        if (aiPlayer.mortgagedProperties.length > 0 && aiPlayer.money > 1000) { // Arbitrary high cash amount
-            const propToUnmortgageId = aiPlayer.mortgagedProperties[0];
-            const property = boardSpaces.find(p => 'id' in p && p.id === propToUnmortgageId) as Property;
-            const unmortgageCost = (property.price / 2) * 1.1;
-            if (aiPlayer.money > unmortgageCost + 500) { // Keep a buffer
-                 updatePlayer(aiPlayer.id, p => ({
-                    money: p.money - unmortgageCost,
-                    mortgagedProperties: p.mortgagedProperties.filter(id => id !== propToUnmortgageId)
-                }));
-                addLog(`${aiPlayer.name} pagou a hipoteca de ${property.name}.`);
-                setTimeout(resolve, 1000); // Wait after action
-                return;
-            }
-        }
-    
-        // 2. Build houses if possible
-        const colorGroups = boardSpaces.reduce((acc, space) => {
-          if (space.type === 'property' && space.color) {
-            if (!acc[space.color]) acc[space.color] = [];
-            acc[space.color].push(space.id);
-          }
-          return acc;
-        }, {} as { [color: string]: string[] });
-    
-        for (const color in colorGroups) {
-          const groupProperties = colorGroups[color];
-          const ownedGroupProperties = groupProperties.filter(id => aiPlayer.properties.includes(id));
-    
-          // Check if AI owns the full set
-          if (ownedGroupProperties.length === groupProperties.length) {
-            // AI owns the full set, let's build
-            for (const propId of ownedGroupProperties) {
-              const property = boardSpaces.find(s => 'id' in s && s.id === propId) as Property;
-              const houseCount = aiPlayer.houses[propId] || 0;
-              if (property.houseCost && aiPlayer.money > property.houseCost * 2 && houseCount < 5) {
-                // Simple logic: build one house if we have more than double the cost
-                updatePlayer(aiPlayer.id, p => ({
-                  money: p.money - property.houseCost!,
-                  houses: { ...p.houses, [propId]: (p.houses[propId] || 0) + 1 }
-                }));
-                addLog(`${aiPlayer.name} construiu uma casa em ${property.name}.`);
-                setTimeout(resolve, 1000); // Wait after action
-                return;
-              }
-            }
-          }
-        }
-        
-        // If no action was taken, resolve immediately
-        resolve();
-    });
-  };
 
   const handleRollToStart = (playerId: string, roll: number) => {
+    // TODO: Update rolls in Firestore
     setRollsToStart(prev => ({...prev, [playerId]: roll}));
     addLog(`${players.find(p => p.id === playerId)?.name} rolou ${roll} para começar.`);
   }
 
-  // Effect for AI rolling to start
-  useEffect(() => {
-    if (gameStatus === 'rolling-to-start') {
-        players.forEach(p => {
-            if (p.id !== 'player-1' && !rollsToStart[p.id]) {
-                const roll = Math.floor(Math.random() * 12) + 1;
-                setTimeout(() => handleRollToStart(p.id, roll), 500);
-            }
-        });
-    }
-  }, [gameStatus, players, rollsToStart]);
 
-  // Effect to determine start order
+  // Effect to determine start order (HOST ONLY)
   useEffect(() => {
+    if (gameData?.hostId !== user?.uid) return;
+
     if (gameStatus === 'rolling-to-start' && players.length > 0 && Object.keys(rollsToStart).length === players.length) {
         let sortedPlayers = [...players];
         let tie = false;
@@ -1101,105 +1010,31 @@ export default function GamePage({
 
         if (!tie) {
            sortedPlayers.sort((a, b) => rollsToStart[b.id] - rollsToStart[a.id]);
-           setPlayers(sortedPlayers);
+           setPlayers(sortedPlayers); // This should be an update to player order in Firestore
            setCurrentPlayerIndex(0);
-           setGameStatus('active');
-           if (sortedPlayers[0]) {
+           setGameStatus('active'); // This should update Firestore
+           if (sortedPlayers.length > 0 && sortedPlayers[0]) {
              addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
              addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
            }
         }
     }
-  }, [rollsToStart, players, gameStatus, addLog, addNotification]);
-
-  // Main AI Turn Logic
-  useEffect(() => {
-    if (gameStatus !== 'active' || auctionState || !player || player.id === 'player-1') {
-        return;
-    }
-    
-    // AI is in jail logic
-    if (player.inJail) {
-        setTimeout(() => {
-            // Simple AI: always try to pay bail if possible
-            if (player.money > 50) {
-                if (makePayment(player.id, null, 50)) {
-                    updatePlayer(player.id, { inJail: false });
-                    addLog(`${player.name} pagou a fiança e saiu da prisão.`);
-                    addNotification(`${player.name} pagou a fiança.`);
-                }
-            }
-            handleEndTurn();
-        }, 2000);
-        return;
-    }
-
-    const playAiTurn = async () => {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        const dice1 = Math.floor(Math.random() * 6) + 1;
-        const dice2 = Math.floor(Math.random() * 6) + 1;
-        const isDoubles = dice1 === dice2;
-
-        addLog(`${player.name} rolou ${dice1} e ${dice2}.`);
-        setLastDiceRoll([dice1, dice2]);
-
-        if (isDoubles) {
-            const newDoublesCount = doublesCount + 1;
-            setDoublesCount(newDoublesCount);
-            if (newDoublesCount === 3) {
-                addLog(`${player.name} foi para a prisão por tirar 3 duplos seguidos.`);
-                goToJail(player.id);
-                return; // Turn ends
-            }
-            addLog(`${player.name} tirou dados duplos e joga de novo.`);
-        } else {
-            setDoublesCount(0);
-        }
-
-        const total = dice1 + dice2;
-        const newPosition = (player.position + total) % 40;
-
-        updatePlayer(player.id, p => {
-            let updated: Partial<Player> = { position: newPosition };
-            if (newPosition < p.position) {
-                updated.money = p.money + 200;
-                addLog(`${p.name} coletou R$200.`);
-            }
-            return updated;
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 800)); // Wait for token to move
-        await handleLandedOnSpace(newPosition);
-        
-        // After landing and resolving space, check for next action
-        if (isDoubles) {
-            playAiTurn(); // Play again because of doubles
-        } else {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await handleAiLogic(player); // Post-turn logic like building houses
-            setTimeout(() => {
-                handleEndTurn();
-            }, 1500);
-        }
-    };
-    
-    // Only start the turn if hasRolled is false for the current player
-    if (!hasRolled) {
-        setHasRolled(true); // Mark that this player is starting their roll sequence
-        playAiTurn();
-    }
-}, [currentPlayerIndex, players, gameStatus, auctionState, hasRolled]);
+  }, [rollsToStart, players, gameStatus, addLog, addNotification, gameData, user]);
 
 
-  if (!player && gameStatus !== 'finished') {
-    return <div>Carregando...</div>;
+  if (players.length === 0) {
+    return (
+        <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
+            <h2 className="text-2xl font-bold">Aguardando jogadores...</h2>
+            <p className="text-muted-foreground">O jogo '{gameName}' começará em breve.</p>
+            <p className="mt-4">ID do Jogo: <code className="bg-muted p-1 rounded-md">{params.id}</code></p>
+        </div>
+    )
   }
 
-  const allPlayers = players;
-  const humanPlayer = allPlayers.find(p => p.id === 'player-1') || player;
-  const owner = selectedSpace ? allPlayers.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
-  const isMyTurn = player && player.id === 'player-1';
+  const humanPlayer = players.find(p => p.userId === user?.uid) || players[0];
+  const owner = selectedSpace ? players.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
+  const isMyTurn = player && player.userId === user?.uid;
   const gameOverPlayer = gameStatus === 'finished' ? players[0] : null;
 
   return (
@@ -1207,7 +1042,7 @@ export default function GamePage({
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
           <GameBoard 
-            players={allPlayers} 
+            players={players} 
             onSpaceClick={handleDebugMove} 
             mortgagedProperties={humanPlayer ? humanPlayer.mortgagedProperties : []} 
             animateCardPile={animateCardPile} 
@@ -1230,7 +1065,7 @@ export default function GamePage({
         <aside className="lg:col-span-1 space-y-8">
           <MultiplayerPanel
             player={humanPlayer}
-            allPlayers={allPlayers}
+            allPlayers={players}
             currentPlayerId={player ? player.id : ''}
             gameLog={gameLog}
             onBuild={handleBuild}
@@ -1265,7 +1100,9 @@ export default function GamePage({
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
-                            <Button size="lg" onClick={initializeGame}>Jogar Novamente</Button>
+                            <Button size="lg" asChild>
+                                <Link href="/multiplayer-lobby">Novo Jogo</Link>
+                            </Button>
                             <Button size="lg" variant="outline" asChild>
                                 <Link href="/">Voltar ao Início</Link>
                             </Button>
@@ -1340,7 +1177,7 @@ export default function GamePage({
         isOpen={isTradeOpen}
         onOpenChange={setTradeOpen}
         player={humanPlayer}
-        otherPlayers={allPlayers.filter(p => p.id !== humanPlayer.id)}
+        otherPlayers={players.filter(p => p.userId !== humanPlayer.userId)}
         onProposeTrade={handleProposeTrade}
       />
 
@@ -1359,3 +1196,4 @@ export default function GamePage({
     
 
     
+

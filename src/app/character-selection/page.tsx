@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -18,6 +18,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Palette, Users } from 'lucide-react';
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import { collection, doc, setDoc } from 'firebase/firestore';
 
 const playerColors = [
   { id: 'red', name: 'Vermelho', class: 'bg-red-500' },
@@ -29,17 +31,62 @@ const playerColors = [
 ];
 
 export default function CharacterSelectionPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const gameId = searchParams.get('gameId');
   const gameName = searchParams.get('gameName');
+  const isHost = searchParams.get('host') === 'true';
 
   const [playerName, setPlayerName] = useState('');
   const [selectedTotem, setSelectedTotem] = useState(totems[0].id);
   const [selectedColor, setSelectedColor] = useState(playerColors[0].id);
-  const [numOpponents, setNumOpponents] = useState('1');
+  const [numOpponents, setNumOpponents] = useState('1'); // Only used for solo
+  
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   const totem = totems.find(t => t.id === selectedTotem);
   const TotemIcon = totem ? totem.icon : null;
+
+  const handleJoinGame = async () => {
+    if (!playerName || !gameId || !user || !firestore) {
+      console.error("Missing required data to join game");
+      // TODO: Show an error to the user
+      return;
+    }
+
+    const player: Omit<Player, 'id'> = {
+      userId: user.uid,
+      name: playerName,
+      money: 1500,
+      properties: [],
+      mortgagedProperties: [],
+      houses: {},
+      position: 0,
+      color: selectedColor,
+      totem: selectedTotem,
+      getOutOfJailFreeCards: 0,
+      inJail: false,
+    };
+
+    try {
+      const playerRef = doc(collection(firestore, 'games', gameId, 'players'), user.uid);
+      await setDoc(playerRef, player);
+      
+      // Navigate to the game page
+      router.push(`/game/${gameId}?gameName=${encodeURIComponent(gameName || 'MINOPOLIS')}`);
+
+    } catch (error) {
+      console.error("Error adding player to game: ", error);
+      // TODO: Show error toast
+    }
+  };
+  
+  const soloGameHref = isHost ? `/game/${gameId}?playerName=${encodeURIComponent(
+      playerName
+    )}&totem=${selectedTotem}&color=${selectedColor}&numOpponents=${numOpponents}&gameName=${encodeURIComponent(
+      gameName || 'MINOPOLIS'
+    )}` : '#';
 
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
@@ -47,7 +94,7 @@ export default function CharacterSelectionPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Crie seu Jogador</CardTitle>
           <CardDescription>
-            Escolha seu nome, totem e cor para entrar no jogo.
+            Escolha seu nome, totem e cor para entrar no jogo '{gameName}'.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -88,23 +135,25 @@ export default function CharacterSelectionPage() {
               </RadioGroup>
             </div>
             
-            <div className="space-y-4">
-              <Label className="flex items-center gap-2">
-                <Users /> Oponentes
-              </Label>
-              <RadioGroup
-                value={numOpponents}
-                onValueChange={setNumOpponents}
-                className="flex gap-4"
-              >
-                {[1, 2, 3].map((num) => (
-                   <div key={num} className="flex items-center space-x-2">
-                    <RadioGroupItem value={String(num)} id={`opponents-${num}`} />
-                    <Label htmlFor={`opponents-${num}`}>{num}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
+            {isHost && (
+              <div className="space-y-4">
+                <Label className="flex items-center gap-2">
+                  <Users /> Oponentes (IA)
+                </Label>
+                <RadioGroup
+                  value={numOpponents}
+                  onValueChange={setNumOpponents}
+                  className="flex gap-4"
+                >
+                  {[1, 2, 3].map((num) => (
+                    <div key={num} className="flex items-center space-x-2">
+                      <RadioGroupItem value={String(num)} id={`opponents-${num}`} />
+                      <Label htmlFor={`opponents-${num}`}>{num}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
 
           </div>
 
@@ -147,18 +196,19 @@ export default function CharacterSelectionPage() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button asChild className="group" disabled={!playerName}>
-            <Link
-              href={`/game/${gameId}?playerName=${encodeURIComponent(
-                playerName
-              )}&totem=${selectedTotem}&color=${selectedColor}&numOpponents=${numOpponents}&gameName=${encodeURIComponent(
-                gameName || 'MINOPOLIS'
-              )}`}
-            >
-              Entrar no Jogo
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </Button>
+            {isHost ? (
+                 <Button asChild className="group" disabled={!playerName}>
+                    <Link href={soloGameHref}>
+                        Iniciar Jogo Solo
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Link>
+                 </Button>
+            ) : (
+                <Button className="group" disabled={!playerName || !gameId} onClick={handleJoinGame}>
+                    Entrar no Jogo
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Button>
+            )}
         </CardFooter>
       </Card>
     </div>

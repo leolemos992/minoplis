@@ -33,8 +33,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Avatar } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useUser } from '@/firebase';
 
 const playerColors: { [key: string]: { border: string; text: string; bg: string } } = {
     red: { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-500' },
@@ -77,7 +77,6 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
     onMortgage: (propertyId: string) => void;
     onUnmortgage: (propertyId: string) => void;
 }) {
-    const { toast } = useToast();
     const allPlayerProperties = useMemo(() => {
         if (!player) return [];
         return player.properties
@@ -220,7 +219,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
   );
 }
 
-function PlayerList({ allPlayers, currentPlayerId }: { allPlayers: Player[], currentPlayerId: string }) {
+function PlayerList({ allPlayers, currentPlayerId, localUserId }: { allPlayers: Player[], currentPlayerId: string, localUserId?: string }) {
     return (
         <CardContent>
             <ScrollArea className="h-96">
@@ -237,7 +236,7 @@ function PlayerList({ allPlayers, currentPlayerId }: { allPlayers: Player[], cur
                                         {TotemIcon && <TotemIcon className="h-6 w-6 text-white" />}
                                     </Avatar>
                                     <div>
-                                        <p className="font-semibold">{p.name} {p.id === 'player-1' && '(Você)'}</p>
+                                        <p className="font-semibold">{p.name} {p.userId === localUserId && '(Você)'}</p>
                                         <p className="text-sm text-green-600 font-medium">R${p.money.toLocaleString('pt-BR')}</p>
                                     </div>
                                 </div>
@@ -256,22 +255,19 @@ type ChatMessage = {
     message: string;
 };
 
-function GameChat({ allPlayers }: { allPlayers: Player[] }) {
+function GameChat({ allPlayers, localUserId }: { allPlayers: Player[], localUserId?: string }) {
     const [message, setMessage] = useState('');
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-        { playerId: 'player-2', message: 'Boa sorte! Que vença o melhor.' },
-        { playerId: 'player-1', message: 'Para você também!' },
+        // Mock data, to be replaced by Firestore
     ]);
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (message.trim() === '') return;
+        if (message.trim() === '' || !localUserId) return;
 
-        const humanPlayer = allPlayers.find(p => p.id === 'player-1');
-        if (humanPlayer) {
-            setChatHistory(prev => [...prev, { playerId: humanPlayer.id, message }]);
-            setMessage('');
-        }
+        // TODO: Send message to Firestore
+        setChatHistory(prev => [...prev, { playerId: localUserId, message }]);
+        setMessage('');
     };
 
     const ChatAvatar = ({ player }: { player?: Player }) => {
@@ -292,7 +288,7 @@ function GameChat({ allPlayers }: { allPlayers: Player[] }) {
                 <div className="space-y-4 text-xs pr-2">
                     {chatHistory.map((chat, index) => {
                         const player = allPlayers.find(p => p.id === chat.playerId);
-                        const isHuman = player?.id === 'player-1';
+                        const isHuman = player?.userId === localUserId;
 
                         if (isHuman) {
                             return (
@@ -370,6 +366,7 @@ interface MultiplayerPanelProps {
 }
 
 export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog, ...assetActions }: MultiplayerPanelProps) {
+  const { user } = useUser();
   return (
     <Card className="font-sans">
       <PlayerAssets player={player} {...assetActions} />
@@ -408,10 +405,10 @@ export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog,
         </TooltipProvider>
         
         <TabsContent value="players">
-            <PlayerList allPlayers={allPlayers} currentPlayerId={currentPlayerId} />
+            <PlayerList allPlayers={allPlayers} currentPlayerId={currentPlayerId} localUserId={user?.uid} />
         </TabsContent>
         <TabsContent value="chat">
-            <GameChat allPlayers={allPlayers} />
+            <GameChat allPlayers={allPlayers} localUserId={user?.uid} />
         </TabsContent>
         <TabsContent value="log">
             <EventLog log={gameLog} />

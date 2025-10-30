@@ -34,8 +34,6 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
@@ -296,7 +294,7 @@ function EventLog({ log }: { log: GameLog[] }) {
                     {log.map((entry, index) => (
                         <div key={index} className="flex items-start gap-3">
                             <div className="text-muted-foreground/80 pt-px">
-                                {formatDistanceToNow(entry.timestamp, { addSuffix: true, locale: ptBR })}
+                                {entry.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                             </div>
                             <p className="flex-1">{entry.message}</p>
                         </div>
@@ -370,7 +368,5 @@ export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog,
     </Card>
   );
 }
-
-    
 
     

@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Home, Hotel, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface ManagePropertiesDialogProps {
   isOpen: boolean;
@@ -60,7 +61,7 @@ export function ManagePropertiesDialog({
   const ownedColorSets = useMemo(() => {
     const sets: { [color: string]: boolean } = {};
     const totalInSets = boardSpaces.reduce((acc, space) => {
-        if ('color' in space && space.type === 'property') {
+        if ('color' in space && space.type === 'property' && 'color' in space && typeof space.color === 'string') {
             acc[space.color] = (acc[space.color] || 0) + 1;
         }
         return acc;

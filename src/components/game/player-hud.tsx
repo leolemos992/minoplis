@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import type { Player, Property } from '@/lib/definitions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Wallet, Landmark, Shield, Home, Hotel } from 'lucide-react';
+import { Wallet, Landmark, Shield, Home, Hotel, Gavel } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { totems, boardSpaces } from '@/lib/game-data';
 import { cn } from '@/lib/utils';

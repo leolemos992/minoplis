@@ -283,7 +283,7 @@ export default function GamePage({
       }
       return newPlayerState;
     });
-  }, [toast, JAIL_POSITION]);
+  }, [toast, JAIL_POSITION, handleLandedOnSpace]);
 
   useEffect(() => {
     if (cardToExecute) {

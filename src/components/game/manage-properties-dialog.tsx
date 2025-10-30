@@ -23,6 +23,7 @@ interface ManagePropertiesDialogProps {
   onOpenChange: (open: boolean) => void;
   player: Player;
   onBuild: (propertyId: string, amount: number) => void;
+  onSell: (propertyId: string, amount: number) => void;
 }
 
 const propertyColorClasses: { [key: string]: string } = {
@@ -41,6 +42,7 @@ export function ManagePropertiesDialog({
   onOpenChange,
   player,
   onBuild,
+  onSell,
 }: ManagePropertiesDialogProps) {
   const { toast } = useToast();
 
@@ -76,23 +78,29 @@ export function ManagePropertiesDialog({
   }, [groupedProperties]);
 
 
-  const handleBuildClick = (property: Property, amount: 1 | -1) => {
+  const handleBuildClick = (property: Property) => {
     const currentHouses = player.houses[property.id] || 0;
     
-    if (amount === 1) {
-        if (currentHouses >= 5) {
-            toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
-            return;
-        }
-        if (player.money < (property.houseCost || 0)) {
-            toast({ variant: 'destructive', title: 'Dinheiro Insuficiente', description: 'Você não tem dinheiro para construir.' });
-            return;
-        }
-        // Simplified build logic: doesn't enforce even building yet.
-        onBuild(property.id, 1);
+    if (currentHouses >= 5) {
+        toast({ variant: 'destructive', title: 'Limite Atingido', description: 'Você já construiu um hotel nesta propriedade.' });
+        return;
     }
-    // Logic for selling houses can be added here
+    if (player.money < (property.houseCost || 0)) {
+        toast({ variant: 'destructive', title: 'Dinheiro Insuficiente', description: 'Você não tem dinheiro para construir.' });
+        return;
+    }
+    // Simplified build logic: doesn't enforce even building yet.
+    onBuild(property.id, 1);
   };
+  
+  const handleSellClick = (property: Property) => {
+      const currentHouses = player.houses[property.id] || 0;
+      if (currentHouses === 0) {
+          toast({ variant: 'destructive', title: 'Sem construções', description: 'Não há nada para vender nesta propriedade.' });
+          return;
+      }
+      onSell(property.id, 1);
+  }
 
 
   return (
@@ -118,6 +126,7 @@ export function ManagePropertiesDialog({
                     {props.map(prop => {
                         const houseCount = player.houses[prop.id] || 0;
                         const canBuild = ownedColorSets[color] && houseCount < 5;
+                        const canSell = houseCount > 0;
                         return (
                             <div key={prop.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                                 <div className="flex-1">
@@ -131,10 +140,10 @@ export function ManagePropertiesDialog({
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     <Button size="icon" variant="outline" className="h-7 w-7" disabled>
+                                     <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canSell} onClick={() => handleSellClick(prop)}>
                                         <Minus className="h-4 w-4" />
                                     </Button>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canBuild} onClick={() => handleBuildClick(prop, 1)}>
+                                    <Button size="icon" variant="outline" className="h-7 w-7" disabled={!canBuild} onClick={() => handleBuildClick(prop)}>
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>

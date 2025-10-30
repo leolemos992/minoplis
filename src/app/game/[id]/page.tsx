@@ -439,6 +439,37 @@ export default function GamePage({
     });
   };
 
+  const handleSell = (propertyId: string, amount: number) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property || !property.houseCost) return;
+
+    const currentHouses = player.houses[propertyId] || 0;
+    if (currentHouses < amount) return;
+
+    const saleValue = (property.houseCost / 2) * amount;
+
+    setPlayer(p => {
+      const newHouses = currentHouses - amount;
+      const newHousesState = { ...p.houses };
+      if (newHouses === 0) {
+        delete newHousesState[propertyId];
+      } else {
+        newHousesState[propertyId] = newHouses;
+      }
+      
+      return {
+        ...p,
+        money: p.money + saleValue,
+        houses: newHousesState,
+      }
+    });
+
+    toast({
+      title: "Venda realizada!",
+      description: `Você vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`
+    });
+  };
+
   return (
     <>
       <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -499,6 +530,7 @@ export default function GamePage({
         onOpenChange={setManageOpen}
         player={player}
         onBuild={handleBuild}
+        onSell={handleSell}
       />
     </>
   );

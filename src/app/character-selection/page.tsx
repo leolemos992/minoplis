@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,12 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Palette, Users } from 'lucide-react';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { ArrowRight, Palette, Users, Ban } from 'lucide-react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc } from 'firebase/firestore';
+import type { Player } from '@/lib/definitions';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 const playerColors = [
   { id: 'red', name: 'Vermelho', class: 'bg-red-500' },
@@ -37,20 +40,45 @@ export default function CharacterSelectionPage() {
   const gameName = searchParams.get('gameName');
   const isHost = searchParams.get('host') === 'true';
 
-  const [playerName, setPlayerName] = useState('');
-  const [selectedTotem, setSelectedTotem] = useState(totems[0].id);
-  const [selectedColor, setSelectedColor] = useState(playerColors[0].id);
-  const [numOpponents, setNumOpponents] = useState('1'); // Only used for solo
-  
   const { user } = useUser();
   const firestore = useFirestore();
+
+  // Fetch existing players to check for used totems/colors
+  const playersRef = useMemoFirebase(() => 
+    firestore && gameId && gameId !== 'solo-game' 
+      ? collection(firestore, 'games', gameId, 'players') 
+      : null,
+    [firestore, gameId]
+  );
+  const { data: existingPlayers } = useCollection<Player>(playersRef);
+  
+  const usedTotems = useMemo(() => new Set(existingPlayers?.map(p => p.totem) || []), [existingPlayers]);
+  const usedColors = useMemo(() => new Set(existingPlayers?.map(p => p.color) || []), [existingPlayers]);
+
+  const firstAvailableTotem = totems.find(t => !usedTotems.has(t.id))?.id || '';
+  const firstAvailableColor = playerColors.find(c => !usedColors.has(c.id))?.id || '';
+  
+  const [playerName, setPlayerName] = useState('');
+  const [selectedTotem, setSelectedTotem] = useState(firstAvailableTotem);
+  const [selectedColor, setSelectedColor] = useState(firstAvailableColor);
+  const [numOpponents, setNumOpponents] = useState('1'); // Only used for solo
+
+  // Update selection if the first available option changes (e.g., due to another player joining)
+  useEffect(() => {
+    if (firstAvailableTotem) setSelectedTotem(firstAvailableTotem);
+  }, [firstAvailableTotem]);
+
+  useEffect(() => {
+    if (firstAvailableColor) setSelectedColor(firstAvailableColor);
+  }, [firstAvailableColor]);
+
 
   const totem = totems.find(t => t.id === selectedTotem);
   const TotemIcon = totem ? totem.icon : null;
 
   const handleJoinGame = async () => {
-    if (!playerName || !gameId || !user || !firestore) {
-      console.error("Missing required data to join game");
+    if (!playerName || !gameId || !user || !firestore || usedTotems.has(selectedTotem) || usedColors.has(selectedColor)) {
+      console.error("Missing required data or selection is already taken.");
       // TODO: Show an error to the user
       return;
     }
@@ -73,7 +101,6 @@ export default function CharacterSelectionPage() {
       const playerRef = doc(collection(firestore, 'games', gameId, 'players'), user.uid);
       await setDoc(playerRef, player);
       
-      // Navigate to the game page
       router.push(`/game/${gameId}?gameName=${encodeURIComponent(gameName || 'MINOPOLIS')}`);
 
     } catch (error) {
@@ -87,6 +114,8 @@ export default function CharacterSelectionPage() {
     )}&totem=${selectedTotem}&color=${selectedColor}&numOpponents=${numOpponents}&gameName=${encodeURIComponent(
       gameName || 'MINOPOLIS'
     )}` : '#';
+
+  const isCurrentSelectionValid = !usedTotems.has(selectedTotem) && !usedColors.has(selectedColor);
 
   return (
     <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
@@ -111,28 +140,51 @@ export default function CharacterSelectionPage() {
 
             <div className="space-y-4">
               <Label>Escolha seu Totem</Label>
-              <RadioGroup
-                value={selectedTotem}
-                onValueChange={setSelectedTotem}
-                className="grid grid-cols-3 gap-4"
-              >
-                {totems.map((totem) => (
-                  <div key={totem.id}>
-                    <RadioGroupItem
-                      value={totem.id}
-                      id={totem.id}
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor={totem.id}
-                      className="flex cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                    >
-                      <totem.icon className="mb-2 h-8 w-8" />
-                      {totem.name}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              <TooltipProvider>
+                <RadioGroup
+                  value={selectedTotem}
+                  onValueChange={setSelectedTotem}
+                  className="grid grid-cols-3 gap-4"
+                >
+                  {totems.map((totem) => {
+                    const isUsed = usedTotems.has(totem.id);
+                    return (
+                      <Tooltip key={totem.id}>
+                        <TooltipTrigger asChild>
+                          <div className={cn(isUsed && "cursor-not-allowed")}>
+                            <RadioGroupItem
+                              value={totem.id}
+                              id={totem.id}
+                              className="peer sr-only"
+                              disabled={isUsed}
+                            />
+                            <Label
+                              htmlFor={totem.id}
+                              className={cn(
+                                "flex relative cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                                isUsed && "bg-muted/50 text-muted-foreground opacity-50 pointer-events-none"
+                              )}
+                            >
+                               {isUsed && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                                  <Ban className="h-8 w-8 text-white" />
+                                </div>
+                              )}
+                              <totem.icon className="mb-2 h-8 w-8" />
+                              {totem.name}
+                            </Label>
+                          </div>
+                        </TooltipTrigger>
+                        {isUsed && (
+                           <TooltipContent>
+                             <p>Totem já escolhido</p>
+                           </TooltipContent>
+                        )}
+                      </Tooltip>
+                    )
+                  })}
+                </RadioGroup>
+              </TooltipProvider>
             </div>
             
             {isHost && (
@@ -176,22 +228,39 @@ export default function CharacterSelectionPage() {
               <Label className="flex items-center justify-center gap-2">
                 <Palette /> Cor do Jogador
               </Label>
-              <div className="flex flex-wrap justify-center gap-2">
-                {playerColors.map((color) => (
-                  <button
-                    key={color.id}
-                    onClick={() => setSelectedColor(color.id)}
-                    className={cn(
-                      'h-8 w-8 rounded-full border-2 transition-transform hover:scale-110',
-                      color.class,
-                      selectedColor === color.id
-                        ? 'border-primary ring-2 ring-primary'
-                        : 'border-transparent'
-                    )}
-                    aria-label={`Select ${color.name} color`}
-                  />
-                ))}
-              </div>
+              <TooltipProvider>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {playerColors.map((color) => {
+                    const isUsed = usedColors.has(color.id);
+                    return (
+                       <Tooltip key={color.id}>
+                         <TooltipTrigger asChild>
+                            <button
+                              onClick={() => !isUsed && setSelectedColor(color.id)}
+                              className={cn(
+                                'h-8 w-8 rounded-full border-2 transition-transform hover:scale-110',
+                                color.class,
+                                selectedColor === color.id
+                                  ? 'border-primary ring-2 ring-primary'
+                                  : 'border-transparent',
+                                isUsed && "opacity-50 cursor-not-allowed"
+                              )}
+                              aria-label={`Select ${color.name} color`}
+                              disabled={isUsed}
+                            >
+                              {isUsed && <Ban className="h-5 w-5 text-white/80 mx-auto" />}
+                            </button>
+                         </TooltipTrigger>
+                         {isUsed && (
+                            <TooltipContent>
+                              <p>Cor já escolhida</p>
+                            </TooltipContent>
+                         )}
+                       </Tooltip>
+                    )
+                  })}
+                </div>
+              </TooltipProvider>
             </div>
           </div>
         </CardContent>
@@ -204,7 +273,7 @@ export default function CharacterSelectionPage() {
                     </Link>
                  </Button>
             ) : (
-                <Button className="group" disabled={!playerName || !gameId} onClick={handleJoinGame}>
+                <Button className="group" disabled={!playerName || !gameId || !isCurrentSelectionValid} onClick={handleJoinGame}>
                     Entrar no Jogo
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>

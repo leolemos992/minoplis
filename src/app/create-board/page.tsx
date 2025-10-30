@@ -35,8 +35,8 @@ export default function CreateBoardPage() {
         </CardContent>
         <CardFooter className="flex justify-end">
           <Button asChild className="group">
-            <Link href={`/game/${gameId}`}>
-              Próximo: Ir para o Jogo
+            <Link href={`/character-selection?gameId=${gameId}`}>
+              Próximo: Escolher Personagem
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>

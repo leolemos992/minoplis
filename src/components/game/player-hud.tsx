@@ -6,24 +6,34 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Wallet, Landmark } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { totems } from '@/lib/game-data';
+import { cn } from '@/lib/utils';
+
 
 interface PlayerHudProps {
-    player: Omit<Player, 'character'>;
+    player: Player;
 }
 
 export function PlayerHud({ player }: PlayerHudProps) {
-  const [formattedMoney, setFormattedMoney] = useState(player.money.toString());
+  const [formattedMoney, setFormattedMoney] = useState('');
 
   useEffect(() => {
+    // Format money on the client to avoid hydration mismatch
     setFormattedMoney(player.money.toLocaleString('pt-BR'));
   }, [player.money]);
+
+  const totem = totems.find(t => t.id === player.totem);
+  const TotemIcon = totem ? totem.icon : null;
+
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-primary">
-                <AvatarFallback>{player.name.substring(0, 2)}</AvatarFallback>
+            <Avatar className={cn("h-16 w-16 border-2", player.color)}>
+                <div className={cn("h-full w-full flex items-center justify-center rounded-full bg-white dark:bg-zinc-800")}>
+                    {TotemIcon && <TotemIcon className="h-8 w-8 text-current" />}
+                </div>
             </Avatar>
             <div>
                 <CardTitle>{player.name}</CardTitle>

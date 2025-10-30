@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { characters, boardSpaces } from '@/lib/game-data';
+import { characters, boardSpaces, totems } from '@/lib/game-data';
 import { notFound } from 'next/navigation';
 import { GameActions } from '@/components/game/game-actions';
 import { PlayerHud } from '@/components/game/player-hud';
-import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Users, Train } from 'lucide-react';
+import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Property } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -38,7 +38,8 @@ const getIcon = (space: any, size = "w-8 h-8") => {
         case 'railroad': return <Train className={size} />
         case 'utility': 
             if(space.name.includes("CELESC")) return <Zap className={size} />
-            return <Gem className={size} />; // Placeholder for water works
+            if(space.name.includes("SAMAE")) return <Gem className={size} />
+            return <Gem className={size} />;
         default: return null;
     }
 }
@@ -157,14 +158,19 @@ export default function GamePage({
 }: {
   params: { id: string };
 }) {
+  const searchParams = useSearchParams();
+  const playerName = searchParams.get('playerName') || 'Jogador 1';
+  const totemId = searchParams.get('totem') || 'car';
+  const colorId = searchParams.get('color') || 'blue';
 
   const mockPlayer = {
     id: 'player-1',
-    name: 'Jogador 1',
+    name: playerName,
     money: 1500,
     properties: [],
     position: 0,
-    color: 'bg-blue-500',
+    color: `bg-${colorId}-500`,
+    totem: totemId,
   };
 
   return (

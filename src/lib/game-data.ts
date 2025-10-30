@@ -1,6 +1,7 @@
 
 import type { Character, Game, Property } from '@/lib/definitions';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Car, Dog, Ship, Hat, Boot, Cat } from 'lucide-react';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id);
 
@@ -16,10 +17,19 @@ export const characters: Character[] = [
   },
 ];
 
+export const totems = [
+  { id: 'car', name: 'Carro', icon: Car },
+  { id: 'dog', name: 'Cachorro', icon: Dog },
+  { id: 'ship', name: 'Navio', icon: Ship },
+  { id: 'hat', name: 'Cartola', icon: Hat },
+  { id: 'boot', name: 'Bota', icon: Boot },
+  { id: 'cat', name: 'Gato', icon: Cat },
+];
+
 export const mockGames: Omit<Game, 'board'>[] = [
     {
         id: '1',
-        name: "MINOPLIS",
+        name: "MINOPOLIS",
         players: [],
         currentPlayerId: 'player-1',
         status: 'waiting',
@@ -46,7 +56,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { type: 'community-chest', name: 'Sorte/Azar' },
   { id: 'guarani', name: 'Guarani', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'brown', type: 'property' },
   { type: 'income-tax', name: 'Imposto de Renda' },
-  { id: 'nosso-brusque-1', name: 'Nosso Brusque - Poço Fundo', price: 200, rent: [5, 10, 20, 40], color: 'railroad', type: 'railroad' },
+  { id: 'nosso-brusque-1', name: 'Nosso Brusque - Poço Fundo', price: 200, rent: [5], color: 'railroad', type: 'railroad' },
   { id: 'azambuja', name: 'Azambuja', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', type: 'property' },
   { type: 'chance', name: 'Sorte/Azar' },
   { id: 'dom-joaquim', name: 'Dom Joaquim', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', type: 'property' },
@@ -56,7 +66,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: 'electric-company', name: 'CELESC', price: 150, rent: [], color: 'utility', type: 'utility' },
   { id: 'bateas', name: 'Bateas', price: 140, rent: [10, 50, 150, 450, 625, 750], color: 'pink', type: 'property' },
   { id: 'primeiro-de-maio', name: 'Primeiro de Maio', price: 160, rent: [12, 60, 180, 500, 700, 900], color: 'pink', type: 'property' },
-  { id: 'nosso-brusque-2', name: 'Nosso Brusque - Rio Branco', price: 200, rent: [10, 20, 40, 80], color: 'railroad', type: 'railroad' },
+  { id: 'nosso-brusque-2', name: 'Nosso Brusque - Rio Branco', price: 200, rent: [10], color: 'railroad', type: 'railroad' },
   { id: 'santa-rita', name: 'Santa Rita', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'orange', type: 'property' },
   { type: 'community-chest', name: 'Sorte/Azar' },
   { id: 'sao-pedro', name: 'São Pedro', price: 180, rent: [14, 70, 200, 550, 750, 950], color: 'orange', type: 'property' },
@@ -66,7 +76,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { type: 'chance', name: 'Sorte/Azar' },
   { id: 'souza-cruz', name: 'Souza Cruz', price: 220, rent: [18, 90, 250, 700, 875, 1050], color: 'red', type: 'property' },
   { id: 'agua-clara', name: 'Águas Claras', price: 240, rent: [20, 100, 300, 750, 925, 1100], color: 'red', type: 'property' },
-  { id: 'nosso-brusque-3', name: 'Nosso Brusque - Maluche', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
+  { id: 'nosso-brusque-3', name: 'Nosso Brusque - Maluche', price: 200, rent: [25], color: 'railroad', type: 'railroad' },
   { id: 'centro-i', name: 'Centro I', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'yellow', type: 'property' },
   { id: 'maluche', name: 'Maluche', price: 260, rent: [22, 110, 330, 800, 975, 1150], color: 'yellow', type: 'property' },
   { id: 'water-works', name: 'SAMAE', price: 150, rent: [], color: 'utility', type: 'utility' },
@@ -76,7 +86,7 @@ export const boardSpaces: (Property | { type: string; name: string })[] = [
   { id: 'sao-sebastiao', name: 'São Sebastião', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'green', type: 'property' },
   { type: 'community-chest', name: 'Sorte/Azar' },
   { id: 'cedro-alto', name: 'Cedro Alto', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], color: 'green', type: 'property' },
-  { id: 'nosso-brusque-4', name: 'Nosso Brusque - Centro', price: 200, rent: [50, 100, 200, 400], color: 'railroad', type: 'railroad' },
+  { id: 'nosso-brusque-4', name: 'Nosso Brusque - Centro', price: 200, rent: [50], color: 'railroad', type: 'railroad' },
   { type: 'chance', name: 'Sorte/Azar' },
   { id: 'havan', name: 'Avenida da Havan', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: 'darkblue', type: 'property' },
   { type: 'luxury-tax', name: 'Imposto de Luxo' },

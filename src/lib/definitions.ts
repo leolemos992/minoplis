@@ -14,6 +14,7 @@ export type Player = {
   properties: string[];
   position: number;
   color: string;
+  totem: string;
 };
 
 export type Property = {
@@ -22,7 +23,7 @@ export type Property = {
   price: number;
   rent: number[];
   color: string;
-  type: 'property';
+  type: 'property' | 'railroad' | 'utility';
 };
 
 export type Game = {

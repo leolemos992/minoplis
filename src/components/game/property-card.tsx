@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Home, Zap, Building, Train, Gem } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DialogHeader, DialogTitle } from '../ui/dialog';
 
 const colorClasses: { [key: string]: string } = {
   brown: 'bg-[#955436]',
@@ -61,6 +62,9 @@ export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProp
 
   return (
     <Card className="w-full max-w-sm">
+      <DialogHeader>
+         <DialogTitle className="sr-only">{space.name}</DialogTitle>
+      </DialogHeader>
       <CardHeader className="p-4">
         {property && property.color && (
           <div
@@ -126,7 +130,7 @@ export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProp
         )}
         {isProperty && isOwned && (
              <Button className="w-full" variant="outline" disabled>Você é o proprietário</Button>
-        )}
+         )}
          {isProperty && !isOwned && player.money < (property?.price || Infinity) && (
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}

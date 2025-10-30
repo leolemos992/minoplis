@@ -350,8 +350,8 @@ export default function GamePage({
       </div>
 
       <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
-        <DialogContent className="p-0 border-0 bg-transparent w-auto max-w-sm">
-            {selectedSpace && (
+        <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
+             {selectedSpace && (
                 <PropertyCard 
                     space={selectedSpace} 
                     player={player}

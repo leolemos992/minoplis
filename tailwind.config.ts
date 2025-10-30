@@ -20,6 +20,7 @@ export default {
         body: ['Poppins', 'sans-serif'],
         headline: ['Playfair Display', 'serif'],
         code: ['monospace'],
+        sans: ['Inter', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

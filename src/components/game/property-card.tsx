@@ -30,11 +30,11 @@ const getIcon = (space: any) => {
     case 'jail':
       return <Building className="h-6 w-6" />;
     case 'railroad':
-      return <Train className="h-6 w-6" />;
+      return <Train className="h-8 w-8" />;
     case 'utility':
-      if (space.name.includes('CELESC')) return <Zap className="h-6 w-6" />;
-      if (space.name.includes('SAMAE')) return <Gem className="h-6 w-6" />;
-      return <Gem className="h-6 w-6" />;
+      if (space.name.includes('CELESC')) return <Zap className="h-8 w-8" />;
+      if (space.name.includes('SAMAE')) return <Gem className="h-8 w-8" />;
+      return <Gem className="h-8 w-8" />;
     default:
       return null;
   }
@@ -68,22 +68,22 @@ export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProp
       <DialogHeader>
          <DialogTitle className="sr-only">{space.name}</DialogTitle>
       </DialogHeader>
-      <CardHeader className="p-4">
-        {property && property.color && (
+      <CardHeader className="p-0">
+        {property && (property.type === 'property' || property.type === 'railroad' || property.type === 'utility') && (
           <div
             className={cn(
-              'h-16 w-full rounded-t-md flex items-center justify-center',
-              colorClasses[property.color] || 'bg-gray-200'
+              'h-24 w-full rounded-t-md flex flex-col items-center justify-center p-4 text-center',
+              property.color && colorClasses[property.color] ? colorClasses[property.color] : 'bg-gray-200'
             )}
           >
-            <div className="text-black">{getIcon(property)}</div>
+            { (property.type === 'railroad' || property.type === 'utility') && <div className="text-black">{getIcon(property)}</div> }
+            <CardTitle className={cn("text-xl", (property.color === 'lightblue' || property.color === 'yellow') ? 'text-black' : 'text-white')}>{space.name}</CardTitle>
           </div>
         )}
-        <div className="pt-4">
-          <CardTitle className="text-2xl">{space.name}</CardTitle>
+        <div className="p-4">
           {isProperty && (
-            <CardDescription className="text-lg font-bold">
-              R$ {property?.price}
+            <CardDescription className="text-lg font-bold text-center">
+              Preço: R$ {property?.price}
             </CardDescription>
           )}
         </div>

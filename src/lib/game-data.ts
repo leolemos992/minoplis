@@ -82,7 +82,7 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string }
   { id: 'utility-water', name: 'SAMAE', price: 150, rent: [], color: 'utility', type: 'utility' },
   { id: 'voluntarios-da-patria', name: 'Voluntários da Pátria', price: 280, rent: [24, 120, 360, 850, 1025, 1200], color: 'yellow', houseCost: 150, type: 'property' },
   { type: 'go-to-jail', name: 'Vá para a Prisão', id: 'go-to-jail' },
-  { id: 'parque-das-esculturas-ii', name: 'Parque das Esculturas II', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'green', houseCost: 200, type: 'property' },
+  { id: 'pavilhao-da-fenarreco', name: 'Pavilhão da Fenarreco', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'green', houseCost: 200, type: 'property' },
   { id: 'sao-sebastiao', name: 'São Sebastião', price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: 'green', houseCost: 200, type: 'property' },
   { type: 'community-chest', name: 'Baú', id: 'cc3' },
   { id: 'cedro-alto', name: 'Cedro Alto', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], color: 'green', houseCost: 200, type: 'property' },

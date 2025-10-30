@@ -21,6 +21,7 @@ export default {
         headline: ['Playfair Display', 'serif'],
         code: ['monospace'],
         sans: ['Inter', 'sans-serif'],
+        mono: ['Roboto Mono', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background))',

@@ -130,7 +130,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
     if (!player) return <CardContent><p className="text-center text-muted-foreground">Selecione um jogador</p></CardContent>;
 
   return (
-    <CardContent className="p-0">
+    <div>
       <div className="flex items-center justify-between p-3 text-base font-semibold bg-muted/50">
         <div className="flex items-center gap-2 text-green-600">
           <Wallet className="h-5 w-5" />
@@ -219,7 +219,7 @@ function PlayerAssets({ player, onBuild, onSell, onMortgage, onUnmortgage }: {
           )}
         </ScrollArea>
       </div>
-    </CardContent>
+    </div>
   );
 }
 
@@ -292,10 +292,10 @@ function EventLog({ log }: { log: GameLog[] }) {
     return (
         <CardContent>
             <ScrollArea className="h-96">
-                <div className="space-y-3">
+                <div className="space-y-3 font-mono text-xs">
                     {log.map((entry, index) => (
-                        <div key={index} className="flex items-start gap-3 text-sm">
-                            <div className="text-muted-foreground pt-0.5 text-xs">
+                        <div key={index} className="flex items-start gap-3">
+                            <div className="text-muted-foreground/80 pt-px">
                                 {formatDistanceToNow(entry.timestamp, { addSuffix: true, locale: ptBR })}
                             </div>
                             <p className="flex-1">{entry.message}</p>
@@ -322,53 +322,41 @@ interface MultiplayerPanelProps {
 export function MultiplayerPanel({ player, allPlayers, currentPlayerId, gameLog, ...assetActions }: MultiplayerPanelProps) {
   return (
     <Card className="font-sans">
-      <Tabs defaultValue="assets">
+      <PlayerAssets player={player} {...assetActions} />
+      <Separator />
+      <Tabs defaultValue="players" className="pt-2">
         <TooltipProvider>
-            <CardHeader className="p-2">
-                <TabsList className="grid w-full grid-cols-4">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <TabsTrigger value="assets">
-                                <Landmark className="h-5 w-5" />
-                                <span className="sr-only">Ativos</span>
-                            </TabsTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Ativos</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <TabsTrigger value="players">
-                                <Users className="h-5 w-5" />
-                                <span className="sr-only">Jogadores</span>
-                            </TabsTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Jogadores</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <TabsTrigger value="chat">
-                                <MessageCircle className="h-5 w-5" />
-                                <span className="sr-only">Chat</span>
-                            </TabsTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Chat</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <TabsTrigger value="log">
-                                <ClipboardList className="h-5 w-5" />
-                                <span className="sr-only">Eventos</span>
-                            </TabsTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Eventos</TooltipContent>
-                    </Tooltip>
-                </TabsList>
-            </CardHeader>
+            <TabsList className="grid w-full grid-cols-3 mx-auto max-w-xs">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <TabsTrigger value="players">
+                            <Users className="h-5 w-5" />
+                            <span className="sr-only">Jogadores</span>
+                        </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Jogadores</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <TabsTrigger value="chat">
+                            <MessageCircle className="h-5 w-5" />
+                            <span className="sr-only">Chat</span>
+                        </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Chat</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <TabsTrigger value="log">
+                            <ClipboardList className="h-5 w-5" />
+                            <span className="sr-only">Eventos</span>
+                        </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Eventos</TooltipContent>
+                </Tooltip>
+            </TabsList>
         </TooltipProvider>
-
-        <TabsContent value="assets">
-            <PlayerAssets player={player} {...assetActions} />
-        </TabsContent>
+        
         <TabsContent value="players">
             <PlayerList allPlayers={allPlayers} currentPlayerId={currentPlayerId} />
         </TabsContent>

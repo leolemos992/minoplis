@@ -92,7 +92,7 @@
   "firestore": {
     "/games/{gameId}": {
       "schema": { "$ref": "#/entities/Game" },
-      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode listar e ler as partidas. Apenas o host pode atualizar o status do jogo (para iniciá-lo).",
+      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode listar e ler as partidas.",
       "subcollections": {
           "/players/{playerId}": {
               "schema": { "$ref": "#/entities/Player"},

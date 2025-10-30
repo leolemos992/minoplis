@@ -143,14 +143,14 @@ const GameBoard = ({ players, onSpaceClick, houses, animateCardPile }: { players
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
-        "space-18 center   center   center   center   center   center   center   center   center   center   space-32"
-        "space-17 center   center   center   center   center   center   center   center   center   center   space-33"
-        "space-16 center   center   center   center   center   center   center   center   center   center   space-34"
-        "space-15 center   center   center   center   center   center   center   center   center   center   space-35"
-        "space-14 center   center   center   center   center   center   center   center   center   center   space-36"
-        "space-13 center   center   center   center   center   center   center   center   center   center   space-37"
-        "space-12 center   center   center   center   center   center   center   center   center   center   space-38"
-        "space-11 center   center   center   center   center   center   center   center   center   center   space-39"
+        "space-18 center   center   center   center   center   center   center   center   center   space-32"
+        "space-17 center   center   center   center   center   center   center   center   center   space-33"
+        "space-16 center   center   center   center   center   center   center   center   center   space-34"
+        "space-15 center   center   center   center   center   center   center   center   center   space-35"
+        "space-14 center   center   center   center   center   center   center   center   center   space-36"
+        "space-13 center   center   center   center   center   center   center   center   center   space-37"
+        "space-12 center   center   center   center   center   center   center   center   center   space-38"
+        "space-11 center   center   center   center   center   center   center   center   center   space-39"
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
 
@@ -207,7 +207,7 @@ export default function GamePage({
   const playerName = searchParams.get('playerName') || 'Jogador 1';
   const totemId = searchParams.get('totem') || 'car';
   const colorId = searchParams.get('color') || 'blue';
-  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
+  const gameName = searchParams.get('gameName') || 'MINOPLIS';
 
   const [player, setPlayer] = useState<Player>({
     id: 'player-1',
@@ -611,5 +611,3 @@ export default function GamePage({
     </>
   );
 }
-
-    

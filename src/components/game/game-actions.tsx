@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dices, Handshake, Building, Gavel, CheckSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface GameActionsProps {
   onDiceRoll: (dice1: number, dice2: number) => void;
@@ -102,6 +103,8 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
     }
   }, [isRolling, onDiceRoll, toast, isPlayerInJail]);
 
+  const canEndTurn = isTurnActive && hasRolled;
+
   return (
     <div className="p-4 rounded-lg bg-card/80 backdrop-blur-sm">
       <div className="space-y-2">
@@ -155,7 +158,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
         <Button
             size="lg"
             variant="secondary"
-            className="w-full"
+            className={cn("w-full", canEndTurn && "animate-pulse")}
             onClick={onEndTurn}
             disabled={!isTurnActive || isRolling || !hasRolled}
         >

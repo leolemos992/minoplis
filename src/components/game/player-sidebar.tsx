@@ -1,7 +1,7 @@
 'use client';
 
 import { Logo } from '@/components/logo';
-import type { Player } from '@/lib/definitions';
+import type { Player, UserProfile } from '@/lib/definitions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Accordion,
@@ -9,8 +9,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Banknote, ChevronDown } from 'lucide-react';
+import { Banknote, Award, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCollection, useMemoFirebase, useFirestore } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 
 const playerBgColors: { [key: string]: string } = {
@@ -24,6 +26,16 @@ const playerBgColors: { [key: string]: string } = {
 
 
 export function PlayerSidebar({ allPlayers, loggedInPlayerId }: { allPlayers: Player[], loggedInPlayerId: string }) {
+    const firestore = useFirestore();
+    const userIds = useMemo(() => allPlayers.map(p => p.userId), [allPlayers]);
+    
+    // In a real app, you might want a more efficient way to fetch profiles if userIds change frequently.
+    const usersRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const { data: userProfiles } = useCollection<UserProfile>(usersRef);
+
+    const getPlayerProfile = (userId: string) => {
+        return userProfiles?.find(p => p.uid === userId);
+    }
     
   return (
     <aside className="w-72 flex-col border-r bg-slate-800 text-white hidden md:flex">
@@ -33,8 +45,10 @@ export function PlayerSidebar({ allPlayers, loggedInPlayerId }: { allPlayers: Pl
       <div className="flex-1 overflow-y-auto p-4">
         <h3 className="px-2 text-sm font-semibold text-slate-400">Jogadores</h3>
         <Accordion type="single" collapsible defaultValue={loggedInPlayerId} className="w-full mt-2">
-            {allPlayers.map(player => (
-                <AccordionItem key={player.id} value={player.id} className="border-slate-700">
+            {allPlayers.map(player => {
+                const profile = getPlayerProfile(player.userId);
+                return (
+                 <AccordionItem key={player.id} value={player.id} className="border-slate-700">
                     <AccordionTrigger className="w-full text-left hover:no-underline hover:bg-slate-700/50 rounded-md p-2">
                         <div className="flex items-center gap-3">
                             <Avatar>
@@ -42,8 +56,8 @@ export function PlayerSidebar({ allPlayers, loggedInPlayerId }: { allPlayers: Pl
                                     {player.name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1">
-                                <p className="font-semibold">{player.name}</p>
+                            <div className="flex-1 text-left">
+                                <p className="font-semibold flex items-center gap-2">{player.name} {profile && <span className="flex items-center text-xs text-yellow-400"><Star className="w-3 h-3 mr-1" /> Nv. {profile.level}</span>}</p>
                                 <div className="flex items-center text-xs text-slate-400">
                                     <Banknote className="mr-1 h-3 w-3" />
                                     <span>R$ {player.money}</span>
@@ -60,21 +74,12 @@ export function PlayerSidebar({ allPlayers, loggedInPlayerId }: { allPlayers: Pl
                         )}
                     </AccordionContent>
                 </AccordionItem>
-            ))}
+                )
+            })}
         </Accordion>
       </div>
       <div className="mt-auto border-t border-slate-700 p-4">
-        <div className="flex items-center gap-3">
-             <Avatar>
-                <AvatarFallback className="font-bold bg-slate-600">
-                    {allPlayers.find(p => p.id === loggedInPlayerId)?.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-                <p className="font-semibold">{allPlayers.find(p => p.id === loggedInPlayerId)?.name}</p>
-                 <a href="#" className="text-xs text-slate-400 hover:text-white">Ver Perfil</a>
-            </div>
-        </div>
+         {/* Could show logged-in user's global stats here */}
       </div>
     </aside>
   );

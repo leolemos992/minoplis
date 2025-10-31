@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dices } from 'lucide-react';
+import { Dices, Landmark, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameHeaderProps {
   currentPlayerName: string;
   onDiceRoll: (dice1: number, dice2: number) => void;
   onEndTurn: () => void;
+  onManageProperties: () => void;
+  onPayBail: () => void;
   isTurnActive: boolean;
   hasRolled: boolean;
   diceValue: [number, number];
+  playerInJail: boolean;
 }
 
 function DiceIcon({ value }: { value: number }) {
@@ -32,32 +35,23 @@ function DiceIcon({ value }: { value: number }) {
   };
   
   const pipGridAreas: { [key: string]: string } = {
-    'top-left': '1 / 1',
-    'top-right': '1 / 3',
-    'mid-left': '2 / 1',
-    'center': '2 / 2',
-    'mid-right': '2 / 3',
-    'bottom-left': '3 / 1',
+    'top-left': '1 / 1', 'top-right': '1 / 3', 'mid-left': '2 / 1',
+    'center': '2 / 2', 'mid-right': '2 / 3', 'bottom-left': '3 / 1',
     'bottom-right': '3 / 3',
-    };
+  };
 
   const currentPips = pipPatterns[value] || [];
 
   return (
     <div className="grid h-8 w-8 grid-cols-3 grid-rows-3 gap-0.5 rounded-md border bg-white p-0.5 shadow-sm">
       {currentPips.map((area) => (
-        <div
-          key={area}
-          className={`w-full h-full rounded-full bg-black`}
-          style={{ gridArea: pipGridAreas[area] }}
-        ></div>
+        <div key={area} className={`w-full h-full rounded-full bg-black`} style={{ gridArea: pipGridAreas[area] }} />
       ))}
     </div>
   );
 }
 
-
-export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, isTurnActive, hasRolled, diceValue }: GameHeaderProps) {
+export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, onManageProperties, onPayBail, isTurnActive, hasRolled, diceValue, playerInJail }: GameHeaderProps) {
   const [dice, setDice] = useState<[number, number]>(diceValue);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -73,9 +67,7 @@ export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, isTurnAct
   useEffect(() => {
     if (isRolling) {
       const rollInterval = setInterval(() => {
-        const d1 = Math.floor(Math.random() * 6) + 1;
-        const d2 = Math.floor(Math.random() * 6) + 1;
-        setDice([d1, d2]);
+        setDice([Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1]);
       }, 50);
 
       const stopTimeout = setTimeout(() => {
@@ -94,7 +86,8 @@ export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, isTurnAct
     }
   }, [isRolling, onDiceRoll]);
   
-  const canEndTurn = isTurnActive && hasRolled;
+  const canRoll = isTurnActive && !hasRolled && !isRolling;
+  const canEndTurn = isTurnActive && hasRolled && !isRolling;
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
@@ -109,18 +102,17 @@ export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, isTurnAct
            <span className="font-bold text-slate-600">+</span>
            <DiceIcon value={dice[1]} />
         </div>
-        <Button
-          onClick={rollDice}
-          disabled={!isTurnActive || isRolling || hasRolled}
-          className="w-32"
-        >
-          {isRolling ? 'Rolando...' : 'Rolar Dados'}
+        <Button onClick={onManageProperties} variant="outline">
+            <Wallet className="mr-2 h-4 w-4" /> Gerir
         </Button>
-        <Button
-          variant="outline"
-          onClick={onEndTurn}
-          disabled={!canEndTurn || isRolling}
-        >
+        {playerInJail ? (
+             <Button onClick={onPayBail} disabled={!isTurnActive} className="w-32 bg-amber-600 hover:bg-amber-700">Pagar Fiança (R$50)</Button>
+        ) : (
+             <Button onClick={rollDice} disabled={!canRoll} className="w-32">
+                {isRolling ? 'Rolando...' : 'Rolar Dados'}
+             </Button>
+        )}
+        <Button variant="outline" onClick={onEndTurn} disabled={!canEndTurn}>
           Terminar Turno
         </Button>
       </div>

@@ -1,74 +1,74 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model for the MINOPLIS game.
- *
- * Data Structure:
- * - /games/{gameId}: Stores game metadata.
- * - /games/{gameId}/players/{playerId}: Stores player-specific data within a game.
- *
- * Key Security Decisions:
- * - Publicly readable games list (for discovery), but create/update/delete operations are restricted to the game host.
- * - Players can only manage their own player documents.
- * - The `hostId` field in the `/games/{gameId}` document is used to control administrative access to the game.
- *
- * Denormalization for Authorization:
- * - The `hostId` is denormalized onto the `Game` document to allow efficient access control.
- *
- * Structural Segregation:
- * - Game and player data are stored in separate collections for clarity.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Controls access to the /games/{gameId} collection.
-     * @path /games/{gameId}
-     * @allow (get, list): Any user can read game data to discover available games.
-     * @allow (create): Authenticated user can create a game if they set themselves as the host.
-     * @allow (update, delete): Only the game host can modify or delete a game.
-     * @deny (create): An unauthenticated user cannot create a game.
-     * @deny (update, delete): A non-host user cannot modify or delete a game.
-     * @principle Public read access for game discovery, owner-only writes for game management.
-     */
+    // Utilizadores: Cada utilizador pode ler/escrever o seu próprio perfil. Ninguém pode listar ou escrever em perfis alheios.
+    match /users/{userId} {
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId && request.resource.data.uid == userId;
+    }
+
+    // Jogos:
     match /games/{gameId} {
-      allow get, list: if true; // Public read access for game discovery
+      // Qualquer utilizador autenticado pode listar os jogos para se juntar.
+      allow list: if isSignedIn();
+      
+      // Um utilizador só pode ler os dados de um jogo se ele for um dos jogadores nessa partida.
+      allow get: if isSignedIn() && resource.data.playerOrder.hasAny([request.auth.uid]);
 
+      // Criação: Qualquer utilizador autenticado pode criar um jogo, desde que se defina como anfitrião.
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update, delete: if isExistingOwner(resource.data.hostId);
 
+      // Atualização:
+      // 1. O anfitrião pode iniciar um jogo ('active') se houver jogadores.
+      // 2. O anfitrião pode terminar um jogo ('finished').
+      // 3. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
+      allow update: if isSignedIn() &&
+        (
+          (isHost(gameId) && isStartingGame(request, resource)) ||
+          (isHost(gameId) && isFinishingGame(request)) ||
+          (isJoiningWaitingGame(request, resource))
+        );
+
+      // Eliminar: Apenas o anfitrião pode eliminar um jogo que ainda está em espera.
+      allow delete: if isSignedIn() && isHost(gameId) && resource.data.status == 'waiting';
+
+      // Subcoleção de Jogadores
+      match /players/{playerId} {
+        // Leitura: Só os jogadores da partida podem ver os dados dos outros jogadores.
+        allow get, list: if isSignedIn() && get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([request.auth.uid]);
+        
+        // Criação: Um utilizador pode criar o seu próprio documento de jogador.
+        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
+        
+        // Atualização: Um jogador pode atualizar o seu próprio documento.
+        allow update: if isSignedIn() && request.auth.uid == playerId;
+        
+        // Eliminar: Um jogador pode ser eliminado (ex: falência) através de uma transação gerida pela lógica do jogo.
+        allow delete: if isSignedIn(); 
+      }
     }
 
-    /**
-     * @description Controls access to the /games/{gameId}/players/{playerId} subcollection.
-     * @path /games/{gameId}/players/{playerId}
-     * @allow (get, list): Any authenticated user can read player data within a game.
-     * @allow (create, update): A player can only create or update their own player document.
-     * @deny (create, update, delete): A player cannot create, update, or delete another player's document.
-     * @principle Enforces document ownership for player data.
-     */
-    match /games/{gameId}/players/{playerId} {
-      allow get, list: if isSignedIn(); //Any logged in user can see the players in a game
-
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; //A user can create their own player if logged in.
-      allow update: if isExistingOwner(resource.data.userId) ; //A user can only update their own player
-      allow delete: if false; // No one can delete a player object.
-    }
-
-    /**
-     * Function to check if the user is signed in.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    function isHost(gameId) {
+      return get(/databases/$(database)/documents/games/$(gameId)).data.hostId == request.auth.uid;
+    }
 
-    /**
-     * @description Checks if the user is the owner of the resource, and that the resource exists.
-     * @param {string} userId The ID of the user to check for ownership.
-     * @return {bool} True if the user is the owner and the resource exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId && resource != null;
+    function isStartingGame(req, res) {
+      return res.data.status == 'waiting' && req.resource.data.status == 'active' && req.resource.data.playerOrder.size() > 0;
+    }
+    
+    function isFinishingGame(req) {
+      return req.resource.data.status == 'finished' && req.resource.data.winnerId != null;
+    }
+
+    function isJoiningWaitingGame(req, res) {
+      let isWaiting = res.data.status == 'waiting';
+      let isAddingSelf = req.resource.data.playerOrder == res.data.playerOrder.concat([req.auth.uid]);
+      return isWaiting && isAddingSelf;
     }
   }
 }

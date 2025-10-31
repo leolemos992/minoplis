@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
-import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel } from 'lucide-react';
+import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard, Notification, Game } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -16,7 +16,7 @@ import { ManagePropertiesDialog } from '@/components/game/manage-properties-dial
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameNotifications } from '@/components/game/game-notifications';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove } from 'firebase/firestore';
+import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove, increment } from 'firebase/firestore';
 import { PlayerSidebar } from '@/components/game/player-sidebar';
 import { GameHeader } from '@/components/game/game-header';
 
@@ -124,7 +124,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
     )
 };
 
-const GameBoard = ({ allPlayers, currentPlayer, onSpaceClick, animateCardPile, notifications }: { allPlayers: Player[]; currentPlayer: Player; onSpaceClick: (space: any, index: number) => void; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; }) => {
+const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }: { allPlayers: Player[]; onSpaceClick: (space: any, index: number) => void; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center center center center center center center center center space-31"
@@ -138,6 +138,8 @@ const GameBoard = ({ allPlayers, currentPlayer, onSpaceClick, animateCardPile, n
         "space-11 center center center center center center center center center space-39"
         "space-10 space-9 space-8 space-7 space-6 space-5 space-4 space-3 space-2 space-1 space-0"
     `;
+
+    const getPlayerForSpace = (index: number) => allPlayers.find(p => p.position === index);
 
     return (
         <div className="bg-slate-200/40 p-2 md:p-4 aspect-square max-w-[900px] mx-auto">
@@ -166,17 +168,20 @@ const GameBoard = ({ allPlayers, currentPlayer, onSpaceClick, animateCardPile, n
                     </div>
                     <div className="h-20"></div>
                 </div>
-                {boardSpaces.map((space, index) => (
-                    <BoardSpace 
-                        key={space.name + index} 
-                        space={space} 
-                        index={index} 
-                        onSpaceClick={onSpaceClick} 
-                        houses={ 'id' in space && currentPlayer.houses ? currentPlayer.houses[space.id] : undefined}
-                        isMortgaged={ 'id' in space && currentPlayer.mortgagedProperties ? currentPlayer.mortgagedProperties.includes(space.id) : false}
-                        allPlayers={allPlayers}
-                    />
-                ))}
+                {boardSpaces.map((space, index) => {
+                    const playerOnSpace = getPlayerForSpace(index);
+                    return (
+                        <BoardSpace 
+                            key={space.name + index} 
+                            space={space} 
+                            index={index} 
+                            onSpaceClick={onSpaceClick} 
+                            houses={playerOnSpace && 'id' in space && playerOnSpace.houses ? playerOnSpace.houses[space.id] : undefined}
+                            isMortgaged={playerOnSpace && 'id' in space && playerOnSpace.mortgagedProperties ? playerOnSpace.mortgagedProperties.includes(space.id) : false}
+                            allPlayers={allPlayers}
+                        />
+                    )
+                })}
             </div>
         </div>
     );
@@ -244,23 +249,63 @@ export default function GamePage() {
        }));
      });
   }, [firestore, gameId]);
-
-  const handleBankruptcy = useCallback(async (bankruptPlayer: Player) => {
-    if (!firestore || !gameId) return;
-    addNotification(`${bankruptPlayer.name} foi à falência!`, 'destructive');
+  
+  const handleEndGame = useCallback(async (winnerId: string) => {
+    if (!firestore || !gameId || !gameRef) return;
     
-    const gameDocRef = doc(firestore, `games/${gameId}`);
+    // Update game status and winner
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId });
+
+    // Award XP and update stats
     try {
         await runTransaction(firestore, async (transaction) => {
-            const gameDoc = await transaction.get(gameDocRef);
+            for (const p of allPlayers!) {
+                const userRef = doc(firestore, 'users', p.userId);
+                let xpGained = 10; // Base XP for participation
+                let isWinner = p.userId === winnerId;
+                if (isWinner) xpGained += 50; // Bonus XP for winning
+
+                transaction.update(userRef, {
+                    gamesPlayed: increment(1),
+                    wins: increment(isWinner ? 1 : 0),
+                    xp: increment(xpGained),
+                });
+                // Note: Level up logic can be a cloud function triggered by XP update or handled client-side
+            }
+        });
+        addNotification(`${allPlayers?.find(p=>p.id === winnerId)?.name} venceu o jogo!`, 'default');
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+    }
+  }, [firestore, gameId, gameRef, allPlayers, updateGameInFirestore, addNotification]);
+
+  const handleBankruptcy = useCallback(async (bankruptPlayerId: string) => {
+    if (!firestore || !gameId || !gameRef || !allPlayers) return;
+
+    const bankruptPlayer = allPlayers.find(p => p.id === bankruptPlayerId);
+    if (!bankruptPlayer) return;
+
+    addNotification(`${bankruptPlayer.name} foi à falência!`, 'destructive');
+    
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
             if (!gameDoc.exists()) throw "Game not found!";
             
-            const remainingPlayers = gameDoc.data().playerOrder.filter((pid: string) => pid !== bankruptPlayer.id);
+            const remainingPlayerIds = gameDoc.data().playerOrder.filter((pid: string) => pid !== bankruptPlayer.id);
 
-            if (remainingPlayers.length <= 1) {
-                 transaction.update(gameDocRef, { status: 'finished', playerOrder: remainingPlayers });
+            if (remainingPlayerIds.length <= 1) {
+                 handleEndGame(remainingPlayerIds[0]);
             } else {
-                 transaction.update(gameDocRef, { playerOrder: arrayRemove(bankruptPlayer.id) });
+                 // If the bankrupt player was the current player, move to the next
+                 if(gameDoc.data().currentPlayerId === bankruptPlayer.id) {
+                     const currentTurnIndex = gameDoc.data().playerOrder.indexOf(bankruptPlayer.id);
+                     const nextTurn = currentTurnIndex % remainingPlayerIds.length;
+                     const nextPlayerId = remainingPlayerIds[nextTurn];
+                     transaction.update(gameRef, { playerOrder: remainingPlayerIds, currentPlayerId: nextPlayerId, turn: nextTurn });
+                 } else {
+                     transaction.update(gameRef, { playerOrder: remainingPlayerIds });
+                 }
             }
             
             const playerDocRef = doc(firestore, `games/${gameId}/players`, bankruptPlayer.id);
@@ -269,38 +314,48 @@ export default function GamePage() {
 
     } catch (e: any) {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
-           path: gameDocRef.path, operation: 'update', requestResourceData: { status: 'finished' }
+           path: gameRef.path, operation: 'update', requestResourceData: { status: 'finished' }
          }));
     }
 
-  }, [addNotification, firestore, gameId]);
+  }, [addNotification, firestore, gameId, gameRef, allPlayers, handleEndGame]);
 
-  const makePayment = useCallback(async (amount: number, fromPlayerId: string): Promise<boolean> => {
+  const makePayment = useCallback(async (amount: number, fromPlayerId: string, toPlayerId?: string): Promise<boolean> => {
       if (!firestore || !gameId || !allPlayers) return false;
       const payer = allPlayers.find(p => p.id === fromPlayerId);
       if (!payer) return false;
 
       if (payer.money < amount) {
-          await handleBankruptcy(payer);
+          addNotification(`${payer.name} não tem R$${amount} para pagar!`, 'destructive');
+          await handleBankruptcy(payer.id);
           return false;
       }
       
+      const batch = writeBatch(firestore);
       const payerRef = doc(firestore, 'games', gameId, 'players', payer.id);
-      const payerUpdate = { money: payer.money - amount };
+      batch.update(payerRef, { money: payer.money - amount });
       
-      try {
-        await updateDoc(payerRef, payerUpdate);
-        return true;
-      } catch (e) {
+      if (toPlayerId) {
+          const recipient = allPlayers.find(p => p.id === toPlayerId);
+          if (recipient) {
+            const recipientRef = doc(firestore, 'games', gameId, 'players', recipient.id);
+            batch.update(recipientRef, { money: recipient.money + amount });
+            addNotification(`${payer.name} pagou R$${amount} a ${recipient.name}.`, 'default');
+          }
+      } else {
+         addNotification(`${payer.name} pagou R$${amount} ao banco.`, 'destructive');
+      }
+
+      return batch.commit().then(() => true).catch((e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: payerRef.path, operation: 'update', requestResourceData: payerUpdate,
+            path: payerRef.path, operation: 'update', requestResourceData: {money: '...'}
         }));
         return false;
-      }
-  }, [allPlayers, handleBankruptcy, firestore, gameId]);
+      });
+  }, [allPlayers, handleBankruptcy, firestore, gameId, addNotification]);
   
   const handleEndTurn = useCallback(() => {
-    if (!gameData || !isMyTurn) return;
+    if (!gameData || !isMyTurn || doublesCount > 0) return; // Can't end turn if you rolled doubles
     setDoublesCount(0);
     setHasRolled(false);
     
@@ -311,7 +366,7 @@ export default function GamePage() {
     updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
     addNotification(`Turno de ${allPlayers?.find(p => p.id === nextPlayerId)?.name}.`);
 
-  }, [gameData, isMyTurn, updateGameInFirestore, addNotification, allPlayers]);
+  }, [gameData, isMyTurn, updateGameInFirestore, addNotification, allPlayers, doublesCount]);
 
   const goToJail = useCallback((playerId: string) => {
     if (!allPlayers) return;
@@ -321,33 +376,37 @@ export default function GamePage() {
     addNotification(`${player.name} foi para a prisão!`, 'destructive');
     updatePlayerInFirestore(playerId, { position: JAIL_POSITION, inJail: true });
     setDoublesCount(0);
-    if (player.id === user?.uid) { // Only current player's turn ends
-        handleEndTurn();
+    if (player.id === gameData?.currentPlayerId) { // Only current player's turn ends
+        setHasRolled(false);
+        const currentTurnIndex = gameData.playerOrder.indexOf(gameData.currentPlayerId);
+        const nextTurn = (currentTurnIndex + 1) % gameData.playerOrder.length;
+        const nextPlayerId = gameData.playerOrder[nextTurn];
+        updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
     }
-  }, [JAIL_POSITION, addNotification, handleEndTurn, allPlayers, updatePlayerInFirestore, user?.uid]);
-
+  }, [JAIL_POSITION, addNotification, allPlayers, updatePlayerInFirestore, gameData]);
+  
   const handleLandedOnSpace = useCallback(async (spaceIndex: number, playerId: string) => {
     const space = boardSpaces[spaceIndex];
     const player = allPlayers?.find(p => p.id === playerId);
     if (!space || !player) return;
     addNotification(`${player.name} parou em ${space.name}.`);
-    
-    if (player.id !== user?.uid) {
-        // Rent logic for other players will be handled by their own clients based on data changes.
-        return;
-    }
 
     if (space.type === 'jail' && !player.inJail) {
         addNotification("Você está apenas visitando a prisão.");
         return;
     }
 
-    if ('price' in space) {
+    if ('price' in space) { // Is a property
         const owner = allPlayers?.find(p => p.properties.includes(space.id));
-        if (!owner) {
+        if (owner && owner.id !== player.id) {
+            // Pay Rent
+            // TODO: Implement full rent logic (sets, railroads, utilities)
+            const rentAmount = (space as Property).rent[0]; // Simple rent for now
+            await makePayment(rentAmount, player.id, owner.id);
+        } else if (!owner && player.id === user?.uid) {
+          // If it's my turn and the property is unowned, show buy dialog
           setSelectedSpace(space);
         }
-        // else TODO: pay rent
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         setAnimateCardPile(space.type);
         setTimeout(() => {
@@ -360,9 +419,9 @@ export default function GamePage() {
         }, 500);
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
-        if (await makePayment(taxAmount, player.id)) addNotification(`Você pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
+        await makePayment(taxAmount, player.id);
     } else if (space.type === 'luxury-tax') {
-        if(await makePayment(100, player.id)) addNotification(`Você pagou R$100 de Taxa de Luxo.`, 'destructive');
+        await makePayment(100, player.id);
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
     }
@@ -375,8 +434,7 @@ export default function GamePage() {
   
     switch (action.type) {
       case 'money':
-        if (action.amount < 0) await makePayment(Math.abs(action.amount), loggedInPlayer.id);
-        else updates.money = loggedInPlayer.money + action.amount;
+        await makePayment(Math.abs(action.amount), loggedInPlayer.id, action.amount > 0 ? undefined : 'bank');
         break;
       case 'move_to':
         let newPosition = (typeof action.position === 'string') ? boardSpaces.findIndex(s => 'id' in s && s.id === action.position) : action.position;
@@ -385,7 +443,7 @@ export default function GamePage() {
             updates.position = newPosition;
         }
         break;
-      case 'go_to_jail': goToJail(loggedInPlayer.id); break;
+      case 'go_to_jail': goToJail(loggedInPlayer.id); return; // Return to avoid double updates
       case 'get_out_of_jail': updates.getOutOfJailFreeCards = (loggedInPlayer.getOutOfJailFreeCards || 0) + 1; break;
       case 'repairs':
            const houseCost = (Object.values(loggedInPlayer.houses).filter(c => c < 5).reduce((s, c) => s + c, 0)) * action.perHouse!;
@@ -398,14 +456,14 @@ export default function GamePage() {
   }, [loggedInPlayer, handleLandedOnSpace, makePayment, goToJail, updatePlayerInFirestore]);
 
   useEffect(() => {
-    if (!cardToExecute) return;
+    if (!cardToExecute || !isMyTurn) return;
     addNotification(cardToExecute.description, cardToExecute.type === 'chance' ? 'default' : 'default');
     applyCardAction(cardToExecute);
     setCardToExecute(null);
-  }, [cardToExecute, applyCardAction, addNotification]);
+  }, [cardToExecute, applyCardAction, addNotification, isMyTurn]);
 
   const handleDiceRoll = async (d1: number, d2: number) => {
-    if (!loggedInPlayer || !isMyTurn) return;
+    if (!loggedInPlayer || !isMyTurn || hasRolled) return;
     setDice([d1, d2]);
     addNotification(`Você rolou ${d1} e ${d2}.`);
     const isDoubles = d1 === d2;
@@ -414,16 +472,17 @@ export default function GamePage() {
         if (isDoubles) {
             updatePlayerInFirestore(loggedInPlayer.id, { inJail: false });
             addNotification("Você rolou dados duplos e saiu da prisão!");
-            setHasRolled(true);
         } else {
             addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
-            handleEndTurn();
+            handleEndTurn(); // This is correct, turn ends if you fail to roll doubles
         }
+        setHasRolled(true); // You've used your roll for the turn
         return;
     }
 
     const currentDoublesCount = isDoubles ? doublesCount + 1 : 0;
     setDoublesCount(currentDoublesCount);
+
     if (currentDoublesCount === 3) {
         addNotification("Você tirou 3 duplos seguidos e foi para a prisão!", "destructive");
         goToJail(loggedInPlayer.id);
@@ -431,22 +490,23 @@ export default function GamePage() {
     }
 
     setHasRolled(true);
-    if (isDoubles && currentDoublesCount < 3) addNotification("Dados duplos! Você joga de novo.");
     
     const total = d1 + d2;
     const newPosition = (loggedInPlayer.position + total) % 40;
     const playerUpdate: Partial<Player> = { position: newPosition };
-    if (newPosition < loggedInPlayer.position && !loggedInPlayer.inJail) { // Don't collect GO if just getting out of jail
+    if (newPosition < loggedInPlayer.position) {
         playerUpdate.money = loggedInPlayer.money + 200;
-        setTimeout(() => addNotification(`Você coletou R$200.`), 100);
+        addNotification(`Você passou pelo Início e coletou R$200.`);
     }
     updatePlayerInFirestore(loggedInPlayer.id, playerUpdate);
-    await handleLandedOnSpace(newPosition, loggedInPlayer.id);
+    
+    // Use a timeout to ensure the player piece moves before the next action happens
+    setTimeout(() => handleLandedOnSpace(newPosition, loggedInPlayer.id), 500);
 
     if (isDoubles) {
+        addNotification("Dados duplos! Você joga de novo.");
         setHasRolled(false); // Allow another roll
     }
-    // End turn is now handled by a button
   };
 
   const handleBuyProperty = (property: Property) => {
@@ -544,9 +604,8 @@ export default function GamePage() {
   }
 
   const isGameOver = gameData.status === 'finished';
-  const amITheWinner = isGameOver && gameData.playerOrder.length === 1 && gameData.playerOrder[0] === user?.uid;
-
-
+  const winner = allPlayers.find(p => p.id === gameData.winnerId);
+  
   return (
     <div className="flex h-screen w-full bg-slate-200">
       <PlayerSidebar allPlayers={allPlayers} loggedInPlayerId={user?.uid || ''} />
@@ -559,20 +618,23 @@ export default function GamePage() {
           isTurnActive={isMyTurn && !isGameOver}
           hasRolled={hasRolled}
           diceValue={dice}
+          onManageProperties={() => setManageOpen(true)}
+          playerInJail={loggedInPlayer.inJail}
+          onPayBail={handlePayBail}
         />
         <div className="flex-1 overflow-auto p-4 lg:p-8">
-            <GameBoard allPlayers={allPlayers} currentPlayer={loggedInPlayer} onSpaceClick={(space) => setSelectedSpace(space)} animateCardPile={animateCardPile} notifications={notifications} />
+            <GameBoard allPlayers={allPlayers} onSpaceClick={(space) => setSelectedSpace(space)} animateCardPile={animateCardPile} notifications={notifications} />
         </div>
       </main>
 
-      <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">{amITheWinner ? "Parabéns, você venceu!" : "Que pena, você foi à falência! Tente novamente."}</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/">Jogar Novamente</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
+      <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">{winner ? `Parabéns, ${winner.name} venceu!` : "O jogo terminou."}</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/lobby">Voltar ao Lobby</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
       <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
         <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
-           <DialogHeader className="sr-only">
+            <DialogHeader className="sr-only">
              <DialogTitle>{selectedSpace?.name}</DialogTitle>
              <DialogDescription>Detalhes da propriedade {selectedSpace?.name}</DialogDescription>
            </DialogHeader>
-          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} onBuy={handleBuyProperty} onClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
+          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>

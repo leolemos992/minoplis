@@ -27,6 +27,10 @@
            "type": "string",
            "description": "O ID do jogador cujo turno está ativo."
         },
+        "winnerId": {
+           "type": "string",
+           "description": "O ID do jogador que venceu a partida."
+        },
         "playerOrder": {
             "type": "array",
             "description": "Array ordenado com os UIDs dos jogadores, definindo a ordem dos turnos.",
@@ -74,10 +78,25 @@
         }
       },
       "required": ["userId", "name", "money", "position", "color", "totem"]
+    },
+     "UserProfile": {
+      "title": "User Profile",
+      "type": "object",
+      "description": "Armazena os dados de perfil e estatísticas de um utilizador.",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "xp": { "type": "number", "description": "Pontos de experiência do jogador." },
+        "level": { "type": "number", "description": "Nível atual do jogador." },
+        "wins": { "type": "number", "description": "Número de vitórias." },
+        "gamesPlayed": { "type": "number", "description": "Número de partidas jogadas." }
+      },
+      "required": ["uid", "displayName", "email", "xp", "level", "wins", "gamesPlayed"]
     }
   },
   "auth": {
-    "providers": ["anonymous", "google.com"]
+    "providers": ["password"]
   },
   "firestore": {
     "/games/{gameId}": {
@@ -89,6 +108,10 @@
               "description": "Armazena os dados de cada jogador na partida. Um jogador só pode se adicionar ou atualizar a si mesmo."
           }
       }
+    },
+    "/users/{userId}": {
+        "schema": { "$ref": "#/entities/UserProfile" },
+        "description": "Armazena os perfis e estatísticas de todos os utilizadores."
     }
   }
 }

@@ -14,6 +14,30 @@ export type Player = {
   getOutOfJailFreeCards: number;
 };
 
+// Represents the state of a single game session.
+export type Game = {
+  id:string;
+  name: string;
+  hostId: string;
+  status: 'waiting' | 'active' | 'finished';
+  currentPlayerId: string;
+  winnerId?: string;
+  createdAt: any; // Firestore ServerTimestamp.
+  playerOrder: string[];
+  turn: number;
+};
+
+// Represents a user profile with game statistics.
+export type UserProfile = {
+    uid: string;
+    displayName: string;
+    email: string;
+    xp: number;
+    level: number;
+    wins: number;
+    gamesPlayed: number;
+};
+
 // Represents a property on the board (land, railroad, or utility).
 export type Property = {
   id: string;
@@ -23,18 +47,6 @@ export type Property = {
   color: string;
   rent: number[];
   houseCost?: number;
-};
-
-// Represents the state of a single game session.
-export type Game = {
-  id:string;
-  name: string;
-  hostId: string;
-  status: 'waiting' | 'active' | 'finished';
-  currentPlayerId: string;
-  createdAt: any; // Firestore ServerTimestamp.
-  playerOrder: string[];
-  turn: number;
 };
 
 // Represents a Chance or Community Chest card.

@@ -1,21 +1,5 @@
-
-import type { Character, Game, Property, GameCard } from '@/lib/definitions';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Car, Dog, Ship, Rocket, Bot, Cat, Landmark, ShowerHead } from 'lucide-react';
-
-const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id);
-
-// Characters are no longer used but kept for potential future use.
-export const characters: Character[] = [
-  {
-    id: 'char-capitalist',
-    name: 'O Capitalista',
-    description: 'Excelente em gerar riqueza com propriedades.',
-    longDescription: 'Um investidor experiente que conhece a arte da negociação. O Capitalista começa com dinheiro extra e recebe um bônus ao cobrar aluguel de um conjunto completo de propriedades.',
-    image: getImage('char-capitalist')?.imageUrl || '',
-    imageHint: getImage('char-capitalist')?.imageHint || 'man suit',
-  },
-];
+import type { Property, GameCard } from '@/lib/definitions';
+import { Car, Dog, Ship, Rocket, Bot, Cat } from 'lucide-react';
 
 export const totems = [
   { id: 'car', name: 'Carro', icon: Car },
@@ -26,36 +10,12 @@ export const totems = [
   { id: 'cat', name: 'Gato', icon: Cat },
 ];
 
-export const mockGames: Omit<Game, 'board'>[] = [
-    {
-        id: '1',
-        name: "MINOPOLIS",
-        players: [],
-        currentPlayerId: 'player-1',
-        status: 'waiting',
-    },
-    {
-        id: '2',
-        name: "Disputa no Subúrbio",
-        players: [],
-        currentPlayerId: 'player-1',
-        status: 'active',
-    },
-    {
-        id: '3',
-        name: "Batalha na Praia",
-        players: [],
-        currentPlayerId: 'player-1',
-        status: 'active',
-    }
-]
-
 export const boardSpaces: (Property | { type: string; name: string, id?:string })[] = [
   { type: 'go', name: 'Início', id: 'go' },
   { id: 'poco-fundo', name: 'Poço Fundo', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'brown', houseCost: 50, type: 'property' },
   { type: 'community-chest', name: 'Baú', id: 'cc1' },
   { id: 'guarani', name: 'Zantão', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'brown', houseCost: 50, type: 'property' },
-  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax' },
+  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax', price: 200 },
   { id: 'railroad-1', name: 'Nosso Brusque - Poço Fundo', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { id: 'azambuja', name: 'Azambuja', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', houseCost: 50, type: 'property' },
   { type: 'chance', name: 'Sorte', id: 'chance1' },
@@ -89,28 +49,29 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string }
   { id: 'railroad-4', name: 'Nosso Brusque - Centro', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { type: 'chance', name: 'Sorte', id: 'chance3' },
   { id: 'havan', name: 'Avenida da Havan', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: 'darkblue', houseCost: 200, type: 'property' },
-  { type: 'luxury-tax', name: 'Taxa das Blusinhas', id: 'luxury-tax' },
+  { type: 'luxury-tax', name: 'Taxa das Blusinhas', id: 'luxury-tax', price: 100 },
   { id: 'centro-ii', name: 'Centro II', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: 'darkblue', houseCost: 200, type: 'property' },
 ];
 
 export const chanceCards: GameCard[] = [
-  { type: 'chance', description: 'Avance até o Início (Receba R$200)', action: { type: 'move_to', position: 'go', collectGo: true } },
+  { type: 'chance', description: 'Avance até o Início (Receba R$200)', action: { type: 'move_to', position: 0, collectGo: true } },
   { type: 'chance', description: 'Avance para "Rio Branco". Se você passar pelo Início, receba R$200.', action: { type: 'move_to', position: 'rio-branco', collectGo: true } },
   { type: 'chance', description: 'A ponte estaiada balançou demais. Pague R$15 pela vistoria.', action: { type: 'money', amount: -15 } },
   { type: 'chance', description: 'O banco paga a você um dividendo de R$50.', action: { type: 'money', amount: 50 } },
   { type: 'chance', description: 'Receba uma carta de "Saia Livre da Prisão".', action: { type: 'get_out_of_jail' } },
   { type: 'chance', description: 'Seu empréstimo de construção vence. Receba R$150.', action: { type: 'money', amount: 150 } },
+  { type: 'chance', description: 'Vá para a prisão.', action: { type: 'go_to_jail' } },
 ];
 
 export const communityChestCards: GameCard[] = [
   { type: 'community-chest', description: 'É Fenarreco! Seus negócios prosperaram. Receba R$100.', action: { type: 'money', amount: 100 } },
   { type: 'community-chest', description: 'Taxas médicas. Pague R$50.', action: { type: 'money', amount: -50 } },
-  { type: 'community-chest', description: 'Vá para a Prisão. Vá diretamente para a Prisão, não passe pelo Início, não receba R$200.', action: { type: 'go_to_jail' } },
+  { type: 'community-chest', description: 'Vá para a Prisão. Vá diretamente para a Prisão.', action: { type: 'go_to_jail' } },
   { type: 'community-chest', description: 'Pague taxa escolar de R$50.', action: { type: 'money', amount: -50 } },
   { type: 'community-chest', description: 'Você foi pego na enchente e precisou de um bote. Pague R$100.', action: { type: 'money', amount: -100 } },
-  { type: 'community-chest', description: 'Você é avaliado para reparos de rua. R$40 por casa, R$115 por hotel.', action: { type: 'repairs', perHouse: 40, perHotel: 115 } },
+  { type: 'community-chest', description: 'Faça reparos: R$40 por casa, R$115 por hotel.', action: { type: 'repairs', perHouse: 40, perHotel: 115 } },
   { type: 'community-chest', description: 'Restituição do Imposto de Renda. Receba R$20.', action: { type: 'money', amount: 20 } },
   { type: 'community-chest', description: 'Multa por excesso de velocidade: R$15.', action: { type: 'money', amount: -15 } },
-  { type: 'community-chest', description: 'Faça reparos gerais em todas as suas propriedades. Para cada casa pague R$25. Para cada hotel pague R$100.', action: { type: 'repairs', perHouse: 25, perHotel: 100 } },
+  { type: 'community-chest', description: 'Faça reparos gerais em suas propriedades: R$25 por casa, R$100 por hotel.', action: { type: 'repairs', perHouse: 25, perHotel: 100 } },
   { type: 'community-chest', description: 'Receba uma carta de "Saia Livre da Prisão".', action: { type: 'get_out_of_jail' } },
 ];

@@ -1,86 +1,55 @@
-export type Character = {
-  id: string;
-  name: string;
-  description: string;
-  longDescription: string;
-  image: string;
-  imageHint: string;
-};
-
+// Represents a player in the game.
 export type Player = {
-  id: string;
-  userId: string; // Firebase Auth UID
+  id: string; // Document ID, typically the same as userId for simplicity in solo games.
+  userId: string; // Firebase Auth UID.
   name: string;
   money: number;
-  properties: string[];
-  mortgagedProperties: string[];
-  houses: { [propertyId: string]: number };
   position: number;
   color: string;
   totem: string;
-  getOutOfJailFreeCards: number;
   inJail: boolean;
+  properties: string[]; // Array of property IDs owned by the player.
+  mortgagedProperties: string[]; // Array of property IDs that are mortgaged.
+  houses: { [propertyId: string]: number }; // Key-value pair of propertyId and number of houses (5 for hotel).
+  getOutOfJailFreeCards: number;
 };
 
+// Represents a property on the board (land, railroad, or utility).
 export type Property = {
   id: string;
-  name: string; // Brusque Location
-  price: number;
-  houseCost?: number;
-  rent: number[];
-  color: string;
   type: 'property' | 'railroad' | 'utility';
+  name: string;
+  price: number;
+  color: string;
+  rent: number[];
+  houseCost?: number;
 };
 
-export type GameStatus = 'waiting' | 'rolling-to-start' | 'active' | 'finished';
-
+// Represents the state of a single game session.
 export type Game = {
   id:string;
   name: string;
   hostId: string;
-  currentPlayerId: string | null;
-  status: GameStatus;
-  createdAt: any; // serverTimestamp
-  playerOrder?: string[];
-  lastRoll?: [number, number] | null;
+  status: 'waiting' | 'active' | 'finished';
+  currentPlayerId: string;
+  createdAt: any; // Firestore ServerTimestamp.
 };
 
-
+// Represents a Chance or Community Chest card.
 export type GameCard = {
   type: 'chance' | 'community-chest';
   description: string;
   action: {
-    type: 'money' | 'move' | 'move_to' | 'get_out_of_jail' | 'go_to_jail' | 'repairs';
+    type: 'money' | 'move_to' | 'get_out_of_jail' | 'go_to_jail' | 'repairs';
     amount?: number;
-    position?: number | string;
+    position?: number | string; // Can be a board index or a property ID string.
     collectGo?: boolean;
     perHouse?: number;
     perHotel?: number;
   };
 };
 
-export type GameLog = {
-  message: string;
-  timestamp: Date;
-}
-
-export type TradeOffer = {
-  fromId: string;
-  toId: string;
-  propertiesFrom: string[];
-  propertiesTo: string[];
-  moneyFrom: number;
-  moneyTo: number;
-};
-
-export type AuctionState = {
-  property: Property;
-  currentBid: number;
-  highestBidderId: string | null;
-  playersInAuction: string[];
-  turnIndex: number;
-};
-
+// Represents a notification displayed to the user.
 export type Notification = {
     id: string;
     message: string;

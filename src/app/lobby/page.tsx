@@ -6,7 +6,7 @@ import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from '@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Game } from '@/lib/definitions';
 
-// This page now acts as a redirect to create a new game immediately.
+// This page acts as an automatic redirector to create a new solo game.
 export default function LobbyPage() {
   const router = useRouter();
   const { user } = useUser();
@@ -14,22 +14,26 @@ export default function LobbyPage() {
 
   useEffect(() => {
     const createAndRedirect = () => {
+      // Wait until both user and firestore are available.
       if (!user || !firestore) return;
 
+      const gameName = `Partida de ${user.displayName || 'Jogador'}`;
       const gameData: Omit<Game, 'id'> = {
-        name: `Partida de ${user.displayName || 'Jogador'}`,
-        status: 'waiting', // The game will start on the character selection screen
+        name: gameName,
+        status: 'waiting', // The game status will be updated on the character selection screen.
         hostId: user.uid,
         createdAt: serverTimestamp(),
-        currentPlayerId: user.uid, // For single player, the user is always the current player
+        currentPlayerId: user.uid, // For a solo game, the creator is always the current player.
       };
       
       const gamesCollection = collection(firestore, 'games');
       
+      // Use .catch() for permission error handling as per architecture.
       addDoc(gamesCollection, gameData)
         .then(docRef => {
+            // Redirect to character selection, passing the new game's ID and name.
             router.replace(
-              `/character-selection?gameId=${docRef.id}&gameName=${encodeURIComponent(gameData.name)}`
+              `/character-selection?gameId=${docRef.id}&gameName=${encodeURIComponent(gameName)}`
             );
         })
         .catch(error => {
@@ -39,8 +43,9 @@ export default function LobbyPage() {
                 requestResourceData: gameData,
             });
             errorEmitter.emit('permission-error', permissionError);
-            console.error('Error creating game:', error); // Keep original for non-permission issues
-            // If it fails, maybe redirect back to home
+            
+            // Fallback for non-permission errors or if the redirect fails.
+            console.error('Error creating game:', error); 
             router.replace('/');
         });
     };

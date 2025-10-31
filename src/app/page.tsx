@@ -18,8 +18,7 @@ export default function Home() {
                   <Logo />
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                  O clássico jogo de tabuleiro, adaptado para a galera do Bahia
-                  Palace. O verdadeiro e único MINOPOLIS
+                  Uma versão moderna do clássico jogo de tabuleiro, focada na experiência a solo.
                 </p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
@@ -38,14 +37,14 @@ export default function Home() {
       <footer className="py-4 text-center text-sm text-muted-foreground">
         <p>Versão 1.0.0</p>
         <p>
-          Desenvolvido com ❤️ por{' '}
+          Desenvolvido por{' '}
           <a
-            href="https://instagram.com/leo.lemos992"
+            href="https://github.com/firebase/studio"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-primary hover:underline"
           >
-            @leo.lemos992
+            Firebase Studio
           </a>
         </p>
       </footer>

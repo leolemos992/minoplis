@@ -2,9 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Utilizadores: Cada utilizador pode ler/escrever o seu próprio perfil. Ninguém pode listar ou escrever em perfis alheios.
+    // Utilizadores: Cada utilizador pode ler/escrever o seu próprio perfil.
+    // Qualquer pessoa autenticada pode ler o perfil de outra pessoa (para ver níveis, etc.).
     match /users/{userId} {
-      allow read, update, delete: if request.auth.uid == userId;
+      allow get: if isSignedIn();
+      allow update, delete: if request.auth.uid == userId;
       allow create: if request.auth.uid == userId && request.resource.data.uid == userId;
     }
 
@@ -63,7 +65,9 @@ service cloud.firestore {
     }
 
     function isPlayerInGame(gameId, userId) {
-      return userId in get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder;
+      // Use exists instead of `in` for lists
+      return exists(/databases/$(database)/documents/games/$(gameId)) &&
+             get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([userId]);
     }
 
     function isStartingGame(req, res) {

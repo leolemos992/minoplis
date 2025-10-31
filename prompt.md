@@ -1,146 +1,156 @@
-# Prompt para Reconstrução de Aplicação Web: MINOPOLIS
+# Prompt para Reconstrução de Aplicação Web: MINOPOLIS (Versão Solo)
 
 ## Objetivo Principal
 
-Recriar uma aplicação web de um jogo de tabuleiro multiplayer, originalmente desenvolvida em Next.js com React, Firebase (Firestore e Auth), e Tailwind CSS, para uma nova stack tecnológica composta por **PHP**, um servidor local **XAMPP**, e um banco de dados **MySQL**. O frontend deve ser renderizado com **HTML, CSS (usando Tailwind CSS via CDN) e JavaScript puro (ou jQuery)** para interatividade do lado do cliente.
+Recriar uma aplicação web de um jogo de tabuleiro a solo, **MINOPOLIS**, utilizando Next.js (com App Router), React, TypeScript, Firebase (Firestore e Auth), Tailwind CSS e componentes ShadCN UI. O objetivo é replicar o estado atual do projeto, que foca numa experiência para um único jogador contra o "banco".
 
 ## Visão Geral do Projeto
 
 **Nome do Jogo:** MINOPOLIS
-**Conceito:** Uma versão multiplayer online do clássico jogo de tabuleiro de troca de propriedades (como o Monopólio), adaptado com nomes de locais e temas específicos ("Bahia Palace"). Os jogadores podem criar salas de jogo, entrar em salas existentes, escolher personagens e competir para levar os outros à falência.
+**Conceito:** Uma versão para um jogador do clássássico jogo de tabuleiro de compra e venda de propriedades. O jogador cria uma partida, escolhe um personagem e joga no tabuleiro, interagindo com propriedades, cartas de sorte/azar e outras mecânicas do jogo.
 
 ---
 
-## 1. Estrutura da Base de Dados (MySQL)
+## 1. Stack Tecnológica e Configuração
 
-Projete e gere o esquema SQL para as seguintes tabelas, refletindo a estrutura de dados do projeto original.
+*   **Framework:** Next.js (versão 15+, com App Router)
+*   **Linguagem:** TypeScript
+*   **Estilização:** Tailwind CSS
+*   **Componentes UI:** ShadCN UI (pré-instalado e configurado)
+*   **Backend & Base de Dados:** Firebase (Firestore para base de dados, Firebase Authentication para utilizadores anónimos)
+*   **Ícones:** `lucide-react`
 
-### Tabela: `games`
-Armazena o estado de cada partida.
-
-| Coluna            | Tipo         | Descrição                                                              |
-| ----------------- | ------------ | ---------------------------------------------------------------------- |
-| `id`              | `INT` (PK, AI) | Identificador único da partida.                                        |
-| `game_code`       | `VARCHAR(10)`| Um código curto e único (ex: "AB12CD") para os jogadores entrarem na sala. |
-| `name`            | `VARCHAR(255)` | Nome da sala de jogo.                                                  |
-| `status`          | `ENUM(...)`  | Status atual: `waiting`, `rolling_to_start`, `active`, `finished`.   |
-| `host_id`         | `INT` (FK)   | ID do jogador (`players.id`) que criou a partida.                      |
-| `current_player_id` | `INT` (FK) | ID do jogador (`players.id`) do turno atual.                             |
-| `player_order`    | `JSON`       | Array de `players.id` que define a ordem dos turnos.                   |
-| `created_at`      | `TIMESTAMP`  | Timestamp de quando a partida foi criada.                              |
-
-### Tabela: `players`
-Armazena os dados de cada jogador numa partida.
-
-| Coluna                   | Tipo          | Descrição                                                              |
-| ------------------------ | ------------- | ---------------------------------------------------------------------- |
-| `id`                     | `INT` (PK, AI)| Identificador único do jogador.                                        |
-| `game_id`                | `INT` (FK)    | ID da partida (`games.id`) a que o jogador pertence.                   |
-| `session_id`             | `VARCHAR(255)`| ID da sessão PHP para identificar o jogador anónimo.                  |
-| `name`                   | `VARCHAR(255)`| Nome do jogador na partida.                                            |
-| `money`                  | `INT`         | Dinheiro atual do jogador (valor inicial: 1500).                       |
-| `position`               | `INT`         | Posição no tabuleiro (0-39).                                           |
-| `color`                  | `VARCHAR(50)` | Cor escolhida (ex: 'red', 'blue').                                      |
-| `totem`                  | `VARCHAR(50)` | Peça/totem escolhido (ex: 'car', 'dog').                                 |
-| `in_jail`                | `BOOLEAN`     | `true` se o jogador estiver na prisão.                                   |
-| `get_out_of_jail_cards`  | `INT`         | Número de cartas "Saia da Prisão" que o jogador possui.                |
-
-### Tabela: `player_properties`
-Relaciona jogadores com as propriedades que possuem.
-
-| Coluna         | Tipo          | Descrição                                                               |
-| -------------- | ------------- | ----------------------------------------------------------------------- |
-| `id`           | `INT` (PK, AI)| Identificador único.                                                      |
-| `player_id`    | `INT` (FK)    | ID do jogador (`players.id`).                                           |
-| `property_id`  | `VARCHAR(255)`| ID da propriedade (string, ex: 'poco-fundo').                           |
-| `houses`       | `INT`         | Número de casas construídas (5 para um hotel).                         |
-| `is_mortgaged` | `BOOLEAN`     | `true` se a propriedade estiver hipotecada.                             |
-
-### Tabela: `rolls_to_start`
-Armazena os resultados da rolagem de dados para decidir a ordem inicial.
-
-| Coluna      | Tipo       | Descrição                                      |
-| ----------- | ---------- | ---------------------------------------------- |
-| `id`        | `INT` (PK, AI) | Identificador único.                         |
-| `game_id`   | `INT` (FK) | ID da partida (`games.id`).                    |
-| `player_id` | `INT` (FK) | ID do jogador (`players.id`).                  |
-| `roll`      | `INT`      | Resultado da rolagem dos dados.                |
-
----
-
-## 2. Estrutura de Arquivos (PHP e Frontend)
-
-Crie a seguinte estrutura de arquivos, preenchendo cada um com o código PHP, HTML e JavaScript necessário.
-
+### `package.json` (Dependências Principais)
+O projeto deve incluir as seguintes dependências:
+```json
+{
+  "dependencies": {
+    "next": "15.3.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "firebase": "^11.9.1",
+    "lucide-react": "^0.475.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.0.1",
+    "tailwindcss-animate": "^1.0.7",
+    "framer-motion": "^11.5.7",
+    "@radix-ui/*": "..." // (todas as dependências do ShadCN)
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18"
+  }
+}
 ```
-/minopolis/
-|-- public/
-|   |-- index.php             # Página Inicial (Landing Page)
-|   |-- lobby.php             # Lobby para criar ou ver jogos multiplayer
-|   |-- create_game.php       # Página para dar nome a um novo jogo
-|   |-- character_selection.php # Página para escolher nome, totem e cor
-|   |-- game.php              # A página principal do jogo (tabuleiro)
-|   |-- assets/
-|   |   |-- css/
-|   |   |   `-- style.css       # CSS customizado (se necessário)
-|   |   `-- js/
-|   |       `-- game_logic.js   # Lógica do jogo no cliente (AJAX, manipulação de DOM)
-|-- src/
-|   |-- db.php                # Conexão com o banco de dados MySQL
-|   |-- game_actions.php      # Lógica de backend (criar jogo, entrar, rolar dados, etc.)
-|   |-- config/
-|   |   `-- game_data.php       # Definições estáticas do jogo (tabuleiro, cartas, etc.)
-|-- templates/
-|   |-- header.php
-|   `-- footer.php
-`-- api/
-    `-- game_state.php        # Endpoint para polling de estado do jogo via AJAX
+
+### Configuração de Estilo (`src/app/globals.css`)
+O CSS global deve definir as variáveis de tema do ShadCN. O tema principal é claro, com cores primárias em tons de azul.
+
+---
+
+## 2. Estrutura de Dados (Firebase/Firestore)
+
+O arquivo `docs/backend.json` deve ser criado para definir a estrutura da base de dados.
+
+### Entidades
+*   **Game:** Representa uma sessão de jogo.
+    *   `name`: Nome da partida.
+    *   `status`: 'waiting', 'active', ou 'finished'.
+    *   `hostId`: ID do utilizador que criou o jogo.
+    *   `createdAt`: Timestamp da criação.
+    *   `currentPlayerId`: ID do jogador atual (neste caso, sempre o único jogador).
+*   **Player:** Representa o jogador na partida.
+    *   `userId`: ID do Firebase Auth.
+    *   `name`: Nome do jogador.
+    *   `money`: Dinheiro (inicial: 1500).
+    *   `position`: Posição no tabuleiro (0-39).
+    *   `color`: Cor escolhida.
+    *   `totem`: Peça escolhida (ex: 'car', 'dog').
+    *   `inJail`: Boolean.
+    *   `properties`, `mortgagedProperties`, `houses`, `getOutOfJailFreeCards`...
+
+### Estrutura no Firestore
+A estrutura deve seguir o modelo de subcoleções:
+```
+/games/{gameId} (documento com dados do Game)
+  /players/{playerId} (subcoleção com documentos de Player)
 ```
 
 ---
 
-## 3. Funcionalidades e Lógica a Implementar
+## 3. Fluxo da Aplicação e Estrutura de Páginas
 
-### Autenticação Anónima
--   Use sessões PHP (`session_start()`) para simular a autenticação anónima. Cada visitante do site recebe um `session_id()` único, que será usado para associá-lo a um `player` no banco de dados.
+### Autenticação
+*   Deve ser implementada a **autenticação anónima** do Firebase.
+*   Na primeira visita, o utilizador deve ser automaticamente e silenciosamente autenticado.
+*   Um `FirebaseProvider` deve envolver a aplicação para gerir o estado de autenticação e as instâncias do Firebase.
 
-### Fluxo de Criação e Entrada no Jogo
-1.  **`index.php`**: Página inicial com o título "MINOPOLIS" e a descrição. Deve ter botões para "Jogo Solo" (que leva a `create_game.php`) e "Multiplayer" (que leva a `lobby.php`).
-2.  **`lobby.php`**: Mostra uma lista de jogos com `status = 'waiting'`. Cada item da lista deve ter um botão "Entrar" que redireciona para `character_selection.php?game_id=...`. Deve haver também um botão "Criar Novo Jogo".
-3.  **`create_game.php`**: Um formulário simples com um campo para o nome do jogo. Ao submeter, um registo é criado na tabela `games` e o utilizador é redirecionado para `character_selection.php?game_id=...`.
-4.  **`character_selection.php`**:
-    -   Recebe `game_id` via `$_GET`.
-    -   Mostra um formulário para o jogador inserir o seu nome.
-    -   Mostra seletores (radio buttons) para totems e cores. As opções já escolhidas por outros jogadores na mesma partida devem ser desativadas.
-    -   Ao submeter, um registo é criado na tabela `players` e o utilizador é redirecionado para `game.php?game_id=...`.
+### Páginas (App Router)
 
-### Página do Jogo (`game.php`)
--   **Estrutura Visual**: Recrie a interface do tabuleiro de jogo usando HTML e Tailwind CSS. O tabuleiro é uma grelha 11x11. As propriedades devem ter as cores e os ícones corretos.
--   **Estado do Jogo**: A página deve usar JavaScript e AJAX (com `fetch`) para consultar periodicamente (`setInterval`) o endpoint `api/game_state.php` e obter o estado mais recente do jogo (posições dos jogadores, dinheiro, propriedades, turno atual, etc.).
--   **`api/game_state.php`**: Este endpoint PHP recebe um `game_id`, consulta o banco de dados para obter todos os dados relevantes da partida (estado do jogo, lista de jogadores, suas propriedades, etc.) e retorna tudo como uma resposta JSON.
--   **Interatividade**: Ações do jogador (rolar dados, comprar propriedade, etc.) devem enviar pedidos AJAX para `src/game_actions.php` e depois atualizar a interface com base na resposta ou no próximo polling de `game_state.php`.
+1.  **`src/app/page.tsx` (Página Inicial)**
+    *   **Visual:** Deve exibir o logo "MINOPOLIS" e uma breve descrição.
+    *   **Ação Principal:** Um botão grande "Jogar Agora".
+    *   **Funcionalidade:** Ao clicar no botão, o utilizador é redirecionado para `/lobby`.
 
-### Lógica do Jogo
--   **Começar o Jogo**:
-    -   Quando o anfitrião clica em "Iniciar Jogo" no `game.php` (quando o status é `waiting`), o status do jogo muda para `rolling_to_start`.
-    -   Todos os jogadores são apresentados a um modal para rolar os dados. O resultado é guardado na tabela `rolls_to_start`.
-    -   Quando todos rolam, o backend determina a ordem (`player_order`), atualiza o `games.status` para `active`, define `current_player_id` para o primeiro jogador e a partida começa.
--   **Ações do Turno**:
-    -   O jogador do turno pode rolar os dados. O resultado move o seu peão.
-    -   **Comprar Propriedade**: Se parar numa propriedade sem dono, um modal aparece com a opção de comprar ou leiloar.
-    -   **Pagar Aluguer**: Se parar numa propriedade com dono, o aluguer é transferido automaticamente.
-    -   **Cartas Sorte/Azar**: Se parar num espaço de carta, o backend seleciona uma carta aleatoriamente e aplica o seu efeito.
-    -   **Prisão**: Se for para a prisão, o jogador fica preso por 3 rodadas, a menos que pague fiança, use uma carta ou role duplos.
--   **Fim de Jogo**: O jogo termina quando restar apenas um jogador que não foi à falência. Uma mensagem de vitória deve ser exibida.
+2.  **`src/app/lobby/page.tsx` (Criação de Jogo)**
+    *   **Funcionalidade:** Esta página não deve ter interface visível. Ela deve agir como um **redirecionador automático**.
+    *   Ao carregar, ela deve:
+        1.  Verificar se o utilizador está autenticado.
+        2.  Criar um novo documento na coleção `games` no Firestore com o status `'waiting'` e o `hostId` do utilizador atual.
+        3.  Redirecionar o utilizador para a página `/character-selection`, passando o `gameId` e o `gameName` como parâmetros de URL.
+
+3.  **`src/app/character-selection/page.tsx` (Seleção de Personagem)**
+    *   **Visual:** Uma `Card` do ShadCN onde o jogador pode:
+        *   Inserir o seu nome num campo `Input`.
+        *   Selecionar um totem (peça) a partir de uma lista de opções (ícones `lucide-react`) usando `RadioGroup`.
+        *   Selecionar uma cor usando botões coloridos.
+        *   Uma área de pré-visualização deve mostrar o totem com a cor escolhida e o nome do jogador.
+    *   **Funcionalidade:**
+        1.  O botão "Iniciar Jogo" só fica ativo se o nome do jogador estiver preenchido.
+        2.  Ao clicar, a função `handleJoinGame` deve:
+            *   Criar um novo documento de jogador na subcoleção `/games/{gameId}/players/{userId}` com os dados escolhidos (nome, totem, cor, dinheiro inicial, etc.).
+            *   Atualizar o documento do jogo (`/games/{gameId}`) para mudar o status de `'waiting'` para `'active'`.
+            *   Usar um `writeBatch` do Firestore para garantir que ambas as operações sejam atómicas.
+            *   Redirecionar o utilizador para a página do jogo: `/game/[id]`.
+
+4.  **`src/app/game/[id]/page.tsx` (Tela do Jogo)**
+    *   **Visual Principal:** Um tabuleiro de jogo 11x11, criado com CSS Grid.
+        *   Os 4 cantos são quadrados grandes (`go`, `jail`, `free-parking`, `go-to-jail`).
+        *   As laterais são retângulos com as informações das propriedades.
+        *   O centro do tabuleiro deve exibir o logo, as pilhas de cartas "Sorte" e "Baú", as notificações do jogo e o componente de ações do jogador.
+    *   **Componentes-Chave:**
+        *   **`GameBoard`**: Renderiza a estrutura do tabuleiro e os espaços.
+        *   **`PlayerToken`**: Representa o peão do jogador, posicionado no espaço correto do tabuleiro. Deve usar `framer-motion` para animações suaves.
+        *   **`GameActions`**: Um painel com os dados (dois componentes `DiceIcon`) e botões para "Rolar Dados", "Gerenciar Propriedades" e "Encerrar Turno". A lógica de desativar botões com base no estado do jogo (ex: já rolou, está na prisão) é crucial.
+        *   **`PropertyCard`**: Um `Dialog` que aparece ao clicar numa propriedade, mostrando os seus detalhes (preço, aluguer, etc.) e um botão para "Comprar".
+        *   **`ManagePropertiesDialog`**: Um `Dialog` para construir/vender casas e hipotecar propriedades.
+        *   **`GameNotifications`**: Exibe notificações flutuantes e animadas para ações do jogo (ex: "Você parou em...", "Você pagou...").
+    *   **Lógica do Jogo (Hooks e State):**
+        *   Usar os hooks `useDoc` e `useCollection` para obter dados do jogo e do jogador em tempo real do Firestore. **É crucial que as referências do Firestore passadas para estes hooks sejam memoizadas com `useMemo` para evitar loops infinitos.**
+        *   A lógica principal do turno reside nesta página: `handleDiceRoll`, `handleLandedOnSpace`, `handleBuyProperty`, `applyCardAction`, etc.
+        *   As ações do jogador devem atualizar o estado no Firestore (ex: `updatePlayerInFirestore`), e a UI deve reagir a essas mudanças de dados.
 
 ---
 
-## 4. Tecnologias a Utilizar
+## 4. Dados Estáticos do Jogo
 
--   **Backend**: PHP (versão 8.x recomendada).
--   **Servidor**: XAMPP (Apache + MySQL).
--   **Base de Dados**: MySQL.
--   **Frontend**: HTML5, JavaScript (ES6, sem frameworks como React/Vue), Tailwind CSS (use a CDN para simplicidade).
--   **Comunicação**: AJAX (`fetch` API) para comunicação assíncrona entre cliente e servidor.
+O arquivo `src/lib/game-data.ts` deve exportar todos os dados estáticos:
+*   `boardSpaces`: Um array de 40 objetos, cada um representando um espaço no tabuleiro, com todos os detalhes (nome, preço, alugueres, cor, etc.).
+*   `chanceCards` e `communityChestCards`: Arrays de objetos que definem o texto e a ação de cada carta.
+*   `totems`: Um array que mapeia um ID de totem ao seu nome e ao componente de ícone `lucide-react` correspondente.
 
-Este prompt detalhado deve fornecer a uma IA todas as informações necessárias para recriar a aplicação MINOPOLIS na stack tecnológica desejada.
+## 5. Tratamento de Erros de Permissão
+
+A aplicação deve ter uma arquitetura robusta para depurar erros de segurança do Firestore.
+*   **`FirestorePermissionError` (`src/firebase/errors.ts`):** Uma classe de erro customizada que formata o erro de permissão com contexto detalhado (operação, caminho, dados da requisição) para ser mais fácil de depurar.
+*   **`errorEmitter` (`src/firebase/error-emitter.ts`):** Um event emitter global para propagar os erros de permissão.
+*   **Lógica de Captura:** Todas as operações de escrita no Firestore (`setDoc`, `updateDoc`, `addDoc`, `writeBatch`) não devem usar `try/catch`. Em vez disso, devem encadear um `.catch()` que cria uma instância de `FirestorePermissionError` e a emite através do `errorEmitter`.
+*   **`FirebaseErrorListener` (`src/components/FirebaseErrorListener.tsx`):** Um componente invisível, colocado no layout principal, que ouve os eventos do `errorEmitter` e lança o erro para ser capturado pelo overlay de erro do Next.js, exibindo a mensagem detalhada.
+*   **`useCollection` / `useDoc`:** O callback de erro destes hooks também deve implementar a mesma lógica de emissão de `FirestorePermissionError`.
+
+Este prompt detalhado deve fornecer a uma IA todas as informações necessárias para recriar a aplicação MINOPOLIS (versão solo) na stack tecnológica desejada, replicando a sua funcionalidade e estrutura atuais.

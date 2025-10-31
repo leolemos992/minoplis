@@ -13,8 +13,8 @@ service cloud.firestore {
       // Qualquer utilizador autenticado pode listar os jogos para se juntar.
       allow list: if isSignedIn();
       
-      // Um utilizador só pode ler os dados de um jogo se ele for um dos jogadores nessa partida.
-      allow get: if isSignedIn() && isPlayerInGame(gameId, request.auth.uid);
+      // Um utilizador pode ler os dados de um jogo se ele for um jogador na partida OU se o jogo estiver à espera.
+      allow get: if isSignedIn() && (isPlayerInGame(gameId, request.auth.uid) || resource.data.status == 'waiting');
 
       // Criação: Qualquer utilizador autenticado pode criar um jogo, desde que se defina como anfitrião.
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
@@ -76,7 +76,8 @@ service cloud.firestore {
 
     function isJoiningWaitingGame(req, res) {
       let isWaiting = res.data.status == 'waiting';
-      let isAddingSelf = req.resource.data.playerOrder == res.data.playerOrder.concat([req.auth.uid]);
+      // Garante que o jogador está apenas a adicionar-se a si mesmo e não a outros ou a remover jogadores.
+      let isAddingSelf = req.resource.data.playerOrder.size() == res.data.playerOrder.size() + 1 && req.auth.uid in req.resource.data.playerOrder;
       return isWaiting && isAddingSelf;
     }
 

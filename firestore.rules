@@ -1,84 +1,83 @@
 /**
  * @file Firebase Security Rules for Localopoly.
  *
- * @core_philosophy This ruleset prioritizes secure access control based on user roles and game ownership.
- *  It enforces a strict owner-only policy for game creation and deletion, while allowing more
- *  flexible read access. Data validation is minimized to facilitate rapid prototyping.
- *
- * @data_structure The data is organized hierarchically: `/games/{gameId}` contains game metadata,
- *  and subcollections `/games/{gameId}/players/{playerId}` and `/games/{gameId}/rolls-to-start/{playerId}` store player-specific data.
- *
+ * @core_philosophy This ruleset prioritizes secure authorization and assumes flexible data shapes to enable rapid prototyping.
+ *  It focuses on who can access what, rather than strictly enforcing data schemas.
+ * @data_structure The primary data structure consists of a top-level `/games/{gameId}` collection, with subcollections for `/players/{playerId}` and `/rolls-to-start/{playerId}`.
  * @key_security_decisions
- *  - Only the host of a game can delete it.
- *  - Players can only modify their own data within a game.
- *  - Listing games is public, but creating them requires authentication.
- *
- * @denormalization_for_authorization
- *  - The `hostId` field on the `/games/{gameId}` document is used to authorize delete operations.
+ *  - Any autheticated user can list games.
+ *  - Only authenticated users can create games.
+ *  - Users can only modify their own player data within a game.
+ *  - Listing is enabled by default for user-scoped subcollections.
+ * @denormalization_for_authorization Not applicable in this version.
+ * @structural_segregation Not applicable in this version.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to the /games/{gameId} collection, where game metadata is stored.
+     * @description Controls access to the /games collection.
      * @path /games/{gameId}
-     * @allow (get, list): Any authenticated user can read basic game information.
-     * @allow (create): Any authenticated user can create a new game. The 'hostId' field must match their UID.
-     * @allow (update): No one can update the game document (only host can delete it).
-     * @allow (delete): Only the host of the game can delete it.
-     * @principle Enforces owner-only deletion and authenticated creation.
+     * @allow (list) Any authenticated user can list all games.
+     * @allow (get) Any authenticated user can get a specific game.
+     * @allow (create) Any authenticated user can create a game. The hostId field must match the user's UID.
+     * @allow (update) Only the host of the game can update it.
+     * @allow (delete) Only the host of the game can delete it.
+     * @deny (create) Unauthenticated users cannot create games.
+     * @deny (update) Non-hosts cannot update games.
+     * @deny (delete) Non-hosts cannot delete games.
+     * @principle Allows public listing and getting of games, restricts creation, updating, and deletion to the game host.
      */
     match /games/{gameId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if false;
-      allow delete: if isExistingOwner(resource.data.hostId);
+      allow update: if isSignedIn() && resource.data.hostId == request.auth.uid && resource != null;
+      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid && resource != null;
     }
 
     /**
-     * @description Controls access to the /games/{gameId}/players/{playerId} subcollection, where player-specific data is stored.
+     * @description Controls access to the /games/{gameId}/players collection.
      * @path /games/{gameId}/players/{playerId}
-     * @allow (get, list): No access to get or list all players.
-     * @allow (create): No one can create a player document directly.
-     * @allow (update): Only the player with a matching playerId can update their own document.
-     * @allow (delete): No one can delete a player document.
-     * @principle Enforces player-ownership for updates within a game.
+     * @allow (get) Any authenticated user can get player data.
+     * @allow (list) Any authenticated user can list all players in a game.
+     * @allow (create) Only the player with matching playerId can create their player document. The userId field must match the user's UID and the playerId must match the userId.
+     * @allow (update) Only the player with matching playerId can update their own player document.
+     * @allow (delete) Only the player with matching playerId can delete their player document.
+     * @deny (create) Users cannot create player documents for other players.
+     * @deny (update) Users cannot update player documents for other players.
+     * @deny (delete) Users cannot delete player documents for other players.
+     * @principle Enforces player-ownership for creating, updating, and deleting player data within a game.
      */
     match /games/{gameId}/players/{playerId} {
-      allow get, list: if false;
-      allow create: if false;
-      allow update: if isSignedIn() && isOwner(playerId) && resource != null;
-      allow delete: if false;
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && request.auth.uid == playerId && resource != null;
+      allow delete: if isSignedIn() && request.auth.uid == playerId && resource != null;
     }
 
-     /**
-      * @description Controls access to the /games/{gameId}/rolls-to-start/{playerId} subcollection.
-      * @path /games/{gameId}/rolls-to-start/{playerId}
-      * @allow (get, list): No access to get or list all rolls.
-      * @allow (create): Only the player with a matching playerId can create their own roll document.
-      * @allow (update): No one can update a roll document.
-      * @allow (delete): No one can delete a roll document.
-      * @principle Enforces player-ownership for creating their own roll within a game.
-      */
-     match /games/{gameId}/rolls-to-start/{playerId} {
-        allow get, list: if false;
-        allow create: if isSignedIn() && isOwner(playerId);
-        allow update: if false;
-        allow delete: if false;
-     }
-
+      /**
+       * @description Controls access to the /games/{gameId}/rolls-to-start collection.
+       * @path /games/{gameId}/rolls-to-start/{playerId}
+       * @allow (get) Any authenticated user can get a roll-to-start result.
+       * @allow (list) Any authenticated user can list roll-to-start results.
+       * @allow (create) Only the player with matching playerId can create their roll-to-start document.
+       * @allow (update) Only the player with matching playerId can update their own roll-to-start document.
+       * @allow (delete) Only the player with matching playerId can delete their roll-to-start document.
+       * @deny (create) Users cannot create roll-to-start documents for other players.
+       * @deny (update) Users cannot update roll-to-start documents for other players.
+       * @deny (delete) Users cannot delete roll-to-start documents for other players.
+       * @principle Enforces player-ownership for roll-to-start data within a game.
+       */
+    match /games/{gameId}/rolls-to-start/{playerId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == playerId;
+        allow update: if isSignedIn() && request.auth.uid == playerId && resource != null;
+        allow delete: if isSignedIn() && request.auth.uid == playerId && resource != null;
+    }
 
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource != null;
     }
   }
 }

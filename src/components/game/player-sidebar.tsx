@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Logo } from '@/components/logo';
 import type { Player, UserProfile } from '@/lib/definitions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';

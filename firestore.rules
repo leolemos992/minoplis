@@ -42,8 +42,8 @@ service cloud.firestore {
     match /games/{gameId} {
       allow get, list: if true;
       allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
-      allow update: if request.auth != null && isGameOwner(gameId);
-      allow delete: if request.auth != null && isGameOwner(gameId);
+      allow update: if request.auth != null && isGameExistingOwner(gameId);
+      allow delete: if request.auth != null && isGameExistingOwner(gameId);
     }
 
     /**
@@ -61,9 +61,9 @@ service cloud.firestore {
      */
     match /games/{gameId}/players/{playerId} {
         allow get, list: if true;
-        allow create: if request.auth != null && request.auth.uid == playerId;
-        allow update: if request.auth != null && request.auth.uid == playerId;
-        allow delete: if request.auth != null && request.auth.uid == playerId;
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null && isPlayerExistingOwner(gameId, playerId);
+        allow delete: if request.auth != null && isPlayerExistingOwner(gameId, playerId);
     }
 
     /**
@@ -110,9 +110,9 @@ service cloud.firestore {
      * @param {string} gameId - The ID of the game.
      * @return {boolean} True if the user is the owner and the game exists, false otherwise.
      */
-    // function isGameExistingOwner(gameId) {
-    //     return resource != null && isGameOwner(gameId);
-    // }
+    function isGameExistingOwner(gameId) {
+        return exists(/databases/$(database)/documents/games/$(gameId)) && isGameOwner(gameId);
+    }
 
     /**
      * @description Checks if the user is the owner of the player.
@@ -127,10 +127,11 @@ service cloud.firestore {
     /**
      * @description Checks if the user is the owner of the player and if the player exists.
      * @param {string} gameId - The ID of the game.
+     * @param {string} playerId - The ID of the player.
      * @return {boolean} True if the user is the owner and the player exists, false otherwise.
      */
-    // function isPlayerExistingOwner(gameId) {
-    //     return resource != null && isPlayerOwner(gameId);
-    // }
+    function isPlayerExistingOwner(gameId, playerId) {
+        return exists(/databases/$(database)/documents/games/$(gameId)/players/$(playerId)) && isPlayerOwner(gameId, playerId);
+    }
   }
 }

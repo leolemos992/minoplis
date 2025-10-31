@@ -9,7 +9,6 @@ interface GameActionsProps {
   onDiceRoll: (dice1: number, dice2: number) => void;
   onPayBail?: () => void;
   onEndTurn: () => void;
-  onTrade: () => void;
   isPlayerInJail: boolean;
   canPayBail: boolean;
   onManageProperties: () => void;
@@ -61,7 +60,7 @@ function DiceIcon({ value }: { value: number }) {
 }
 
 
-export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties, isTurnActive, hasRolled }: GameActionsProps) {
+export function GameActions({ onDiceRoll, onPayBail, onEndTurn, isPlayerInJail, canPayBail, onManageProperties, playerHasProperties, isTurnActive, hasRolled }: GameActionsProps) {
   const [dice, setDice] = useState<[number, number]>([1, 1]);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -125,16 +124,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
             Pagar Fiança (R$50)
           </Button>
         )}
-        <div className="grid grid-cols-2 gap-2">
-          <Button 
-            variant="outline" 
-            className="group w-full" 
-            disabled={!isTurnActive || isRolling}
-            onClick={onTrade}
-          >
-            <Handshake className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-            Negociar
-          </Button>
+        <div className="grid grid-cols-1 gap-2">
           <Button 
             variant="outline" 
             className="group w-full" 
@@ -142,7 +132,7 @@ export function GameActions({ onDiceRoll, onPayBail, onEndTurn, onTrade, isPlaye
             onClick={onManageProperties}
           >
             <Building className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
-            Gerenciar
+            Gerenciar Propriedades
           </Button>
         </div>
         <Button

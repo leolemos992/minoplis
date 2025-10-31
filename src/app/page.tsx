@@ -24,14 +24,14 @@ export default function Home() {
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="group">
-                  <Link href="/lobby">
+                  <Link href="/lobby?solo=true">
                     <User className="mr-2 h-5 w-5" />
                     Jogo Solo
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline">
-                  <Link href="/multiplayer-lobby">
+                  <Link href="/lobby">
                     <Users className="mr-2 h-5 w-5" />
                     Multiplayer
                   </Link>

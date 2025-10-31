@@ -3,7 +3,7 @@
     "Game": {
       "title": "Game",
       "type": "object",
-      "description": "Representa uma única partida (sessão de jogo) de Localopoly.",
+      "description": "Representa uma única partida (sessão de jogo) de Minopolis.",
       "properties": {
         "name": {
           "type": "string",
@@ -67,25 +67,6 @@
         "inJail": {
           "type": "boolean",
           "description": "Indica se o jogador está na prisão."
-        },
-        "properties": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Lista de IDs das propriedades que o jogador possui."
-        },
-         "mortgagedProperties": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Lista de IDs das propriedades hipotecadas."
-        },
-        "houses": {
-            "type": "object",
-            "additionalProperties": {"type": "number"},
-            "description": "Mapa de IDs de propriedades para o número de casas construídas."
-        },
-        "getOutOfJailFreeCards": {
-            "type": "number",
-            "description": "Número de cartas 'Saia da Prisão' que o jogador possui."
         }
       },
       "required": ["userId", "name", "money", "position", "color", "totem"]

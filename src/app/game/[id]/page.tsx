@@ -7,15 +7,13 @@ import Link from 'next/link';
 import { GameActions } from '@/components/game/game-actions';
 import { Home, Zap, Building, HelpCircle, Briefcase, Gem, Train, ShieldCheck, Box, Gavel, Hotel, Landmark, ShowerHead, CircleDollarSign, Bus, Crown, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, GameLog, TradeOffer, AuctionState, Notification, GameStatus } from '@/lib/definitions';
+import type { Player, Property, GameCard, GameLog, AuctionState, Notification, Game, GameStatus } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
-import { TradeDialog } from '@/components/game/trade-dialog';
-import { AuctionDialog } from '@/components/game/auction-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 import { GameNotifications } from '@/components/game/game-notifications';
@@ -243,7 +241,7 @@ export default function GamePage() {
 
   // Firestore data
   const gameRef = useMemoFirebase(() => firestore && gameId ? doc(firestore, 'games', gameId) : null, [firestore, gameId]);
-  const { data: gameData } = useDoc(gameRef);
+  const { data: gameData } = useDoc<Game>(gameRef);
   
   const playersRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, 'games', gameId, 'players') : null, [firestore, gameId]);
   const { data: playersData } = useCollection<Player>(playersRef);
@@ -261,7 +259,6 @@ export default function GamePage() {
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
-  const [isTradeOpen, setTradeOpen] = useState(false);
   const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
   const [lastDiceRoll, setLastDiceRoll] = useState<[number, number]>([1, 1]);
   
@@ -270,8 +267,6 @@ export default function GamePage() {
   
   const [gameLog, setGameLog] = useState<GameLog[]>([]);
   
-  const [auctionState, setAuctionState] = useState<AuctionState | null>(null);
-
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const isHost = gameData?.hostId === user?.uid;
@@ -437,15 +432,7 @@ export default function GamePage() {
   const startAuction = useCallback((property: Property) => {
       addLog(`${property.name} foi a leilão!`);
       addNotification(`${property.name} está sendo leiloado.`);
-      const playersInAuction = players.map(p => p.id);
-      setAuctionState({
-          property,
-          currentBid: 10,
-          highestBidderId: null,
-          playersInAuction,
-          turnIndex: 0
-      });
-  }, [players, addLog, addNotification]);
+  }, [addLog, addNotification]);
 
   const handleLandedOnSpace = useCallback(async (spaceIndex: number, fromCard = false) => {
     const space = boardSpaces[spaceIndex];
@@ -563,8 +550,6 @@ export default function GamePage() {
                 addLog(`${currentPlayer.name} coletou R$200 por passar pelo Início.`);
             }
             updates.position = newPosition;
-            // The update to Firestore will trigger a re-render, and an effect will call handleLandedOnSpace
-            // We need to store the new position to handle it in an effect.
         }
         break;
       case 'go_to_jail':
@@ -589,7 +574,6 @@ export default function GamePage() {
         await updatePlayerInFirestore(currentPlayer.id, updates);
     }
     
-    // Handle landing on the new space *after* the state has been updated
     if (updates.position !== undefined) {
       handleLandedOnSpace(updates.position, true);
     }
@@ -672,7 +656,7 @@ export default function GamePage() {
     
     const playerUpdate: Partial<Player> = { position: newPosition };
 
-    if (newPosition < currentPosition && !fromCard) {
+    if (newPosition < currentPosition) {
         playerUpdate.money = currentPlayer.money + 200;
         setTimeout(() => {
             addNotification(`Você coletou R$200.`);
@@ -840,86 +824,7 @@ export default function GamePage() {
      addLog(`${currentPlayer.name} pagou a hipoteca de ${property.name}.`);
      addNotification(`Você pagou a hipoteca de ${property.name}.`);
   };
-
-  const handleProposeTrade = (offer: TradeOffer) => {
-    const fromPlayer = players.find(p => p.id === offer.fromId);
-    const toPlayer = players.find(p => p.id === offer.toId);
-    if (!fromPlayer || !toPlayer) return;
-
-    addNotification(`Proposta de troca enviada para ${toPlayer.name}.`);
-    setTradeOpen(false);
-  };
   
-  const handleAuctionBid = (playerId: string, bidAmount: number) => {
-    if (!auctionState) return;
-
-    const bidder = players.find(p => p.id === playerId);
-    if (!bidder || bidder.money < bidAmount) {
-        addNotification("Você não tem dinheiro suficiente.", "destructive");
-        return;
-    }
-
-    addLog(`${bidder.name} deu um lance de R$${bidAmount} em ${auctionState.property.name}.`);
-    setAuctionState(prev => {
-        if (!prev) return null;
-        return {
-            ...prev,
-            currentBid: bidAmount,
-            highestBidderId: playerId,
-            turnIndex: (prev.turnIndex + 1) % prev.playersInAuction.length,
-        };
-    });
-  };
-
-  const handleAuctionPass = (playerId: string) => {
-      if (!auctionState) return;
-
-      const passer = players.find(p => p.id === playerId);
-      if (passer) {
-        addLog(`${passer.name} passou a vez no leilão.`);
-      }
-
-      const newPlayersInAuction = auctionState.playersInAuction.filter(id => id !== playerId);
-      
-      setAuctionState(prev => {
-          if (!prev) return null;
-          return {
-              ...prev,
-              playersInAuction: newPlayersInAuction,
-              turnIndex: prev.turnIndex % (newPlayersInAuction.length || 1),
-          }
-      });
-  };
-
-  const endAuction = useCallback(async () => {
-    if (!auctionState) return;
-
-    if (auctionState.highestBidderId) {
-        const winner = players.find(p => p.id === auctionState.highestBidderId);
-        if (winner) {
-            addLog(`${winner.name} venceu o leilão de ${auctionState.property.name} por R$${auctionState.currentBid}!`);
-            addNotification(`${winner.name} arrematou ${auctionState.property.name}!`);
-            await updatePlayerInFirestore(winner.id, {
-                money: winner.money - auctionState.currentBid,
-                properties: [...winner.properties, auctionState.property.id],
-            });
-        }
-    } else {
-        addLog(`Ninguém deu lance por ${auctionState.property.name}. A propriedade continua do banco.`);
-        addNotification("A propriedade não foi arrematada.");
-    }
-    setAuctionState(null);
-  }, [auctionState, players, addLog, addNotification, updatePlayerInFirestore]);
-  
-  useEffect(() => {
-    if (!auctionState) return;
-
-    if (auctionState.playersInAuction.length <= 1) {
-        endAuction();
-    }
-  }, [auctionState, endAuction]);
-
-
   const handleRollToStart = async (playerId: string, roll: number) => {
     if (!firestore || !gameId) return;
     const player = players.find(p => p.id === playerId);
@@ -1026,7 +931,6 @@ export default function GamePage() {
                 onPayBail={handlePayBail}
                 canPayBail={currentPlayer?.money >= 50}
                 onManageProperties={() => setManageOpen(true)}
-                onTrade={() => setTradeOpen(true)}
                 playerHasProperties={humanPlayer?.properties.length > 0}
                 isTurnActive={isMyTurn && gameData?.status === 'active'}
                 hasRolled={hasRolled}
@@ -1073,7 +977,7 @@ export default function GamePage() {
                         </DialogHeader>
                         <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
                             <Button size="lg" asChild>
-                                <Link href="/multiplayer-lobby">Novo Jogo</Link>
+                                <Link href="/lobby">Novo Jogo</Link>
                             </Button>
                             <Button size="lg" variant="outline" asChild>
                                 <Link href="/">Voltar ao Início</Link>
@@ -1145,23 +1049,7 @@ export default function GamePage() {
         onMortgage={handleMortgage}
         onUnmortgage={handleUnmortgage}
       />
-      
-      <TradeDialog
-        isOpen={isTradeOpen}
-        onOpenChange={setTradeOpen}
-        player={humanPlayer}
-        otherPlayers={players.filter(p => p.userId !== humanPlayer.userId)}
-        onProposeTrade={handleProposeTrade}
-      />
 
-      <AuctionDialog
-        isOpen={!!auctionState}
-        auctionState={auctionState}
-        players={players}
-        onBid={handleAuctionBid}
-        onPass={handleAuctionPass}
-        humanPlayerId={humanPlayer.id}
-      />
     </>
   );
 }

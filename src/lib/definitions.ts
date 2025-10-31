@@ -38,13 +38,10 @@ export type Game = {
   id:string;
   name: string;
   hostId: string;
-  players: Player[];
-  board: (Property | { type: string, name: string })[];
   currentPlayerId: string | null;
   status: GameStatus;
   createdAt: any; // serverTimestamp
   playerOrder?: string[];
-  turnOrder?: string[];
   lastRoll?: [number, number] | null;
 };
 

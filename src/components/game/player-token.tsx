@@ -14,15 +14,15 @@ const playerBgColors: { [key: string]: string } = {
 };
 
 
-export function PlayerToken({ player, size }: { player: Player, size?: number }) {
+export function PlayerToken({ player, size = 8 }: { player: Player, size?: number }) {
   const totem = totems.find((t) => t.id === player.totem);
   const TotemIcon = totem ? totem.icon : null;
   const bgColorClass = playerBgColors[player.color] || 'bg-gray-700';
 
   if (!TotemIcon) return null;
 
-  const sizeClasses = size ? `h-${size} w-${size}` : 'h-6 w-6 sm:h-8 sm:w-8';
-  const paddingClass = size ? `p-${Math.floor(size / 4)}` : 'p-1';
+  const sizeClass = `h-${size} w-${size}`;
+  const paddingClass = `p-${Math.floor(size / 4)}`;
 
 
   return (
@@ -30,7 +30,7 @@ export function PlayerToken({ player, size }: { player: Player, size?: number })
         layoutId={`player-token-${player.id}`}
         className={cn(
             "rounded-full flex items-center justify-center drop-shadow-lg", 
-            sizeClasses,
+            sizeClass,
             bgColorClass
         )}
         initial={{ scale: 0.8, opacity: 0.8 }}

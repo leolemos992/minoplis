@@ -1,6 +1,6 @@
 // Represents a player in the game.
 export type Player = {
-  id: string; // Document ID, typically the same as userId for simplicity in solo games.
+  id: string; // Document ID, typically the same as userId.
   userId: string; // Firebase Auth UID.
   name: string;
   money: number;
@@ -33,6 +33,8 @@ export type Game = {
   status: 'waiting' | 'active' | 'finished';
   currentPlayerId: string;
   createdAt: any; // Firestore ServerTimestamp.
+  playerOrder: string[];
+  turn: number;
 };
 
 // Represents a Chance or Community Chest card.

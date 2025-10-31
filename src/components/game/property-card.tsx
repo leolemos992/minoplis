@@ -21,14 +21,14 @@ const getIcon = (space: any) => {
 interface PropertyCardProps {
   space: Property;
   player: Player;
+  allPlayers?: Player[];
   onBuy: (property: Property) => void;
   onClose: () => void;
+  isMyTurn: boolean;
 }
 
-export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProps) {
-  const isOwnedByCurrentPlayer = player.properties.includes(space.id);
-  // In solo, if it's a property, the only possible owner is the current player.
-  const owner = isOwnedByCurrentPlayer ? player : null; 
+export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTurn }: PropertyCardProps) {
+  const owner = allPlayers?.find(p => p.properties.includes(space.id));
 
   return (
     <Card className="w-full max-w-sm">
@@ -63,19 +63,19 @@ export function PropertyCard({ space, player, onBuy, onClose }: PropertyCardProp
          )}
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4">
-        {!owner && player.money >= space.price && (
+        {!owner && isMyTurn && player.money >= space.price && (
             <Button className="w-full" onClick={() => onBuy(space)}>Comprar Propriedade</Button>
         )}
          {owner && (
              <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
-                <User className="h-4 w-4" /><span>Proprietário: Você</span>
+                <User className="h-4 w-4" /><span>Proprietário: {owner.id === player.id ? "Você" : owner.name}</span>
              </div>
          )}
-         {!owner && player.money < space.price && (
+         {!owner && isMyTurn && player.money < space.price && (
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}
         <Button variant="ghost" className="w-full" onClick={onClose}>
-          { !owner ? "Não comprar" : "Fechar" }
+          { !owner && isMyTurn ? "Não comprar" : "Fechar" }
         </Button>
       </CardFooter>
     </Card>

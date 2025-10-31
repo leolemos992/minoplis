@@ -14,6 +14,7 @@ interface ManagePropertiesDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   player: Player;
+  allPlayers: Player[];
   onBuild: (propertyId: string, amount: number) => void;
   onSell: (propertyId: string, amount: number) => void;
   onMortgage: (propertyId: string, isMortgaging: boolean) => void;
@@ -25,7 +26,7 @@ const propertyColorClasses: { [key: string]: string } = {
   green: 'bg-[#1fb25a]', darkblue: 'bg-[#0072bb]',
 };
 
-export function ManagePropertiesDialog({ isOpen, onOpenChange, player, onBuild, onSell, onMortgage }: ManagePropertiesDialogProps) {
+export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayers, onBuild, onSell, onMortgage }: ManagePropertiesDialogProps) {
   const ownedProperties = useMemo(() => {
     return boardSpaces.filter(p => 'id' in p && player.properties.includes(p.id)) as Property[];
   }, [player.properties]);
@@ -50,10 +51,16 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, onBuild, 
         return acc;
     }, {} as {[key: string]: number});
     for (const color in groupedProperties) {
-      if (groupedProperties[color].length === totalInSets[color]) sets[color] = true;
+      if (groupedProperties[color].length === totalInSets[color]) {
+          // Check if any property in the set is mortgaged
+          const isAnyMortgaged = groupedProperties[color].some(p => player.mortgagedProperties.includes(p.id));
+          if (!isAnyMortgaged) {
+            sets[color] = true;
+          }
+      }
     }
     return sets;
-  }, [groupedProperties]);
+  }, [groupedProperties, player.mortgagedProperties]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -76,7 +83,7 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, onBuild, 
                     {props.map(prop => {
                         const houseCount = player.houses[prop.id] || 0;
                         const isMortgaged = player.mortgagedProperties.includes(prop.id);
-                        const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0) && !isMortgaged;
+                        const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0);
                         const canSell = houseCount > 0;
                         const canMortgage = houseCount === 0 && !isMortgaged;
                         const canUnmortgage = isMortgaged && player.money >= (prop.price / 2 * 1.1);

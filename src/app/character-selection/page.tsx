@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,10 +16,13 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Palette } from 'lucide-react';
-import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, writeBatch } from 'firebase/firestore';
-import type { Player } from '@/lib/definitions';
+import { ArrowRight, Palette, User as UserIcon } from 'lucide-react';
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, writeBatch, arrayUnion, updateDoc } from 'firebase/firestore';
+import type { Player, Game } from '@/lib/definitions';
+import { PlayerToken } from '@/components/game/player-token';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const playerColors = [
   { id: 'red', name: 'Vermelho', class: 'bg-red-500' },
@@ -34,29 +37,56 @@ export default function CharacterSelectionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const gameId = searchParams.get('gameId');
-  const gameName = searchParams.get('gameName');
 
   const { user } = useUser();
   const firestore = useFirestore();
+
+  const gameRef = useMemoFirebase(() => gameId && firestore ? doc(firestore, 'games', gameId) : null, [gameId, firestore]);
+  const { data: game, isLoading: isGameLoading } = useDoc<Game>(gameRef);
+  
+  const playersRef = useMemoFirebase(() => gameId && firestore ? doc(firestore, 'games', gameId, 'players', user?.uid ?? 'dummy') : null, [gameId, firestore, user]);
+  const { data: playerDoc } = useDoc<Player>(playersRef);
+
+  const allPlayersRef = useMemoFirebase(() => gameId && firestore ? collection(firestore, 'games', gameId, 'players') : null, [gameId, firestore]);
+  const { data: allPlayers } = useCollection<Player>(allPlayersRef);
 
   const [playerName, setPlayerName] = useState('');
   const [selectedTotem, setSelectedTotem] = useState(totems[0].id);
   const [selectedColor, setSelectedColor] = useState(playerColors[0].id);
 
-  // Pre-fill player name if available from Firebase Auth profile
+  const isHost = useMemo(() => game?.hostId === user?.uid, [game, user]);
+  const hasJoined = useMemo(() => !!playerDoc, [playerDoc]);
+  
   useEffect(() => {
-      if (user?.displayName) {
+    if (game?.status === 'active') {
+        router.replace(`/game/${gameId}`);
+    }
+  }, [game, gameId, router]);
+
+
+  useEffect(() => {
+      if (user?.displayName && !playerName) {
           setPlayerName(user.displayName);
       }
-  }, [user]);
+  }, [user, playerName]);
+  
+  const availableColors = useMemo(() => playerColors.filter(c => !allPlayers?.some(p => p.color === c.id)), [allPlayers]);
+  const availableTotems = useMemo(() => totems.filter(t => !allPlayers?.some(p => p.totem === t.id)), [allPlayers]);
+
+  useEffect(() => {
+      if (availableColors.length > 0 && !availableColors.find(c => c.id === selectedColor)) {
+          setSelectedColor(availableColors[0].id);
+      }
+      if (availableTotems.length > 0 && !availableTotems.find(t => t.id === selectedTotem)) {
+          setSelectedTotem(availableTotems[0].id);
+      }
+  }, [availableColors, availableTotems, selectedColor, selectedTotem]);
 
   const totem = totems.find(t => t.id === selectedTotem);
   const TotemIcon = totem ? totem.icon : null;
 
   const handleJoinGame = async () => {
-    if (!playerName.trim() || !gameId || !user || !firestore) {
-      // Improve user feedback for missing info, though this state should be rare.
-      console.error("Player name, game ID, user, or Firestore service is missing.");
+    if (!playerName.trim() || !gameId || !user || !firestore || !gameRef) {
       return;
     }
 
@@ -68,142 +98,179 @@ export default function CharacterSelectionPage() {
       color: selectedColor,
       totem: selectedTotem,
       inJail: false,
-      // Initialize properties as empty arrays, crucial for type safety.
       properties: [],
       mortgagedProperties: [],
       houses: {},
       getOutOfJailFreeCards: 0,
     };
     
-    // Use a write batch for atomicity
     const batch = writeBatch(firestore);
 
-    // 1. Create the player document
     const playerRef = doc(firestore, 'games', gameId, 'players', user.uid);
     batch.set(playerRef, player);
-      
-    // 2. Update the game status to 'active'
-    const gameRef = doc(firestore, 'games', gameId);
-    const gameUpdates = { status: 'active' as const };
+    
+    const gameUpdates = { playerOrder: arrayUnion(user.uid) };
     batch.update(gameRef, gameUpdates);
       
-    // Commit the batch and handle potential errors
     batch.commit()
-      .then(() => {
-        router.push(`/game/${gameId}`);
-      })
       .catch((error) => {
-        // Emit contextual errors for both operations in case of failure.
-        const playerCreationError = new FirestorePermissionError({
-          path: playerRef.path,
-          operation: 'create',
-          requestResourceData: player,
-        });
+        const playerCreationError = new FirestorePermissionError({ path: playerRef.path, operation: 'create', requestResourceData: player });
         errorEmitter.emit('permission-error', playerCreationError);
-
-        const gameUpdateError = new FirestorePermissionError({
-            path: gameRef.path,
-            operation: 'update',
-            requestResourceData: gameUpdates,
-        });
+        const gameUpdateError = new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: gameUpdates });
         errorEmitter.emit('permission-error', gameUpdateError);
       });
   };
 
+  const handleStartGame = async () => {
+      if (!gameRef || !isHost || !allPlayers || allPlayers.length < 1) return; // Min 1 player to start
+      
+      const gameUpdates = { 
+          status: 'active' as const,
+          currentPlayerId: game?.playerOrder[0] || ''
+      };
+      
+      updateDoc(gameRef, gameUpdates)
+        .catch(error => {
+            const gameUpdateError = new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: gameUpdates });
+            errorEmitter.emit('permission-error', gameUpdateError);
+        });
+  }
+
+  if (isGameLoading) {
+      return <div className="container flex min-h-screen items-center justify-center"><p>A Carregar...</p></div>
+  }
+
   return (
-    <div className="container flex min-h-[calc(100vh-4rem)] items-center justify-center py-12">
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle className="text-2xl">Crie seu Jogador</CardTitle>
-          <CardDescription>
-            Escolha seu nome, totem e cor para iniciar o jogo a solo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Jogador</Label>
-              <Input
-                id="name"
-                placeholder="Insira seu nome"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-              />
-            </div>
+    <div className="container grid md:grid-cols-3 gap-8 min-h-[calc(100vh-4rem)] items-center py-12">
+        <div className="md:col-span-2">
+            <Card className="w-full">
+                <CardHeader>
+                <CardTitle className="text-2xl">Crie seu Jogador</CardTitle>
+                <CardDescription>
+                    {hasJoined ? "Você entrou no jogo! Aguarde o anfitrião iniciar a partida." : "Escolha seu nome, totem e cor para entrar no jogo."}
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                    <Label htmlFor="name">Nome do Jogador</Label>
+                    <Input
+                        id="name"
+                        placeholder="Insira seu nome"
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                        disabled={hasJoined}
+                    />
+                    </div>
 
-            <div className="space-y-4">
-              <Label>Escolha seu Totem</Label>
-                <RadioGroup
-                  value={selectedTotem}
-                  onValueChange={setSelectedTotem}
-                  className="grid grid-cols-3 gap-4"
-                >
-                  {totems.map((totem) => (
-                      <div key={totem.id}>
-                        <RadioGroupItem
-                          value={totem.id}
-                          id={totem.id}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={totem.id}
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    <div className="space-y-4">
+                    <Label>Escolha seu Totem</Label>
+                        <RadioGroup
+                        value={selectedTotem}
+                        onValueChange={setSelectedTotem}
+                        className="grid grid-cols-3 gap-4"
+                        disabled={hasJoined}
                         >
-                          <totem.icon className="mb-2 h-8 w-8" />
-                          {totem.name}
-                        </Label>
-                      </div>
-                  ))}
-                </RadioGroup>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center space-y-6 rounded-lg bg-muted/50 p-8">
-            <h3 className="text-lg font-medium">Sua Pré-visualização</h3>
-            <div className="relative h-24 w-24">
-              {TotemIcon && (
-                <TotemIcon
-                  className={cn(
-                    'h-full w-full transition-colors',
-                    playerColors
-                      .find((c) => c.id === selectedColor)
-                      ?.class.replace('bg-', 'text-')
-                  )}
-                  style={{ color: playerColors.find(c => c.id === selectedColor)?.class.startsWith('bg-') ? undefined : `var(--${selectedColor})` }}
-                />
-              )}
-            </div>
-            <p className="text-xl font-semibold">{playerName.trim() || 'Seu Nome'}</p>
-            <div className="space-y-2">
-              <Label className="flex items-center justify-center gap-2">
-                <Palette /> Cor do Jogador
-              </Label>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {playerColors.map((color) => (
-                       <button
-                          key={color.id}
-                          onClick={() => setSelectedColor(color.id)}
-                          className={cn(
-                            'h-8 w-8 rounded-full border-2 transition-transform hover:scale-110',
-                            color.class,
-                            selectedColor === color.id
-                              ? 'border-primary ring-2 ring-primary'
-                              : 'border-transparent'
-                          )}
-                          aria-label={`Select ${color.name} color`}
-                        />
-                  ))}
+                        {totems.map((t) => (
+                            <div key={t.id}>
+                                <RadioGroupItem
+                                value={t.id}
+                                id={t.id}
+                                className="peer sr-only"
+                                disabled={hasJoined || !availableTotems.some(at => at.id === t.id)}
+                                />
+                                <Label
+                                htmlFor={t.id}
+                                className={cn(
+                                    "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground",
+                                    !availableTotems.some(at => at.id === t.id) && "opacity-50 cursor-not-allowed",
+                                    "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                                )}
+                                >
+                                <t.icon className="mb-2 h-8 w-8" />
+                                {t.name}
+                                </Label>
+                            </div>
+                        ))}
+                        </RadioGroup>
+                    </div>
                 </div>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-            <Button className="group" disabled={!playerName.trim() || !gameId} onClick={handleJoinGame}>
-                Iniciar Jogo
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-        </CardFooter>
-      </Card>
+
+                <div className="flex flex-col items-center justify-center space-y-6 rounded-lg bg-muted/50 p-8">
+                    <h3 className="text-lg font-medium">Sua Pré-visualização</h3>
+                    <div className="relative h-24 w-24">
+                    {TotemIcon && (
+                        <TotemIcon
+                        className={cn('h-full w-full transition-colors')}
+                        style={{ color: playerColors.find(c => c.id === selectedColor)?.class.replace('bg-','') }}
+                        color={playerColors.find(c => c.id === selectedColor)?.class.replace('bg-','-500')}
+                        />
+                    )}
+                    </div>
+                    <p className="text-xl font-semibold">{playerName.trim() || 'Seu Nome'}</p>
+                    <div className="space-y-2">
+                    <Label className="flex items-center justify-center gap-2">
+                        <Palette /> Cor do Jogador
+                    </Label>
+                        <div className="flex flex-wrap justify-center gap-2">
+                        {playerColors.map((color) => (
+                            <button
+                                key={color.id}
+                                onClick={() => !hasJoined && setSelectedColor(color.id)}
+                                className={cn(
+                                    'h-8 w-8 rounded-full border-2 transition-transform hover:scale-110',
+                                    color.class,
+                                    selectedColor === color.id
+                                    ? 'border-primary ring-2 ring-primary'
+                                    : 'border-transparent',
+                                    (!availableColors.some(ac => ac.id === color.id) || hasJoined) && 'opacity-50 cursor-not-allowed'
+                                )}
+                                aria-label={`Select ${color.name} color`}
+                                disabled={hasJoined || !availableColors.some(ac => ac.id === color.id)}
+                                />
+                        ))}
+                        </div>
+                    </div>
+                </div>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                    {!hasJoined ? (
+                         <Button className="group" disabled={!playerName.trim() || !gameId} onClick={handleJoinGame}>
+                            Entrar no Jogo
+                            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </Button>
+                    ) : (
+                        isHost && (
+                             <Button className="group" disabled={!allPlayers || allPlayers.length < 1} onClick={handleStartGame}>
+                                Iniciar Jogo para Todos
+                                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                            </Button>
+                        )
+                    )}
+                </CardFooter>
+            </Card>
+      </div>
+       <div className="md:col-span-1">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Jogadores na Sala</CardTitle>
+                    <CardDescription>({allPlayers?.length || 0}) jogadores</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {allPlayers && allPlayers.map(p => {
+                        const playerTotem = totems.find(t => t.id === p.totem);
+                        const TotemIcon = playerTotem?.icon;
+                         return (
+                            <div key={p.id} className="flex items-center gap-4">
+                                <PlayerToken player={p} size={10} />
+                                <span className="font-medium">{p.name} {p.userId === game?.hostId ? "(Anfitrião)" : ""}</span>
+                            </div>
+                        )
+                    })}
+                     {!allPlayers && <p className="text-sm text-muted-foreground">Aguardando jogadores...</p>}
+                </CardContent>
+            </Card>
+      </div>
     </div>
   );
 }

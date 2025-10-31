@@ -3,7 +3,7 @@
     "Game": {
       "title": "Game",
       "type": "object",
-      "description": "Representa uma única partida (sessão de jogo) de Minoplis.",
+      "description": "Representa uma única partida (sessão de jogo) de MINOPLIS.",
       "properties": {
         "name": {
           "type": "string",
@@ -26,9 +26,18 @@
         "currentPlayerId": {
            "type": "string",
            "description": "O ID do jogador cujo turno está ativo."
+        },
+        "playerOrder": {
+            "type": "array",
+            "description": "Array ordenado com os UIDs dos jogadores, definindo a ordem dos turnos.",
+            "items": { "type": "string" }
+        },
+        "turn": {
+            "type": "number",
+            "description": "O índice do jogador atual em playerOrder."
         }
       },
-      "required": ["name", "status", "hostId", "createdAt"]
+      "required": ["name", "status", "hostId", "createdAt", "playerOrder"]
     },
     "Player": {
       "title": "Player",
@@ -73,11 +82,11 @@
   "firestore": {
     "/games/{gameId}": {
       "schema": { "$ref": "#/entities/Game" },
-      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode criar e ler as suas próprias partidas.",
+      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode criar partidas e ler a lista de partidas em espera.",
       "subcollections": {
           "/players/{playerId}": {
               "schema": { "$ref": "#/entities/Player"},
-              "description": "Armazena os dados de cada jogador na partida."
+              "description": "Armazena os dados de cada jogador na partida. Um jogador só pode se adicionar ou atualizar a si mesmo."
           }
       }
     }

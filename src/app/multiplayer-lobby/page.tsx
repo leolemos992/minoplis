@@ -12,7 +12,7 @@ import {
 import { PlusCircle, Gamepad, Hourglass, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { Game } from '@/lib/definitions';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,7 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 // ID do administrador com permissão para apagar todas as salas.
@@ -65,28 +67,32 @@ export default function MultiplayerLobbyPage() {
     }
   }, [gamesQuery, setWaitingGames]);
 
-  const handleDeleteAllGames = async () => {
+  const handleDeleteAllGames = () => {
     if (!firestore || !isAdmin) return;
     setIsDeletingAll(true);
+
+    const allGamesQuery = query(collection(firestore, 'games'));
     
-    try {
-        const allGamesQuery = query(collection(firestore, 'games'));
-        const gamesSnapshot = await getDocs(allGamesQuery);
+    getDocs(allGamesQuery)
+      .then(gamesSnapshot => {
         const batch = writeBatch(firestore);
-
         gamesSnapshot.docs.forEach(gameDoc => {
-            batch.delete(gameDoc.ref);
+          batch.delete(gameDoc.ref);
         });
-
-        await batch.commit();
-        // A atualização em tempo real do useCollection deve limpar a lista.
-        console.log("Todas as salas foram apagadas com sucesso.");
-    } catch (error) {
-        console.error("Erro ao apagar todas as salas:", error);
-        // Idealmente, um toast seria mostrado aqui.
-    } finally {
+        return batch.commit();
+      })
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: 'games',
+            operation: 'list', // or 'delete' depending on where it failed. List is more likely.
+        });
+        errorEmitter.emit('permission-error', permissionError);
         setIsDeletingAll(false);
-    }
+      })
+      .finally(() => {
+        // This will run after .then() or .catch()
+        setIsDeletingAll(false);
+      });
   };
 
 

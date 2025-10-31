@@ -5,7 +5,7 @@ export function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center justify-center font-headline text-2xl font-bold", className)}>
       <Landmark className="mr-2 h-6 w-6 text-primary" />
-      <span>MINOPOLIS</span>
+      <span>MINOPLIS</span>
     </div>
   );
 }

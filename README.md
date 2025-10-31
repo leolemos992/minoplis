@@ -1,4 +1,4 @@
-# MINOPOLIS - Jogo de Tabuleiro com Next.js e Firebase
+# MINOPLIS - Jogo de Tabuleiro com Next.js e Firebase
 
 Este é um projeto de um jogo de tabuleiro multiplayer, inspirado no clássico Monopólio, construído com Next.js, React, Tailwind CSS e Firebase.
 

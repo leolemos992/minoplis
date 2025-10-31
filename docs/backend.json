@@ -3,7 +3,7 @@
     "Game": {
       "title": "Game",
       "type": "object",
-      "description": "Representa uma única partida (sessão de jogo) de Minopolis.",
+      "description": "Representa uma única partida (sessão de jogo) de Minoplis.",
       "properties": {
         "name": {
           "type": "string",

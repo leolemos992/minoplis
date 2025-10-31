@@ -6,7 +6,7 @@ import { Header } from '@/components/header';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'MINOPOLIS',
+  title: 'MINOPLIS',
   description: 'Uma versão moderna dos jogos de tabuleiro clássicos.',
 };
 

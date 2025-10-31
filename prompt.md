@@ -1,12 +1,12 @@
-# Prompt para Reconstrução de Aplicação Web: MINOPOLIS (Versão Solo)
+# Prompt para Reconstrução de Aplicação Web: MINOPLIS (Versão Solo)
 
 ## Objetivo Principal
 
-Recriar uma aplicação web de um jogo de tabuleiro a solo, **MINOPOLIS**, utilizando Next.js (com App Router), React, TypeScript, Firebase (Firestore e Auth), Tailwind CSS e componentes ShadCN UI. O objetivo é replicar o estado atual do projeto, que foca numa experiência para um único jogador contra o "banco".
+Recriar uma aplicação web de um jogo de tabuleiro a solo, **MINOPLIS**, utilizando Next.js (com App Router), React, TypeScript, Firebase (Firestore e Auth), Tailwind CSS e componentes ShadCN UI. O objetivo é replicar o estado atual do projeto, que foca numa experiência para um único jogador contra o "banco".
 
 ## Visão Geral do Projeto
 
-**Nome do Jogo:** MINOPOLIS
+**Nome do Jogo:** MINOPLIS
 **Conceito:** Uma versão para um jogador do clássássico jogo de tabuleiro de compra e venda de propriedades. O jogador cria uma partida, escolhe um personagem e joga no tabuleiro, interagindo com propriedades, cartas de sorte/azar e outras mecânicas do jogo.
 
 ---
@@ -93,7 +93,7 @@ A estrutura deve seguir o modelo de subcoleções:
 ### Páginas (App Router)
 
 1.  **`src/app/page.tsx` (Página Inicial)**
-    *   **Visual:** Deve exibir o logo "MINOPOLIS" e uma breve descrição.
+    *   **Visual:** Deve exibir o logo "MINOPLIS" e uma breve descrição.
     *   **Ação Principal:** Um botão grande "Jogar Agora".
     *   **Funcionalidade:** Ao clicar no botão, o utilizador é redirecionado para `/lobby`.
 
@@ -153,4 +153,4 @@ A aplicação deve ter uma arquitetura robusta para depurar erros de segurança 
 *   **`FirebaseErrorListener` (`src/components/FirebaseErrorListener.tsx`):** Um componente invisível, colocado no layout principal, que ouve os eventos do `errorEmitter` e lança o erro para ser capturado pelo overlay de erro do Next.js, exibindo a mensagem detalhada.
 *   **`useCollection` / `useDoc`:** O callback de erro destes hooks também deve implementar a mesma lógica de emissão de `FirestorePermissionError`.
 
-Este prompt detalhado deve fornecer a uma IA todas as informações necessárias para recriar a aplicação MINOPOLIS (versão solo) na stack tecnológica desejada, replicando a sua funcionalidade e estrutura atuais.
+Este prompt detalhado deve fornecer a uma IA todas as informações necessárias para recriar a aplicação MINOPLIS (versão solo) na stack tecnológica desejada, replicando a sua funcionalidade e estrutura atuais.

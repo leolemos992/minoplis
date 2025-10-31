@@ -153,7 +153,6 @@ const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }:
                            MINOPLIS
                          </h1>
                     </div>
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm px-4"><GameNotifications notifications={notifications} /></div>
                     <div className="flex justify-center items-center gap-2 sm:gap-8 w-full px-4">
                         <motion.div
                             className="w-40 h-24 bg-blue-300 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 shadow-lg"
@@ -166,7 +165,9 @@ const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }:
                             transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                          ><span className="font-bold text-orange-900">Caixinha da Prefeitura</span></motion.div>
                     </div>
-                    <div className="h-20"></div>
+                    <div className="w-full max-w-sm px-4">
+                        <GameNotifications notifications={notifications} />
+                    </div>
                 </div>
                 {boardSpaces.map((space, index) => {
                     const playerOnSpace = getPlayerForSpace(index);

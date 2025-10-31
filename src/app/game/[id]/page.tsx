@@ -17,7 +17,7 @@ import { ManagePropertiesDialog } from '@/components/game/manage-properties-dial
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameNotifications } from '@/components/game/game-notifications';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, collection, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, collection, updateDoc, writeBatch } from 'firebase/firestore';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -383,9 +383,19 @@ export default function GamePage() {
         addNotification(`Você não tem dinheiro para comprar ${property.name}.`, 'destructive');
         return;
     }
-    updatePlayerInFirestore({
-      money: currentPlayer.money - property.price,
-      properties: [...currentPlayer.properties, property.id],
+    const batch = writeBatch(firestore!);
+    const playerRef = doc(firestore!, `games/${gameId}/players`, user!.uid);
+    batch.update(playerRef, {
+        money: currentPlayer.money - property.price,
+        properties: [...currentPlayer.properties, property.id],
+    });
+    batch.commit().catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: playerRef.path, operation: 'update', requestResourceData: {
+          money: currentPlayer.money - property.price,
+          properties: [...currentPlayer.properties, property.id],
+        },
+      }));
     });
     addNotification(`Você comprou ${property.name}.`);
     setSelectedSpace(null);
@@ -468,7 +478,14 @@ export default function GamePage() {
         <GameActions onDiceRoll={handleDiceRoll} isPlayerInJail={currentPlayer.inJail} onPayBail={handlePayBail} canPayBail={currentPlayer.money >= 50} onManageProperties={() => setManageOpen(true)} playerHasProperties={currentPlayer.properties.length > 0} isTurnActive={!isGameOver} hasRolled={hasRolled} onEndTurn={handleEndTurn} />
       </GameBoard></div>
       <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">Que pena, você foi à falência! Tente novamente.</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/">Jogar Novamente</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
-      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}><DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">{selectedSpace && <PropertyCard space={selectedSpace} player={currentPlayer} onBuy={handleBuyProperty} onClose={() => setSelectedSpace(null)} />}</DialogContent></Dialog>
+      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
+        <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="sr-only">{selectedSpace?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedSpace && <PropertyCard space={selectedSpace} player={currentPlayer} onBuy={handleBuyProperty} onClose={() => setSelectedSpace(null)} />}
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>
         <DialogHeader>
           <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-blue-600' : 'text-yellow-700')}>{drawnCard.type === 'chance' ? <HelpCircle/> : <Box/>}{drawnCard.type === 'chance' ? 'Sorte!' : 'Baú'}</DialogTitle>

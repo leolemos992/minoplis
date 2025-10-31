@@ -18,7 +18,7 @@ import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Palette, User as UserIcon } from 'lucide-react';
 import { useUser, useFirestore, FirestorePermissionError, errorEmitter, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, writeBatch, arrayUnion, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch, arrayUnion, updateDoc, collection } from 'firebase/firestore';
 import type { Player, Game } from '@/lib/definitions';
 import { PlayerToken } from '@/components/game/player-token';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

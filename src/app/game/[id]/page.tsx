@@ -147,8 +147,8 @@ const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }:
                 className="grid h-full w-full relative"
                 style={{ gridTemplateAreas, gridTemplateRows: '1.6fr repeat(9, 1fr) 1.6fr', gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr' }}
             >
-                <div className="bg-[#cad0d8] flex flex-col items-center justify-between border-black border-[1.5px] relative p-4" style={{ gridArea: 'center'}}>
-                    <div className="w-full flex justify-center items-start pt-2 sm:pt-4">
+                <div className="bg-[#cad0d8] flex flex-col items-center justify-between border-black border-[1.5px] relative p-4 py-8" style={{ gridArea: 'center'}}>
+                    <div className="w-full flex justify-center items-start">
                          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline text-slate-800">
                            MINOPLIS
                          </h1>

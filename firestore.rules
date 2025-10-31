@@ -22,8 +22,8 @@ service cloud.firestore {
       // Atualização:
       // 1. O anfitrião pode iniciar um jogo ('active') se houver jogadores.
       // 2. O anfitrião pode terminar um jogo ('finished').
-      // 3. O jogador atual pode passar o turno para o próximo.
-      // 4. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
+      // 3. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
+      // 4. O jogador atual pode passar o turno para o próximo.
       allow update: if isSignedIn() &&
         (
           (isHost(gameId) && isStartingGame(request, resource)) ||
@@ -40,11 +40,11 @@ service cloud.firestore {
         // Leitura: Um jogador pode ler os dados de qualquer jogador na partida, OU pode ler os seus próprios dados (essencial para entrar no jogo).
         allow get: if isSignedIn() && (isPlayerInGame(gameId, request.auth.uid) || request.auth.uid == playerId);
 
-        // Listar: Só os jogadores da partida podem ver a lista de todos os jogadores.
-        allow list: if isSignedIn() && isPlayerInGame(gameId, request.auth.uid);
+        // Listar: Só os jogadores da partida podem ver a lista de todos os jogadores, OU qualquer um pode ver a lista se o jogo estiver à espera.
+        allow list: if isSignedIn() && (isPlayerInGame(gameId, request.auth.uid) || get(/databases/$(database)/documents/games/$(gameId)).data.status == 'waiting');
         
         // Criação: Um utilizador pode criar o seu próprio documento de jogador, desde que se adicione ao jogo correspondente.
-        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId && isJoiningWaitingGame(getAfter(/databases/$(database)/documents/games/$(gameId)), get(/databases/$(database)/documents/games/$(gameId)));
+        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
         
         // Atualização: Um jogador pode atualizar o seu próprio documento.
         allow update: if isSignedIn() && request.auth.uid == playerId;
@@ -63,7 +63,7 @@ service cloud.firestore {
     }
 
     function isPlayerInGame(gameId, userId) {
-      return get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([userId]);
+      return userId in get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder;
     }
 
     function isStartingGame(req, res) {

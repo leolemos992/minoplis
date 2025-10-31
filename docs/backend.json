@@ -70,22 +70,6 @@
         }
       },
       "required": ["userId", "name", "money", "position", "color", "totem"]
-    },
-    "RollToStart": {
-        "title": "RollToStart",
-        "type": "object",
-        "description": "Armazena o resultado da rolagem de dados de um jogador para determinar a ordem de início.",
-        "properties": {
-            "roll": {
-                "type": "number",
-                "description": "O resultado da rolagem (1-12)."
-            },
-            "playerName": {
-                "type": "string",
-                "description": "O nome do jogador que rolou."
-            }
-        },
-        "required": ["roll", "playerName"]
     }
   },
   "auth": {
@@ -94,15 +78,11 @@
   "firestore": {
     "/games/{gameId}": {
       "schema": { "$ref": "#/entities/Game" },
-      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode listar e ler as partidas.",
+      "description": "Armazena todas as partidas. Qualquer usuário autenticado pode criar e ler partidas.",
       "subcollections": {
           "/players/{playerId}": {
               "schema": { "$ref": "#/entities/Player"},
-              "description": "Armazena os dados de cada jogador na partida. Apenas o jogador correspondente pode modificar seus próprios dados."
-          },
-          "/rolls-to-start/{playerId}": {
-              "schema": { "$ref": "#/entities/RollToStart"},
-              "description": "Armazena os resultados da rolagem de dados para determinar a ordem de início do jogo."
+              "description": "Armazena os dados de cada jogador na partida."
           }
       }
     }

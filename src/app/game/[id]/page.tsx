@@ -16,7 +16,7 @@ import { PropertyCard } from '@/components/game/property-card';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameNotifications } from '@/components/game/game-notifications';
-import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { doc, collection, writeBatch, serverTimestamp, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
@@ -279,16 +279,34 @@ export default function GamePage() {
     }, 5000);
   }, []);
   
-  const updatePlayerInFirestore = useCallback(async (updates: Partial<Player>) => {
-    if (!firestore || !gameId || !user?.uid) return;
+const updatePlayerInFirestore = useCallback((updates: Partial<Player>) => {
+    if (!firestore || !gameId || !user?.uid) return Promise.resolve();
     const playerDocRef = doc(firestore, `games/${gameId}/players`, user.uid);
-    await updateDoc(playerDocRef, updates);
+    return updateDoc(playerDocRef, updates).catch(error => {
+      errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+          path: playerDocRef.path,
+          operation: 'update',
+          requestResourceData: updates,
+        })
+      );
+    });
   }, [firestore, gameId, user?.uid]);
   
-  const updateGameInFirestore = useCallback(async (updates: Partial<Game>) => {
-     if (!firestore || !gameId) return;
+  const updateGameInFirestore = useCallback((updates: Partial<Game>) => {
+     if (!firestore || !gameId) return Promise.resolve();
      const gameDocRef = doc(firestore, `games/${gameId}`);
-     await updateDoc(gameDocRef, updates);
+     return updateDoc(gameDocRef, updates).catch(error => {
+       errorEmitter.emit(
+         'permission-error',
+         new FirestorePermissionError({
+           path: gameDocRef.path,
+           operation: 'update',
+           requestResourceData: updates,
+         })
+       );
+     });
   }, [firestore, gameId]);
 
   const handleBankruptcy = useCallback(async () => {
@@ -297,21 +315,34 @@ export default function GamePage() {
     await updateGameInFirestore({ status: 'finished' });
   }, [currentPlayer, addNotification, updateGameInFirestore]);
 
-  const makePayment = useCallback(async (amount: number, receiverId: string | null = null) => {
-      if (!currentPlayer) return false;
+  const makePayment = useCallback((amount: number, receiverId: string | null = null): Promise<boolean> => {
+      if (!currentPlayer || !firestore || !gameId) return Promise.resolve(false);
 
       if (currentPlayer.money < amount) {
-          await handleBankruptcy();
-          return false;
+          handleBankruptcy(); // This can stay async as it's a final action
+          return Promise.resolve(false);
       }
       
-      const batch = writeBatch(firestore!);
-      const payerRef = doc(firestore!, 'games', gameId, 'players', currentPlayer.id);
-      batch.update(payerRef, { money: currentPlayer.money - amount });
+      const batch = writeBatch(firestore);
+      const payerRef = doc(firestore, 'games', gameId, 'players', currentPlayer.id);
+      const payerUpdate = { money: currentPlayer.money - amount };
+      batch.update(payerRef, payerUpdate);
       
       // For solo play, receiver is always the bank (null)
-      await batch.commit();
-      return true;
+      
+      return batch.commit()
+        .then(() => true)
+        .catch(error => {
+            errorEmitter.emit(
+              'permission-error',
+              new FirestorePermissionError({
+                path: payerRef.path,
+                operation: 'update',
+                requestResourceData: payerUpdate,
+              })
+            );
+            return false;
+        });
 
   }, [currentPlayer, handleBankruptcy, firestore, gameId]);
   
@@ -367,11 +398,13 @@ export default function GamePage() {
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(currentPlayer.money * 0.1);
-        if (await makePayment(taxAmount)) {
+        const paid = await makePayment(taxAmount);
+        if (paid) {
             addNotification(`Você pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
         }
     } else if (space.type === 'luxury-tax') {
-        if(await makePayment(100)) {
+        const paid = await makePayment(100);
+        if(paid) {
             addNotification(`Você pagou R$100 de Taxa das Blusinhas.`, 'destructive');
         }
     } else if (space.type === 'go-to-jail') {
@@ -523,13 +556,24 @@ export default function GamePage() {
     }
 };
 
-  const handleBuyProperty = async (property: Property) => {
-    if (!currentPlayer) return;
+  const handleBuyProperty = (property: Property) => {
+    if (!currentPlayer || !firestore || !gameId || !user?.uid) return;
 
     if (currentPlayer.money >= property.price) {
-      await updatePlayerInFirestore({
+      const updates = {
         money: currentPlayer.money - property.price,
         properties: [...currentPlayer.properties, property.id],
+      };
+      const playerDocRef = doc(firestore, `games/${gameId}/players`, user.uid);
+      updateDoc(playerDocRef, updates).catch(error => {
+        errorEmitter.emit(
+          'permission-error',
+          new FirestorePermissionError({
+            path: playerDocRef.path,
+            operation: 'update',
+            requestResourceData: updates,
+          })
+        );
       });
       addNotification(`Você comprou ${property.name}.`);
       setSelectedSpace(null);
@@ -546,7 +590,8 @@ export default function GamePage() {
   const handlePayBail = async () => {
     if (!currentPlayer || !currentPlayer.inJail) return;
 
-    if (await makePayment(50)) {
+    const paid = await makePayment(50);
+    if (paid) {
         await updatePlayerInFirestore({ inJail: false });
         addNotification("Você pagou a fiança e está livre!");
         setHasRolled(true); // You can now roll or end turn
@@ -566,7 +611,7 @@ export default function GamePage() {
     }
   };
   
- const handleBuild = async (propertyId: string, amount: number) => {
+ const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost || !currentPlayer) return;
     
@@ -591,7 +636,7 @@ export default function GamePage() {
     }
     const newHouses = currentHouses + amount;
     
-    await updatePlayerInFirestore({
+    updatePlayerInFirestore({
         money: currentPlayer.money - cost,
         houses: { ...currentPlayer.houses, [propertyId]: newHouses }
     });
@@ -599,7 +644,7 @@ export default function GamePage() {
     addNotification(`Você construiu ${amount} casa(s) em ${property.name}.`);
   };
 
-  const handleSell = async (propertyId: string, amount: number) => {
+  const handleSell = (propertyId: string, amount: number) => {
     if (!currentPlayer) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost) return;
@@ -619,7 +664,7 @@ export default function GamePage() {
       newHousesState[propertyId] = newHouses;
     }
 
-    await updatePlayerInFirestore({
+    updatePlayerInFirestore({
         money: currentPlayer.money + saleValue,
         houses: newHousesState,
     });
@@ -627,13 +672,13 @@ export default function GamePage() {
     addNotification(`Você vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`);
   };
 
-  const handleMortgage = async (propertyId: string) => {
+  const handleMortgage = (propertyId: string) => {
     if (!currentPlayer) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property) return;
     
     const mortgageValue = property.price / 2;
-    await updatePlayerInFirestore({
+    updatePlayerInFirestore({
         money: currentPlayer.money + mortgageValue,
         mortgagedProperties: [...currentPlayer.mortgagedProperties, propertyId]
     });
@@ -641,7 +686,7 @@ export default function GamePage() {
     addNotification(`Você hipotecou ${property.name} e recebeu R$${mortgageValue}.`);
   };
 
-  const handleUnmortgage = async (propertyId: string) => {
+  const handleUnmortgage = (propertyId: string) => {
     if (!currentPlayer) return;
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property) return;
@@ -652,7 +697,7 @@ export default function GamePage() {
         return;
     }
 
-    await updatePlayerInFirestore({
+    updatePlayerInFirestore({
         money: currentPlayer.money - unmortgageCost,
         mortgagedProperties: currentPlayer.mortgagedProperties.filter(id => id !== propertyId)
     });
@@ -787,3 +832,5 @@ export default function GamePage() {
     </>
   );
 }
+
+    

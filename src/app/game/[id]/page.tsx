@@ -15,9 +15,7 @@ import { Button } from '@/components/ui/button';
 import { PropertyCard } from '@/components/game/property-card';
 import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MultiplayerPanel } from '@/components/game/multiplayer-panel';
 import { GameNotifications } from '@/components/game/game-notifications';
-import { RollToStartDialog } from '@/components/game/roll-to-start-dialog';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, collection, writeBatch, serverTimestamp, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
@@ -150,7 +148,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged 
     )
 };
 
-const GameBoard = ({ players, onSpaceClick, animateCardPile, notifications, children }: { players: Player[]; onSpaceClick: (space: any, index: number) => void; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; children: React.ReactNode }) => {
+const GameBoard = ({ player, onSpaceClick, animateCardPile, notifications, children }: { player?: Player; onSpaceClick: (space: any, index: number) => void; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; children: React.ReactNode }) => {
     const gridTemplateAreas = `
         "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
         "space-19 center   center   center   center   center   center   center   center   center   space-31"
@@ -165,8 +163,8 @@ const GameBoard = ({ players, onSpaceClick, animateCardPile, notifications, chil
         "space-10 space-9  space-8  space-7  space-6  space-5  space-4  space-3  space-2  space-1  space-0"
     `;
     
-    const allHouses = players.reduce((acc, player) => ({...acc, ...player.houses}), {} as {[key: string]: number});
-    const allMortgaged = players.reduce((acc, player) => [...acc, ...player.mortgagedProperties], [] as string[]);
+    const allHouses = player?.houses || {};
+    const allMortgaged = player?.mortgagedProperties || [];
 
 
     return (
@@ -221,9 +219,9 @@ const GameBoard = ({ players, onSpaceClick, animateCardPile, notifications, chil
                         isMortgaged={ 'id' in space && allMortgaged.includes(space.id)}
                     >
                          <>
-                            {players.filter(p => p.position === index).map(p => (
-                                <PlayerToken key={p.id} player={p} />
-                            ))}
+                            {player && player.position === index && (
+                                <PlayerToken key={player.id} player={player} />
+                            )}
                         </>
                     </BoardSpace>
                 ))}
@@ -246,12 +244,7 @@ export default function GamePage() {
   const playersRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, 'games', gameId, 'players') : null, [firestore, gameId]);
   const { data: playersData } = useCollection<Player>(playersRef);
   
-  // States derived from URL or props
-  const searchParams = useSearchParams();
-  const gameName = searchParams.get('gameName') || 'MINOPOLIS';
-  
   // Local game logic states
-  const [players, setPlayers] = useState<Player[]>([]);
   const [hasRolled, setHasRolled] = useState(false);
   const [doublesCount, setDoublesCount] = useState(0);
 
@@ -265,50 +258,17 @@ export default function GamePage() {
   const [chanceDeck, setChanceDeck] = useState<GameCard[]>([]);
   const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
   
-  const [gameLog, setGameLog] = useState<GameLog[]>([]);
-  
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
-  const isHost = gameData?.hostId === user?.uid;
   const currentPlayer = useMemo(() => {
-    if (!gameData?.currentPlayerId || !players) return undefined;
-    return players.find(p => p.id === gameData.currentPlayerId);
-  }, [gameData?.currentPlayerId, players]);
+    if (!user?.uid || !playersData) return undefined;
+    return playersData.find(p => p.id === user.uid);
+  }, [user?.uid, playersData]);
   
   const shuffle = <T,>(array: T[]): T[] => {
     return [...array].sort(() => Math.random() - 0.5);
   };
   
-  const handleStartGame = async () => {
-    if (!firestore || !gameId || !isHost || !playersData || playersData.length < 2) return;
-
-    try {
-      await updateDoc(doc(firestore, 'games', gameId), { status: 'rolling-to-start' });
-      addLog("O anfitrião iniciou o jogo! Role os dados para determinar a ordem.");
-    } catch (error) {
-      console.error("Error starting game: ", error);
-    }
-  };
-  
-  // Sync players state from Firestore
-  useEffect(() => {
-    if (playersData) {
-      if (gameData?.playerOrder) {
-          const sorted = [...playersData].sort((a, b) => {
-              const indexA = gameData.playerOrder.indexOf(a.id);
-              const indexB = gameData.playerOrder.indexOf(b.id);
-              if (indexA === -1) return 1;
-              if (indexB === -1) return -1;
-              return indexA - indexB;
-          });
-          setPlayers(sorted);
-      } else {
-          setPlayers(playersData);
-      }
-    }
-  }, [playersData, gameData?.playerOrder]);
-
-
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
 
   const addNotification = useCallback((message: string, variant: 'default' | 'destructive' = 'default') => {
@@ -318,16 +278,12 @@ export default function GamePage() {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
   }, []);
-
-  const addLog = useCallback((message: string) => {
-    setGameLog(prev => [{ message, timestamp: new Date() }, ...prev]);
-  }, []);
   
-  const updatePlayerInFirestore = useCallback(async (playerId: string, updates: Partial<Player>) => {
-    if (!firestore || !gameId) return;
-    const playerDocRef = doc(firestore, `games/${gameId}/players`, playerId);
+  const updatePlayerInFirestore = useCallback(async (updates: Partial<Player>) => {
+    if (!firestore || !gameId || !user?.uid) return;
+    const playerDocRef = doc(firestore, `games/${gameId}/players`, user.uid);
     await updateDoc(playerDocRef, updates);
-  }, [firestore, gameId]);
+  }, [firestore, gameId, user?.uid]);
   
   const updateGameInFirestore = useCallback(async (updates: Partial<Game>) => {
      if (!firestore || !gameId) return;
@@ -335,110 +291,50 @@ export default function GamePage() {
      await updateDoc(gameDocRef, updates);
   }, [firestore, gameId]);
 
-  const handleBankruptcy = useCallback(async (bankruptPlayerId: string, creditorId?: string) => {
-    if (!firestore || !gameId) return;
-    const bankruptPlayer = players.find(p => p.id === bankruptPlayerId);
-    if (!bankruptPlayer) return;
+  const handleBankruptcy = useCallback(async () => {
+    if (!currentPlayer) return;
+    addNotification(`${currentPlayer.name} foi à falência!`, 'destructive');
+    await updateGameInFirestore({ status: 'finished' });
+  }, [currentPlayer, addNotification, updateGameInFirestore]);
 
-    addLog(`${bankruptPlayer.name} foi à falência!`);
-    addNotification(`${bankruptPlayer.name} foi removido do jogo.`, 'destructive');
+  const makePayment = useCallback(async (amount: number, receiverId: string | null = null) => {
+      if (!currentPlayer) return false;
 
-    if (creditorId) {
-      const creditor = players.find(p => p.id === creditorId);
-      if(creditor) {
-          addLog(`${creditor.name} recebe todos os ativos de ${bankruptPlayer.name}.`);
-          updatePlayerInFirestore(creditor.id, {
-            money: creditor.money + bankruptPlayer.money,
-            properties: [...creditor.properties, ...bankruptPlayer.properties],
-          });
-      }
-    }
-    // TODO: Return properties to the bank if no creditor
-    
-    await deleteDoc(doc(firestore, `games/${gameId}/players`, bankruptPlayerId));
-    
-    // If the bankrupt player was the current player, end their turn
-    if(gameData?.currentPlayerId === bankruptPlayerId) {
-        const remainingPlayers = players.filter(p => p.id !== bankruptPlayerId);
-        const currentPlayerIndex = remainingPlayers.findIndex(p => p.id === gameData.currentPlayerId);
-        const nextPlayerIndex = (currentPlayerIndex + 1) % remainingPlayers.length;
-        const nextPlayerId = remainingPlayers[nextPlayerIndex]?.id;
-        if(nextPlayerId) updateGameInFirestore({ currentPlayerId: nextPlayerId });
-    }
-
-
-  }, [players, addLog, addNotification, firestore, gameId, updatePlayerInFirestore, gameData, updateGameInFirestore]);
-
-
-  const makePayment = useCallback(async (payerId: string, receiverId: string | null, amount: number) => {
-      const payer = players.find(p => p.id === payerId);
-      if (!payer) return false;
-
-      if (payer.money < amount) {
-          await handleBankruptcy(payerId, receiverId || undefined);
+      if (currentPlayer.money < amount) {
+          await handleBankruptcy();
           return false;
       }
       
       const batch = writeBatch(firestore!);
-      const payerRef = doc(firestore!, 'games', gameId, 'players', payerId);
-      batch.update(payerRef, { money: payer.money - amount });
-
-      if (receiverId) {
-          const receiver = players.find(p => p.id === receiverId);
-          if (receiver) {
-            const receiverRef = doc(firestore!, 'games', gameId, 'players', receiverId);
-            batch.update(receiverRef, { money: receiver.money + amount });
-          }
-      }
+      const payerRef = doc(firestore!, 'games', gameId, 'players', currentPlayer.id);
+      batch.update(payerRef, { money: currentPlayer.money - amount });
+      
+      // For solo play, receiver is always the bank (null)
       await batch.commit();
       return true;
 
-  }, [players, handleBankruptcy, firestore, gameId]);
+  }, [currentPlayer, handleBankruptcy, firestore, gameId]);
   
   const handleEndTurn = useCallback(() => {
-    if (!gameData || !firestore || !gameId || !gameData.playerOrder || gameData.playerOrder.length === 0) return;
-    
     setDoublesCount(0);
-    const livePlayers = players.filter(p => gameData.playerOrder?.includes(p.id));
-    if (livePlayers.length <= 1) {
-        updateGameInFirestore({ status: 'finished' });
-        return;
-    }
-
-    const currentPlayerIndex = livePlayers.findIndex(p => p.id === gameData.currentPlayerId);
-    const nextPlayerIndex = (currentPlayerIndex + 1) % livePlayers.length;
-    const nextPlayer = livePlayers[nextPlayerIndex];
-
-    if(nextPlayer) {
-       addLog(`É a vez de ${nextPlayer.name}.`);
-       updateGameInFirestore({ currentPlayerId: nextPlayer.id, lastRoll: null });
-    }
     setHasRolled(false);
-  }, [players, gameData, firestore, gameId, addLog, updateGameInFirestore]);
+    addNotification("Seu turno terminou.");
+  }, [addNotification]);
 
-  const goToJail = useCallback((playerId: string) => {
-    const playerToGo = players.find(p => p.id === playerId);
-    if (!playerToGo) return;
+  const goToJail = useCallback(() => {
+    if (!currentPlayer) return;
 
-    addLog(`${playerToGo.name} foi para a prisão.`);
-    if (playerToGo.id === user?.uid) {
-      addNotification('Você foi para a prisão!', 'destructive');
-    }
-    updatePlayerInFirestore(playerId, { position: JAIL_POSITION, inJail: true });
+    addNotification('Você foi para a prisão!', 'destructive');
+    updatePlayerInFirestore({ position: JAIL_POSITION, inJail: true });
     setDoublesCount(0); // Reset doubles count when jailed
     handleEndTurn();
-  }, [JAIL_POSITION, addNotification, addLog, handleEndTurn, user, players, updatePlayerInFirestore]);
+  }, [JAIL_POSITION, addNotification, handleEndTurn, currentPlayer, updatePlayerInFirestore]);
 
-  const startAuction = useCallback((property: Property) => {
-      addLog(`${property.name} foi a leilão!`);
-      addNotification(`${property.name} está sendo leiloado.`);
-  }, [addLog, addNotification]);
-
-  const handleLandedOnSpace = useCallback(async (spaceIndex: number, fromCard = false) => {
+  const handleLandedOnSpace = useCallback(async (spaceIndex: number) => {
     const space = boardSpaces[spaceIndex];
     if (!space || !currentPlayer) return;
 
-    addLog(`${currentPlayer.name} parou em ${space.name}.`);
+    addNotification(`Você parou em ${space.name}.`);
 
     if (space.type === 'jail' && !currentPlayer.inJail) {
         addNotification("Você está apenas visitando a prisão.");
@@ -447,44 +343,9 @@ export default function GamePage() {
 
     const isProperty = 'price' in space;
     if(isProperty) {
-        const property = space as Property;
-        const owner = players.find(p => p.properties.includes(property.id));
-        
-        if (owner && owner.id !== currentPlayer.id) {
-            if (owner.mortgagedProperties.includes(property.id)) {
-                 addNotification(`${owner.name} hipotecou ${property.name}, sem aluguel.`);
-                 addLog(`${currentPlayer.name} não pagou aluguel por ${property.name} (hipotecada).`);
-                 return;
-            }
-
-            let rentAmount = 0;
-            if (property.type === 'property') {
-                const houseCount = owner.houses[property.id] || 0;
-                rentAmount = property.rent[houseCount];
-            } else if (property.type === 'railroad') {
-                const railroadCount = owner.properties.filter(pId => (boardSpaces.find(bs => 'id' in bs && bs.id === pId) as Property)?.type === 'railroad').length;
-                rentAmount = property.rent[railroadCount - 1];
-            } else if (property.type === 'utility') {
-                const utilityCount = owner.properties.filter(pId => (boardSpaces.find(p => 'id' in p && p.id === pId) as Property)?.type === 'utility').length;
-                const multiplier = utilityCount === 1 ? 4 : 10;
-                rentAmount = (lastDiceRoll[0] + lastDiceRoll[1]) * multiplier;
-            }
-
-            if(rentAmount > 0) {
-                 if (await makePayment(currentPlayer.id, owner.id, rentAmount)) {
-                    addNotification(`${currentPlayer.name} pagou R$${rentAmount} a ${owner.name}.`, 'destructive');
-                    addLog(`${currentPlayer.name} pagou R$${rentAmount} de aluguel a ${owner.name} por ${property.name}.`);
-                }
-            }
-            return;
-
-        } else if (!owner) {
-             if (currentPlayer.userId === user?.uid) {
-                setSelectedSpace(space);
-             }
-             return;
-        } else {
-            return;
+        const isOwned = currentPlayer.properties.includes(space.id);
+        if (!isOwned) {
+            setSelectedSpace(space);
         }
     } else if (space.type === 'chance' || space.type === 'community-chest') {
         setAnimateCardPile(space.type);
@@ -499,8 +360,6 @@ export default function GamePage() {
                 card = first;
                 setCommunityChestDeck(rest.length > 0 ? rest : shuffle(communityChestCards));
             }
-
-            addLog(`${currentPlayer.name} tirou uma carta de ${space.type === 'chance' ? 'Sorte' : 'Baú Comunitário'}: "${card.description}"`);
             setDrawnCard(card);
             setAnimateCardPile(null);
         }, 500);
@@ -508,19 +367,17 @@ export default function GamePage() {
 
     } else if (space.type === 'income-tax') {
         const taxAmount = Math.floor(currentPlayer.money * 0.1);
-        if (await makePayment(currentPlayer.id, null, taxAmount)) {
-            addNotification(`${currentPlayer.name} pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
-            addLog(`${currentPlayer.name} pagou R$${taxAmount} de Imposto de Renda.`);
+        if (await makePayment(taxAmount)) {
+            addNotification(`Você pagou R$${taxAmount} de Imposto de Renda.`, 'destructive');
         }
     } else if (space.type === 'luxury-tax') {
-        if(await makePayment(currentPlayer.id, null, 100)) {
-            addNotification(`${currentPlayer.name} pagou R$100 de Taxa das Blusinhas.`, 'destructive');
-            addLog(`${currentPlayer.name} pagou R$100 de Taxa das Blusinhas.`);
+        if(await makePayment(100)) {
+            addNotification(`Você pagou R$100 de Taxa das Blusinhas.`, 'destructive');
         }
     } else if (space.type === 'go-to-jail') {
-        goToJail(currentPlayer.id);
+        goToJail();
     }
-  }, [currentPlayer, players, addNotification, goToJail, chanceDeck, communityChestDeck, lastDiceRoll, addLog, makePayment, user?.uid, shuffle]);
+  }, [currentPlayer, addNotification, goToJail, chanceDeck, communityChestDeck, makePayment, shuffle]);
   
   const applyCardAction = useCallback(async (card: GameCard) => {
     if (!currentPlayer) return;
@@ -532,7 +389,7 @@ export default function GamePage() {
       case 'money':
         const amount = action.amount || 0;
         if (amount < 0) {
-          await makePayment(currentPlayer.id, null, Math.abs(amount));
+          await makePayment(Math.abs(amount));
         } else {
           updates.money = currentPlayer.money + amount;
         }
@@ -547,13 +404,12 @@ export default function GamePage() {
         if (newPosition !== -1) {
             if (action.collectGo && newPosition < currentPlayer.position) {
                 updates.money = (updates.money || currentPlayer.money) + 200;
-                addLog(`${currentPlayer.name} coletou R$200 por passar pelo Início.`);
             }
             updates.position = newPosition;
         }
         break;
       case 'go_to_jail':
-        goToJail(currentPlayer.id);
+        goToJail();
         break;
       case 'get_out_of_jail':
         updates.getOutOfJailFreeCards = currentPlayer.getOutOfJailFreeCards + 1;
@@ -562,22 +418,20 @@ export default function GamePage() {
            const houseCount = Object.values(currentPlayer.houses).reduce((sum, count) => sum + (count < 5 ? count : 0), 0);
            const hotelCount = Object.values(currentPlayer.houses).reduce((sum, count) => sum + (count === 5 ? 1 : 0), 0);
            const repairCost = (action.perHouse! * houseCount) + (action.perHotel! * hotelCount);
-           if (await makePayment(currentPlayer.id, null, repairCost)) {
-              addLog(`${currentPlayer.name} pagou R$${repairCost} em reparos.`);
-           }
+           await makePayment(repairCost);
           break;
       default:
         break;
     }
 
     if (Object.keys(updates).length > 0) {
-        await updatePlayerInFirestore(currentPlayer.id, updates);
+        await updatePlayerInFirestore(updates);
     }
     
     if (updates.position !== undefined) {
-      handleLandedOnSpace(updates.position, true);
+      handleLandedOnSpace(updates.position);
     }
-  }, [currentPlayer, handleLandedOnSpace, addLog, makePayment, goToJail, updatePlayerInFirestore]);
+  }, [currentPlayer, handleLandedOnSpace, makePayment, goToJail, updatePlayerInFirestore]);
 
   useEffect(() => {
     if (!cardToExecute || !currentPlayer) return;
@@ -589,15 +443,15 @@ export default function GamePage() {
      switch (action.type) {
         case 'money':
             notification = {
-                message: `${currentPlayer.name} ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!)}`,
+                message: `Você ${action.amount! > 0 ? 'recebeu' : 'pagou'} R$${Math.abs(action.amount!)}`,
                 variant: action.amount! < 0 ? 'destructive' : undefined,
             };
           break;
         case 'go_to_jail':
-            notification = { message: `${currentPlayer.name} foi para a prisão!`, variant: "destructive" };
+            notification = { message: `Você foi para a prisão!`, variant: "destructive" };
             break;
         case 'get_out_of_jail':
-            notification = { message: `${currentPlayer.name} recebeu uma carta para sair da prisão!` };
+            notification = { message: `Você recebeu uma carta para sair da prisão!` };
             break;
      }
 
@@ -610,18 +464,17 @@ export default function GamePage() {
 
 
  const handleDiceRoll = async (dice1: number, dice2: number) => {
-    if (!currentPlayer || !firestore || !gameId) return;
+    if (!currentPlayer) return;
 
-    addLog(`${currentPlayer.name} rolou ${dice1} e ${dice2}.`);
+    addNotification(`Você rolou ${dice1} e ${dice2}.`);
     setLastDiceRoll([dice1, dice2]);
     const isDoubles = dice1 === dice2;
 
     if (currentPlayer.inJail) {
         if (isDoubles) {
-            await updatePlayerInFirestore(currentPlayer.id, { inJail: false });
+            await updatePlayerInFirestore({ inJail: false });
             addNotification("Você rolou dados duplos e saiu da prisão!");
-            addLog(`${currentPlayer.name} saiu da prisão rolando dados duplos.`);
-            setHasRolled(true); // Still your turn
+            setHasRolled(true);
         } else {
             addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
             handleEndTurn();
@@ -635,8 +488,7 @@ export default function GamePage() {
         setDoublesCount(currentDoublesCount);
         if (currentDoublesCount === 3) {
             addNotification("Você tirou 3 duplos seguidos e foi para a prisão!", "destructive");
-            addLog(`${currentPlayer.name} foi para a prisão por tirar 3 duplos seguidos.`);
-            goToJail(currentPlayer.id);
+            goToJail();
             return;
         }
     } else {
@@ -645,7 +497,6 @@ export default function GamePage() {
 
     setHasRolled(true);
 
-    addNotification(`Você rolou ${dice1 + dice2}.`);
     if (isDoubles) {
         addNotification("Dados duplos! Você joga de novo.");
     }
@@ -658,19 +509,15 @@ export default function GamePage() {
 
     if (newPosition < currentPosition) {
         playerUpdate.money = currentPlayer.money + 200;
-        setTimeout(() => {
-            addNotification(`Você coletou R$200.`);
-        }, 100);
-        addLog(`${currentPlayer.name} passou pelo início e coletou R$200.`);
+        setTimeout(() => addNotification(`Você coletou R$200.`), 100);
     }
 
-    await updatePlayerInFirestore(currentPlayer.id, playerUpdate);
+    await updatePlayerInFirestore(playerUpdate);
 
-    // After state updates, handle landing logic
     await handleLandedOnSpace(newPosition);
 
     if (!isDoubles) {
-        // This is now handled by the End Turn button, unless it's automatic
+      // End turn is now manual
     } else {
         setHasRolled(false); // Allow re-roll
     }
@@ -680,12 +527,11 @@ export default function GamePage() {
     if (!currentPlayer) return;
 
     if (currentPlayer.money >= property.price) {
-      await updatePlayerInFirestore(currentPlayer.id, {
+      await updatePlayerInFirestore({
         money: currentPlayer.money - property.price,
         properties: [...currentPlayer.properties, property.id],
       });
       addNotification(`Você comprou ${property.name}.`);
-      addLog(`${currentPlayer.name} comprou ${property.name} por R$${property.price}.`);
       setSelectedSpace(null);
     } else {
         addNotification(`Você não tem dinheiro para comprar ${property.name}.`, 'destructive');
@@ -694,16 +540,15 @@ export default function GamePage() {
   
   const handlePassOnBuy = (property: Property) => {
     setSelectedSpace(null);
-    startAuction(property);
+    addNotification(`Você decidiu não comprar ${property.name}.`);
   }
 
   const handlePayBail = async () => {
     if (!currentPlayer || !currentPlayer.inJail) return;
 
-    if (await makePayment(currentPlayer.id, null, 50)) {
-        await updatePlayerInFirestore(currentPlayer.id, { inJail: false });
+    if (await makePayment(50)) {
+        await updatePlayerInFirestore({ inJail: false });
         addNotification("Você pagou a fiança e está livre!");
-        addLog(`${currentPlayer.name} pagou R$50 de fiança e saiu da prisão.`);
         setHasRolled(true); // You can now roll or end turn
     }
   }
@@ -721,12 +566,6 @@ export default function GamePage() {
     }
   };
   
-  useEffect(() => {
-    if (players.length > 0 && players.length < 2 && gameData?.status === 'active') {
-        updateGameInFirestore({ status: 'finished' });
-    }
-  }, [players, gameData?.status, updateGameInFirestore]);
-
  const handleBuild = async (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost || !currentPlayer) return;
@@ -752,13 +591,11 @@ export default function GamePage() {
     }
     const newHouses = currentHouses + amount;
     
-    await updatePlayerInFirestore(currentPlayer.id, {
+    await updatePlayerInFirestore({
         money: currentPlayer.money - cost,
         houses: { ...currentPlayer.houses, [propertyId]: newHouses }
     });
 
-    const logMessage = `Você construiu ${amount > 0 ? 'uma casa' : 'um hotel'} em ${property.name}.`;
-    addLog(logMessage);
     addNotification(`Você construiu ${amount} casa(s) em ${property.name}.`);
   };
 
@@ -782,12 +619,11 @@ export default function GamePage() {
       newHousesState[propertyId] = newHouses;
     }
 
-    await updatePlayerInFirestore(currentPlayer.id, {
+    await updatePlayerInFirestore({
         money: currentPlayer.money + saleValue,
         houses: newHousesState,
     });
 
-    addLog(`${currentPlayer.name} vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`);
     addNotification(`Você vendeu ${amount} casa(s) em ${property.name} por R$${saleValue}.`);
   };
 
@@ -797,12 +633,11 @@ export default function GamePage() {
     if (!property) return;
     
     const mortgageValue = property.price / 2;
-    await updatePlayerInFirestore(currentPlayer.id, {
+    await updatePlayerInFirestore({
         money: currentPlayer.money + mortgageValue,
         mortgagedProperties: [...currentPlayer.mortgagedProperties, propertyId]
     });
 
-    addLog(`${currentPlayer.name} hipotecou ${property.name} por R$${mortgageValue}.`);
     addNotification(`Você hipotecou ${property.name} e recebeu R$${mortgageValue}.`);
   };
 
@@ -817,71 +652,17 @@ export default function GamePage() {
         return;
     }
 
-    await updatePlayerInFirestore(currentPlayer.id, {
+    await updatePlayerInFirestore({
         money: currentPlayer.money - unmortgageCost,
         mortgagedProperties: currentPlayer.mortgagedProperties.filter(id => id !== propertyId)
     });
-     addLog(`${currentPlayer.name} pagou a hipoteca de ${property.name}.`);
      addNotification(`Você pagou a hipoteca de ${property.name}.`);
   };
-  
-  const handleRollToStart = async (playerId: string, roll: number) => {
-    if (!firestore || !gameId) return;
-    const player = players.find(p => p.id === playerId);
-    if (!player) return;
-    
-    const rollRef = doc(firestore, `games/${gameId}/rolls-to-start`, playerId);
-    await setDoc(rollRef, { roll, playerName: player.name });
-    addLog(`${player.name} rolou ${roll} para começar.`);
-  }
-  
-  const rollsToStartRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, `games/${gameId}/rolls-to-start`) : null, [firestore, gameId]);
-  const { data: rollsToStartData } = useCollection(rollsToStartRef);
 
-  useEffect(() => {
-    if (!isHost || !firestore || !gameId || gameData?.status !== 'rolling-to-start') return;
-
-    if (players.length > 0 && rollsToStartData && rollsToStartData.length === players.length) {
-      
-      const decideOrder = async () => {
-        const uniqueRolls = new Set(rollsToStartData.map(r => r.roll));
-        if (uniqueRolls.size < rollsToStartData.length) {
-          addLog("Houve um empate! Rolando novamente para os jogadores empatados.");
-          // TODO: Logic to handle re-rolls for tied players
-          return;
-        }
-
-        const sortedPlayers = [...players].sort((a, b) => {
-          const rollA = rollsToStartData.find(r => r.id === a.id)?.roll || 0;
-          const rollB = rollsToStartData.find(r => r.id === b.id)?.roll || 0;
-          return rollB - rollA;
-        });
-
-        const playerOrder = sortedPlayers.map(p => p.id);
-        const gameDocRef = doc(firestore, 'games', gameId);
-
-        await updateDoc(gameDocRef, {
-            status: 'active',
-            playerOrder: playerOrder,
-            currentPlayerId: playerOrder[0],
-        });
-
-        if (sortedPlayers.length > 0 && sortedPlayers[0]) {
-            addLog(`A ordem do jogo foi definida. ${sortedPlayers[0].name} começa!`);
-            addNotification(`A ordem foi definida. ${sortedPlayers[0].name} começa!`);
-        }
-      };
-
-      const timer = setTimeout(decideOrder, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [rollsToStartData, players, gameData?.status, isHost, firestore, gameId, addLog, addNotification]);
-
-
-  if (players.length === 0 || !gameData) {
+  if (!currentPlayer || !gameData) {
     return (
         <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
-            <h2 className="text-2xl font-bold">Carregando Jogo...</h2>
+            <h2 className="text-2xl font-bold">A Carregar Jogo...</h2>
             <p className="text-muted-foreground">ID do Jogo: <code className="bg-muted p-1 rounded-md">{gameId}</code></p>
         </div>
     )
@@ -890,37 +671,21 @@ export default function GamePage() {
   if (gameData?.status === 'waiting') {
     return (
         <div className="container flex flex-col min-h-[calc(100vh-4rem)] items-center justify-center text-center py-12">
-            <h2 className="text-2xl font-bold">Aguardando jogadores...</h2>
-            <p className="text-muted-foreground">O jogo '{gameName}' começará em breve.</p>
-            <p className="mt-4">ID do Jogo: <code className="bg-muted p-1 rounded-md">{gameId}</code></p>
-            <div className='mt-8'>
-                <h3 className="font-semibold mb-2">Jogadores na Sala:</h3>
-                <ul className="space-y-2">
-                    {players.map(p => <li key={p.id}>{p.name}</li>)}
-                </ul>
-            </div>
-            {isHost && (
-                <Button onClick={handleStartGame} disabled={players.length < 2 || !isHost} className="mt-8">
-                    <Play className="mr-2 h-4 w-4" />
-                    Iniciar Jogo ({players.length} jogador(es))
-                </Button>
-            )}
-            {!isHost && <p className="mt-8 text-sm text-muted-foreground">Aguardando o anfitrião iniciar o jogo.</p>}
+            <h2 className="text-2xl font-bold">A redirecionar...</h2>
+            <p className="text-muted-foreground">A preparar o seu jogo.</p>
         </div>
     );
   }
 
-  const humanPlayer = players.find(p => p.userId === user?.uid) || players[0];
-  const owner = selectedSpace ? players.find(p => 'id' in selectedSpace && p.properties.includes(selectedSpace.id)) : null;
-  const isMyTurn = currentPlayer && currentPlayer.userId === user?.uid;
-  const gameOverPlayer = gameData?.status === 'finished' ? players[0] : null;
+  const isMyTurn = gameData?.status === 'active';
+  const isGameOver = gameData?.status === 'finished';
 
   return (
     <>
-      <div className="p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3">
+      <div className="p-4 lg:p-8">
+        <div className="w-full">
           <GameBoard 
-            players={players} 
+            player={currentPlayer}
             onSpaceClick={handleSpaceClick} 
             animateCardPile={animateCardPile} 
             notifications={notifications}
@@ -931,36 +696,24 @@ export default function GamePage() {
                 onPayBail={handlePayBail}
                 canPayBail={currentPlayer?.money >= 50}
                 onManageProperties={() => setManageOpen(true)}
-                playerHasProperties={humanPlayer?.properties.length > 0}
-                isTurnActive={isMyTurn && gameData?.status === 'active'}
+                playerHasProperties={currentPlayer?.properties.length > 0}
+                isTurnActive={isMyTurn}
                 hasRolled={hasRolled}
                 onEndTurn={handleEndTurn}
              />
           </GameBoard>
         </div>
-        <aside className="lg:col-span-1 space-y-8">
-          <MultiplayerPanel
-            player={humanPlayer}
-            allPlayers={players}
-            currentPlayerId={currentPlayer ? currentPlayer.id : ''}
-            gameLog={gameLog}
-            onBuild={handleBuild}
-            onSell={handleSell}
-            onMortgage={handleMortgage}
-            onUnmortgage={handleUnmortgage}
-          />
-        </aside>
       </div>
 
       <AnimatePresence>
-        {gameOverPlayer && (
+        {isGameOver && (
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
             >
-                <Dialog open={!!gameOverPlayer} onOpenChange={() => {}}>
+                <Dialog open={isGameOver} onOpenChange={() => {}}>
                     <DialogContent className="max-w-md text-center p-8">
                         <DialogHeader>
                             <motion.div
@@ -972,15 +725,12 @@ export default function GamePage() {
                             </motion.div>
                             <DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle>
                             <DialogDescription className="text-lg mt-2">
-                                Parabéns, <span className="font-bold text-primary">{gameOverPlayer.name}</span>! Você é o grande vencedor!
+                                Que pena, você foi à falência! Tente novamente.
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="mt-6 flex-col sm:flex-col gap-2">
                             <Button size="lg" asChild>
-                                <Link href="/lobby">Novo Jogo</Link>
-                            </Button>
-                            <Button size="lg" variant="outline" asChild>
-                                <Link href="/">Voltar ao Início</Link>
+                                <Link href="/">Jogar Novamente</Link>
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -989,29 +739,13 @@ export default function GamePage() {
         )}
       </AnimatePresence>
       
-      <RollToStartDialog 
-        isOpen={gameData?.status === 'rolling-to-start'}
-        players={players}
-        rolls={rollsToStartData?.reduce((acc, roll) => ({...acc, [roll.id]: roll.roll}), {}) || {}}
-        onRoll={handleRollToStart}
-        localPlayerId={user?.uid}
-      />
-
-      <Dialog open={!!selectedSpace} onOpenChange={(open) => {
-          if (!open) {
-              if (selectedSpace && !owner && currentPlayer?.userId === user?.uid) {
-                handlePassOnBuy(selectedSpace);
-              } else {
-                setSelectedSpace(null)
-              }
-          }
-        }}>
+      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
         <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
              {selectedSpace && (
                 <PropertyCard 
                     space={selectedSpace} 
-                    player={currentPlayer!}
-                    owner={owner}
+                    player={currentPlayer}
+                    owner={null} // In solo, player is the only possible owner, handled by `isOwned`
                     onBuy={handleBuyProperty}
                     onClose={() => handlePassOnBuy(selectedSpace)}
                 />
@@ -1043,7 +777,7 @@ export default function GamePage() {
        <ManagePropertiesDialog 
         isOpen={isManageOpen}
         onOpenChange={setManageOpen}
-        player={humanPlayer}
+        player={currentPlayer}
         onBuild={handleBuild}
         onSell={handleSell}
         onMortgage={handleMortgage}

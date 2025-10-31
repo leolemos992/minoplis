@@ -64,13 +64,13 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayer
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Gerenciar Propriedades</DialogTitle>
-          <DialogDescription>Construa, venda e hipoteque suas propriedades.</DialogDescription>
+          <DialogDescription>Construa, venda e hipoteque suas propriedades. Lembre-se da regra de construção uniforme.</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.keys(groupedProperties).length > 0 ? (
               Object.entries(groupedProperties).map(([color, props]) => (
                 <div key={color}>
@@ -83,6 +83,7 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayer
                     {props.map(prop => {
                         const houseCount = player.houses[prop.id] || 0;
                         const isMortgaged = player.mortgagedProperties.includes(prop.id);
+                        
                         const canBuild = ownedColorSets[color] && houseCount < 5 && player.money >= (prop.houseCost || 0);
                         const canSell = houseCount > 0;
                         const canMortgage = houseCount === 0 && !isMortgaged;
@@ -113,7 +114,7 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayer
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Você não possui nenhuma propriedade para gerenciar.</p>
+              <p className="text-sm text-muted-foreground text-center py-8 col-span-2">Você não possui nenhuma propriedade para gerenciar.</p>
             )}
           </div>
         </ScrollArea>
@@ -122,3 +123,5 @@ export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayer
     </Dialog>
   );
 }
+
+    

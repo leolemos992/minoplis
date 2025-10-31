@@ -171,14 +171,18 @@ const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }:
                 </div>
                 {boardSpaces.map((space, index) => {
                     const playerOnSpace = getPlayerForSpace(index);
+                    const propertyData = allPlayers.find(p => 'id' in space && p.properties.includes(space.id));
+                    const houses = propertyData && 'id' in space ? propertyData.houses[space.id] : undefined;
+                    const isMortgaged = propertyData && 'id' in space ? propertyData.mortgagedProperties.includes(space.id) : false;
+
                     return (
                         <BoardSpace 
                             key={space.name + index} 
                             space={space} 
                             index={index} 
                             onSpaceClick={onSpaceClick} 
-                            houses={playerOnSpace && 'id' in space && playerOnSpace.houses ? playerOnSpace.houses[space.id] : undefined}
-                            isMortgaged={playerOnSpace && 'id' in space && playerOnSpace.mortgagedProperties ? playerOnSpace.mortgagedProperties.includes(space.id) : false}
+                            houses={houses}
+                            isMortgaged={isMortgaged}
                             allPlayers={allPlayers}
                         />
                     )
@@ -546,14 +550,34 @@ export default function GamePage() {
   const handleBuild = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost || !loggedInPlayer) return;
+
     const cost = property.houseCost * amount;
-    if (loggedInPlayer.money < cost) { addNotification("Dinheiro insuficiente.", "destructive"); return; }
+    if (loggedInPlayer.money < cost) {
+      addNotification("Dinheiro insuficiente.", "destructive");
+      return;
+    }
+
     const currentHouses = loggedInPlayer.houses[propertyId] || 0;
-    if (currentHouses + amount > 5) { addNotification('Máximo de 1 hotel por propriedade.', 'destructive'); return; }
-    
+    if (currentHouses + amount > 5) {
+      addNotification('Máximo de 1 hotel por propriedade.', 'destructive');
+      return;
+    }
+
+    // Balanced building rule
+    const colorGroup = boardSpaces.filter(s => s.type === 'property' && 'color' in s && s.color === property.color) as Property[];
+    for (const propInGroup of colorGroup) {
+      if (propInGroup.id !== propertyId) {
+        const otherHouses = loggedInPlayer.houses[propInGroup.id] || 0;
+        if (currentHouses >= otherHouses) {
+          addNotification('Deve construir uniformemente. Outras propriedades neste grupo têm menos casas.', 'destructive');
+          return;
+        }
+      }
+    }
+
     updatePlayerInFirestore(loggedInPlayer.id, {
-        money: loggedInPlayer.money - cost,
-        houses: { ...loggedInPlayer.houses, [propertyId]: currentHouses + amount }
+      money: loggedInPlayer.money - cost,
+      houses: { ...loggedInPlayer.houses, [propertyId]: currentHouses + amount }
     });
     addNotification(`Você construiu em ${property.name}.`);
   };
@@ -561,14 +585,33 @@ export default function GamePage() {
   const handleSell = (propertyId: string, amount: number) => {
     const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
     if (!property || !property.houseCost || !loggedInPlayer) return;
+
     const currentHouses = loggedInPlayer.houses[propertyId] || 0;
-    if (currentHouses < amount) { addNotification('Não há construções para vender.', 'destructive'); return; }
-    
+    if (currentHouses < amount) {
+      addNotification('Não há construções suficientes para vender.', 'destructive');
+      return;
+    }
+
+    // Balanced selling rule
+    const colorGroup = boardSpaces.filter(s => s.type === 'property' && 'color' in s && s.color === property.color) as Property[];
+    for (const propInGroup of colorGroup) {
+      if (propInGroup.id !== propertyId) {
+        const otherHouses = loggedInPlayer.houses[propInGroup.id] || 0;
+        if (currentHouses <= otherHouses) {
+          addNotification('Deve vender uniformemente. Outras propriedades neste grupo têm mais casas.', 'destructive');
+          return;
+        }
+      }
+    }
+
     const saleValue = (property.houseCost / 2) * amount;
     const newHousesState = { ...loggedInPlayer.houses };
-    if (currentHouses - amount === 0) delete newHousesState[propertyId];
-    else newHousesState[propertyId] = currentHouses - amount;
-    
+    if (currentHouses - amount === 0) {
+      delete newHousesState[propertyId];
+    } else {
+      newHousesState[propertyId] = currentHouses - amount;
+    }
+
     updatePlayerInFirestore(loggedInPlayer.id, { money: loggedInPlayer.money + saleValue, houses: newHousesState });
     addNotification(`Você vendeu construções em ${property.name}.`);
   };
@@ -649,3 +692,5 @@ export default function GamePage() {
     </div>
   );
 }
+
+    

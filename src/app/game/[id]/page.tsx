@@ -272,7 +272,7 @@ export default function GamePage() {
   const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
 
   const addNotification = useCallback((message: string, variant: 'default' | 'destructive' = 'default') => {
-    const id = Date.now().toString();
+    const id = `${Date.now()}-${Math.random()}`;
     setNotifications(prev => [...prev.slice(-4), { id, message, variant }]);
     setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== id));

@@ -609,7 +609,7 @@ export default function GamePage() {
   
   return (
     <div className="flex h-screen w-full bg-slate-200">
-      <PlayerSidebar allPlayers={allPlayers} loggedInPlayerId={user?.uid || ''} />
+      <PlayerSidebar allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} />
 
       <main className="flex flex-1 flex-col">
         <GameHeader

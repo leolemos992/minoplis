@@ -83,7 +83,7 @@ export default function LobbyPage() {
                             <div key={game.id} className="mb-2 flex items-center justify-between rounded-lg p-3 bg-muted/50">
                                 <div>
                                     <p className="font-semibold">{game.name}</p>
-                                    <p className="text-sm text-muted-foreground">Jogadores: {game.playerOrder.length}</p>
+                                    <p className="text-sm text-muted-foreground">Jogadores: {game.playerOrder?.length || 0}</p>
                                 </div>
                                 <Button variant="outline" size="sm" onClick={() => handleJoinGame(game.id)}>
                                     Entrar

@@ -14,7 +14,7 @@ service cloud.firestore {
       allow list: if isSignedIn();
       
       // Um utilizador só pode ler os dados de um jogo se ele for um dos jogadores nessa partida.
-      allow get: if isSignedIn() && resource.data.playerOrder.hasAny([request.auth.uid]);
+      allow get: if isSignedIn() && isPlayerInGame(gameId, request.auth.uid);
 
       // Criação: Qualquer utilizador autenticado pode criar um jogo, desde que se defina como anfitrião.
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
@@ -22,12 +22,14 @@ service cloud.firestore {
       // Atualização:
       // 1. O anfitrião pode iniciar um jogo ('active') se houver jogadores.
       // 2. O anfitrião pode terminar um jogo ('finished').
-      // 3. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
+      // 3. O jogador atual pode passar o turno para o próximo.
+      // 4. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
       allow update: if isSignedIn() &&
         (
           (isHost(gameId) && isStartingGame(request, resource)) ||
           (isHost(gameId) && isFinishingGame(request)) ||
-          (isJoiningWaitingGame(request, resource))
+          (isJoiningWaitingGame(request, resource)) ||
+          isPassingTurn(gameId, request, resource)
         );
 
       // Eliminar: Apenas o anfitrião pode eliminar um jogo que ainda está em espera.
@@ -35,16 +37,19 @@ service cloud.firestore {
 
       // Subcoleção de Jogadores
       match /players/{playerId} {
-        // Leitura: Só os jogadores da partida podem ver os dados dos outros jogadores.
-        allow get, list: if isSignedIn() && get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([request.auth.uid]);
+        // Leitura: Um jogador pode ler os dados de qualquer jogador na partida, OU pode ler os seus próprios dados (essencial para entrar no jogo).
+        allow get: if isSignedIn() && (isPlayerInGame(gameId, request.auth.uid) || request.auth.uid == playerId);
+
+        // Listar: Só os jogadores da partida podem ver a lista de todos os jogadores.
+        allow list: if isSignedIn() && isPlayerInGame(gameId, request.auth.uid);
         
-        // Criação: Um utilizador pode criar o seu próprio documento de jogador.
-        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
+        // Criação: Um utilizador pode criar o seu próprio documento de jogador, desde que se adicione ao jogo correspondente.
+        allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId && isJoiningWaitingGame(getAfter(/databases/$(database)/documents/games/$(gameId)), get(/databases/$(database)/documents/games/$(gameId)));
         
         // Atualização: Um jogador pode atualizar o seu próprio documento.
         allow update: if isSignedIn() && request.auth.uid == playerId;
         
-        // Eliminar: Um jogador pode ser eliminado (ex: falência) através de uma transação gerida pela lógica do jogo.
+        // Eliminar: Um jogador pode ser eliminado (ex: falência). A lógica é gerida por transações.
         allow delete: if isSignedIn(); 
       }
     }
@@ -55,6 +60,10 @@ service cloud.firestore {
     
     function isHost(gameId) {
       return get(/databases/$(database)/documents/games/$(gameId)).data.hostId == request.auth.uid;
+    }
+
+    function isPlayerInGame(gameId, userId) {
+      return get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([userId]);
     }
 
     function isStartingGame(req, res) {
@@ -69,6 +78,16 @@ service cloud.firestore {
       let isWaiting = res.data.status == 'waiting';
       let isAddingSelf = req.resource.data.playerOrder == res.data.playerOrder.concat([req.auth.uid]);
       return isWaiting && isAddingSelf;
+    }
+
+    function isPassingTurn(gameId, req, res) {
+      let game = get(/databases/$(database)/documents/games/$(gameId)).data;
+      let nextPlayerIndex = (game.turn + 1) % game.playerOrder.size();
+      let nextPlayerId = game.playerOrder[nextPlayerIndex];
+
+      return req.auth.uid == game.currentPlayerId && 
+             req.resource.data.currentPlayerId == nextPlayerId &&
+             req.resource.data.turn == nextPlayerIndex;
     }
   }
 }

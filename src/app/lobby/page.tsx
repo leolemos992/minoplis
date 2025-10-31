@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Game } from '@/lib/definitions';
 
@@ -13,27 +13,36 @@ export default function LobbyPage() {
   const firestore = useFirestore();
 
   useEffect(() => {
-    const createAndRedirect = async () => {
+    const createAndRedirect = () => {
       if (!user || !firestore) return;
 
-      try {
-        const gameData: Omit<Game, 'id'> = {
-          name: `Partida de ${user.displayName || 'Jogador'}`,
-          status: 'waiting', // The game will start on the character selection screen
-          hostId: user.uid,
-          createdAt: serverTimestamp(),
-          currentPlayerId: user.uid, // For single player, the user is always the current player
-          playerOrder: [user.uid],
-        };
-        const docRef = await addDoc(collection(firestore, 'games'), gameData);
-        router.replace(
-          `/character-selection?gameId=${docRef.id}&gameName=${encodeURIComponent(gameData.name)}`
-        );
-      } catch (error) {
-        console.error('Error creating game:', error);
-        // If it fails, maybe redirect back to home
-        router.replace('/');
-      }
+      const gameData: Omit<Game, 'id'> = {
+        name: `Partida de ${user.displayName || 'Jogador'}`,
+        status: 'waiting', // The game will start on the character selection screen
+        hostId: user.uid,
+        createdAt: serverTimestamp(),
+        currentPlayerId: user.uid, // For single player, the user is always the current player
+      };
+      
+      const gamesCollection = collection(firestore, 'games');
+      
+      addDoc(gamesCollection, gameData)
+        .then(docRef => {
+            router.replace(
+              `/character-selection?gameId=${docRef.id}&gameName=${encodeURIComponent(gameData.name)}`
+            );
+        })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: 'games',
+                operation: 'create',
+                requestResourceData: gameData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            console.error('Error creating game:', error); // Keep original for non-permission issues
+            // If it fails, maybe redirect back to home
+            router.replace('/');
+        });
     };
 
     createAndRedirect();

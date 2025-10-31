@@ -17,8 +17,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Palette } from 'lucide-react';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import type { Player } from '@/lib/definitions';
 
 const playerColors = [
@@ -54,7 +54,6 @@ export default function CharacterSelectionPage() {
 
   const handleJoinGame = async () => {
     if (!playerName || !gameId || !user || !firestore) {
-      console.error("Missing required data.");
       // TODO: Show an error to the user
       return;
     }
@@ -72,22 +71,39 @@ export default function CharacterSelectionPage() {
       getOutOfJailFreeCards: 0,
       inJail: false,
     };
+    
+    const batch = writeBatch(firestore);
 
-    try {
-      // Use user.uid as the document ID for the player
-      const playerRef = doc(firestore, 'games', gameId, 'players', user.uid);
-      await setDoc(playerRef, player);
+    const playerRef = doc(firestore, 'games', gameId, 'players', user.uid);
+    batch.set(playerRef, player);
       
-      // Since it's a solo game, set the status to active immediately
-      const gameRef = doc(firestore, 'games', gameId);
-      await updateDoc(gameRef, { status: 'active' });
+    // Since it's a solo game, set the status to active immediately
+    const gameRef = doc(firestore, 'games', gameId);
+    const gameUpdates = { status: 'active' };
+    batch.update(gameRef, gameUpdates);
       
-      router.push(`/game/${gameId}?gameName=${encodeURIComponent(gameName || 'MINOPOLIS')}`);
+    batch.commit()
+      .then(() => {
+        router.push(`/game/${gameId}?gameName=${encodeURIComponent(gameName || 'MINOPOLIS')}`);
+      })
+      .catch((error) => {
+        // This will catch errors from either set or update if the batch fails.
+        // We can create a more generic error, or try to guess which one failed.
+        // Let's assume the player creation is the most likely to have unique rules.
+        const permissionError = new FirestorePermissionError({
+          path: playerRef.path,
+          operation: 'create', // Operation is creating the player document
+          requestResourceData: player,
+        });
+        errorEmitter.emit('permission-error', permissionError);
 
-    } catch (error) {
-      console.error("Error adding player to game: ", error);
-      // TODO: Show error toast
-    }
+        const gameUpdatePermissionError = new FirestorePermissionError({
+            path: gameRef.path,
+            operation: 'update',
+            requestResourceData: gameUpdates,
+        });
+        errorEmitter.emit('permission-error', gameUpdatePermissionError);
+      });
   };
 
   return (

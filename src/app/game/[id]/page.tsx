@@ -62,7 +62,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
     }
 
     const cornerTextRotation: { [key: number]: string } = {
-        0: 'rotate-[135deg]', 10: 'rotate-[225deg]', 20: 'rotate-[-45deg]', 30: 'rotate-[45deg]',
+        0: 'rotate-[135deg]', 20: 'rotate-[-45deg]', 30: 'rotate-[45deg]',
     }
 
     const houseContainerClasses: { [key: number]: string } = {
@@ -103,15 +103,15 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
 
         return (
             <div className="border border-black flex flex-col text-center text-xs relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-10` }} onClick={() => onSpaceClick(space, index)}>
-                 <div className="w-full h-3/4 flex items-center justify-center relative">
-                    <span className="font-bold text-lg absolute top-4 -rotate-45">VISITANTES</span>
-                     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1 p-1 pointer-events-none">
+                 <div className="w-full h-3/4 flex flex-col items-center justify-start pt-2 relative">
+                    <span className="font-bold text-lg">VISITANTES</span>
+                     <div className="absolute inset-0 top-1/3 grid grid-cols-3 grid-rows-2 gap-1 p-1 pointer-events-none">
                         {visitingPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
                     </div>
                 </div>
-                <div className="w-3/4 h-1/4 absolute bottom-0 right-0 border-t border-l border-black bg-orange-400/50 flex flex-col items-center justify-center">
-                     <span className="font-bold text-lg absolute bottom-4 rotate-45">PRISÃO</span>
-                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-1 pointer-events-none">
+                <div className="w-full h-1/4 absolute bottom-0 right-0 border-t border-black bg-orange-400/50 flex flex-col items-center justify-end pb-1">
+                     <span className="font-bold text-lg">PRISÃO</span>
+                     <div className="absolute inset-0 bottom-1/3 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-1 pointer-events-none">
                         {jailedPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
                     </div>
                 </div>
@@ -374,27 +374,31 @@ export default function GamePage() {
           return false;
       }
       
-      const batch = writeBatch(firestore);
       const payerRef = doc(firestore, 'games', gameId, 'players', payer.id);
-      batch.update(payerRef, { money: payer.money - amount });
-      
+      updateDoc(payerRef, { money: increment(-amount) }).catch((e) => {
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+             path: payerRef.path, operation: 'update', requestResourceData: {money: increment(-amount)}
+           }));
+           return false;
+      });
+
       if (toPlayerId) {
           const recipient = allPlayers.find(p => p.id === toPlayerId);
           if (recipient) {
             const recipientRef = doc(firestore, 'games', gameId, 'players', recipient.id);
-            batch.update(recipientRef, { money: recipient.money + amount });
+            updateDoc(recipientRef, { money: increment(amount) }).catch((e) => {
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({
+                     path: recipientRef.path, operation: 'update', requestResourceData: {money: increment(amount)}
+                 }));
+                 return false;
+            });
             addNotification(`${payer.name} pagou R$${amount} a ${recipient.name}.`, 'default');
           }
       } else {
          addNotification(`${payer.name} pagou R$${amount} ao banco.`, 'destructive');
       }
 
-      return batch.commit().then(() => true).catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: payerRef.path, operation: 'update', requestResourceData: {money: '...'}
-        }));
-        return false;
-      });
+      return Promise.resolve(true);
   }, [allPlayers, handleBankruptcy, firestore, gameId, addNotification]);
   
   const handleEndTurn = useCallback(() => {

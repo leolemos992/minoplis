@@ -44,8 +44,11 @@ service cloud.firestore {
         // Criação: Um utilizador pode criar o seu próprio documento de jogador, desde que se adicione ao jogo correspondente.
         allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
         
-        // Atualização: Um jogador pode atualizar o seu próprio documento.
-        allow update: if isSignedIn() && request.auth.uid == playerId;
+        // Atualização: Um jogador pode atualizar o seu próprio documento, ou o jogador do turno pode atualizar o documento de outro para pagar aluguer.
+        allow update: if isSignedIn() && (
+          request.auth.uid == playerId ||
+          (isCurrentPlayer(gameId) && isPayingRent(request, resource))
+        );
         
         // Eliminar: Um jogador pode ser eliminado (ex: falência). A lógica é gerida por transações.
         allow delete: if isSignedIn(); 
@@ -85,6 +88,14 @@ service cloud.firestore {
       // Permite atualizações se um leilão estava ativo no documento existente.
       // Cobre lances e a finalização do leilão (que apaga o campo 'auction').
       return 'auction' in res.data && res.data.auction.status == 'active';
+    }
+    
+    function isPayingRent(req, res) {
+      // Permite que o jogador atual atualize o saldo de outro jogador (o proprietário)
+      // Apenas se a ÚNICA alteração for um INCREMENTO no dinheiro.
+      let onlyMoneyChanged = req.resource.data.diff(res.data).affectedKeys().hasOnly(['money']);
+      let moneyIncreased = req.resource.data.money > res.data.money;
+      return onlyMoneyChanged && moneyIncreased;
     }
   }
 }

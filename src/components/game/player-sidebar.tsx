@@ -34,9 +34,9 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
         <Logo className="text-white" />
       </div>
       
-      <div className="flex flex-col flex-1">
-        {/* Seção Superior: Propriedades e Saldo (50% da altura) */}
-        <div className="h-1/2 flex flex-col p-3 border-b border-slate-700">
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Seção Superior: Propriedades e Saldo */}
+        <div className="flex flex-col p-3 border-b border-slate-700 max-h-1/2">
             <div className="flex justify-between items-center mb-2 px-1">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meu Saldo</h3>
               <span className="text-base font-bold text-green-400">R$ {loggedInPlayer?.money.toLocaleString() || 0}</span>
@@ -61,8 +61,8 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
             </ScrollArea>
         </div>
 
-        {/* Seção Inferior: Abas (50% da altura) */}
-        <div className="h-1/2 flex flex-col">
+        {/* Seção Inferior: Abas (expansível) */}
+        <div className="flex flex-col flex-1 min-h-0">
            <Tabs defaultValue="players" className="w-full flex-1 flex flex-col">
               <TabsList className="grid w-full grid-cols-3 bg-slate-900 rounded-none h-10">
                   <TabsTrigger value="players" className="rounded-none text-xs h-full"><Users className="h-3.5 w-3.5 mr-1.5" />Jogadores</TabsTrigger>

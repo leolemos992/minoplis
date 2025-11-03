@@ -116,9 +116,9 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameI
                    <ScrollArea className="h-full">
                       <div className="space-y-2 pr-2 text-xs">
                           {logs?.map(log => (
-                              <div key={log.id} className="flex items-start gap-2 p-1.5 rounded-md text-slate-300">
-                                  <div className="mt-0.5">{logIcons[log.type as keyof typeof logIcons] || logIcons.default}</div>
-                                  <p className="flex-1" dangerouslySetInnerHTML={{ __html: log.message }} />
+                              <div key={log.id} className="flex items-start gap-2 p-1.5 rounded-md text-slate-200">
+                                  <div className="mt-0.5 shrink-0">{logIcons[log.type as keyof typeof logIcons] || logIcons.default}</div>
+                                  <p className="flex-1 break-words" dangerouslySetInnerHTML={{ __html: log.message }} />
                               </div>
                           ))}
                            {!logs && <p className="text-center text-slate-500">Nenhum evento ainda.</p>}

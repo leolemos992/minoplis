@@ -329,7 +329,7 @@ export default function GamePage() {
           if (winnerId && winnerId !== 'none') {
             const winnerName = allPlayers?.find(p=>p.id === winnerId)?.name || 'Alguém';
             addNotification(`${winnerName} venceu o jogo!`, 'default');
-            addLogEntry('system', `<strong>${winnerName}</strong> venceu a partida!`);
+            addLogEntry('system', `<span class="font-bold text-yellow-300">${winnerName}</span> venceu a partida!`);
           } else {
             addNotification('O jogo terminou.', 'default');
           }
@@ -346,7 +346,7 @@ export default function GamePage() {
     if (!bankruptPlayer) return;
 
     addNotification(`${bankruptPlayer.name} foi à falência!`, 'destructive');
-    addLogEntry('jail', `<strong>${bankruptPlayer.name}</strong> foi à falência!`);
+    addLogEntry('jail', `<span class="font-bold text-red-400">${bankruptPlayer.name}</span> foi à falência!`);
     
     try {
         await runTransaction(firestore, async (transaction) => {
@@ -411,11 +411,11 @@ export default function GamePage() {
                  return false;
             });
             addNotification(`${payer.name} pagou R$${amount} a ${recipient.name}.`, 'default');
-            addLogEntry('payment', `<strong>${payer.name}</strong> pagou R$${amount} a <strong>${recipient.name}</strong>.`);
+            addLogEntry('payment', `<span class="font-bold text-yellow-300">${payer.name}</span> pagou <span class="font-bold text-green-400">R$${amount}</span> a <span class="font-bold text-yellow-300">${recipient.name}</span>.`);
           }
       } else {
          addNotification(`${payer.name} pagou R$${amount} ao banco.`, 'destructive');
-         addLogEntry('payment', `<strong>${payer.name}</strong> pagou R$${amount} ao banco.`);
+         addLogEntry('payment', `<span class="font-bold text-yellow-300">${payer.name}</span> pagou <span class="font-bold text-red-400">R$${amount}</span> ao banco.`);
       }
 
       return Promise.resolve(true);
@@ -433,7 +433,7 @@ export default function GamePage() {
 
     updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
     addNotification(`Turno de ${nextPlayerName}.`);
-    addLogEntry('turn', `É o turno de <strong>${nextPlayerName}</strong>.`);
+    addLogEntry('turn', `É o turno de <span class="font-bold text-yellow-300">${nextPlayerName}</span>.`);
 
   }, [gameData, isMyTurn, updateGameInFirestore, addNotification, allPlayers, doublesCount, addLogEntry]);
 
@@ -443,7 +443,7 @@ export default function GamePage() {
     if (!player) return;
 
     addNotification(`${player.name} foi para a prisão!`, 'destructive');
-    addLogEntry('jail', `<strong>${player.name}</strong> foi para a prisão!`);
+    addLogEntry('jail', `<span class="font-bold text-red-400">${player.name}</span> foi para a prisão!`);
     updatePlayerInFirestore(playerId, { position: JAIL_POSITION, inJail: true });
     setDoublesCount(0);
     if (player.id === gameData?.currentPlayerId) { // Only current player's turn ends
@@ -453,7 +453,7 @@ export default function GamePage() {
         const nextPlayerId = gameData.playerOrder[nextTurn];
         const nextPlayerName = allPlayers?.find(p => p.id === nextPlayerId)?.name || 'Próximo jogador';
         updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
-        addLogEntry('turn', `É o turno de <strong>${nextPlayerName}</strong>.`);
+        addLogEntry('turn', `É o turno de <span class="font-bold text-yellow-300">${nextPlayerName}</span>.`);
     }
   }, [JAIL_POSITION, addNotification, allPlayers, updatePlayerInFirestore, gameData, addLogEntry]);
   
@@ -462,7 +462,7 @@ export default function GamePage() {
     const player = allPlayers?.find(p => p.id === playerId);
     if (!space || !player) return;
     addNotification(`${player.name} parou em ${space.name}.`);
-    addLogEntry('system', `<strong>${player.name}</strong> parou em <strong>${space.name}</strong>.`);
+    addLogEntry('system', `<span class="font-bold text-yellow-300">${player.name}</span> parou em <span class="font-bold text-blue-300">${space.name}</span>.`);
 
     if (space.type === 'jail' && !player.inJail) {
         addNotification("Você está apenas visitando a prisão.");
@@ -507,7 +507,7 @@ export default function GamePage() {
   
   const applyCardAction = useCallback(async (card: GameCard) => {
     if (!loggedInPlayer) return;
-    addLogEntry('card', `<strong>${loggedInPlayer.name}</strong> tirou a carta: "${card.description}"`);
+    addLogEntry('card', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> tirou a carta: "${card.description}"`);
     const { action } = card;
     let updates: Partial<Player> = {};
   
@@ -545,14 +545,14 @@ export default function GamePage() {
     if (!loggedInPlayer || !isMyTurn || hasRolled) return;
     setDice([d1, d2]);
     addNotification(`Você rolou ${d1} e ${d2}.`);
-    addLogEntry('roll', `<strong>${loggedInPlayer.name}</strong> rolou ${d1} e ${d2}.`);
+    addLogEntry('roll', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> rolou ${d1} e ${d2}.`);
     const isDoubles = d1 === d2;
 
     if (loggedInPlayer.inJail) {
         if (isDoubles) {
             updatePlayerInFirestore(loggedInPlayer.id, { inJail: false });
             addNotification("Você rolou dados duplos e saiu da prisão!");
-            addLogEntry('jail', `<strong>${loggedInPlayer.name}</strong> saiu da prisão rolando dados duplos.`);
+            addLogEntry('jail', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> saiu da prisão rolando dados duplos.`);
         } else {
             addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
             handleEndTurn(); // This is correct, turn ends if you fail to roll doubles
@@ -578,7 +578,7 @@ export default function GamePage() {
     if (newPosition < loggedInPlayer.position) {
         playerUpdate.money = loggedInPlayer.money + 200;
         addNotification(`Você passou pelo Início e coletou R$200.`);
-        addLogEntry('payment', `<strong>${loggedInPlayer.name}</strong> passou pelo início e coletou R$200.`);
+        addLogEntry('payment', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> passou pelo início e coletou <span class="font-bold text-green-400">R$200</span>.`);
     }
     updatePlayerInFirestore(loggedInPlayer.id, playerUpdate);
     
@@ -587,7 +587,7 @@ export default function GamePage() {
 
     if (isDoubles) {
         addNotification("Dados duplos! Você joga de novo.");
-        addLogEntry('roll', `<strong>${loggedInPlayer.name}</strong> tirou dados duplos e joga de novo.`);
+        addLogEntry('roll', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> tirou dados duplos e joga de novo.`);
         setHasRolled(false); // Allow another roll
     }
   };
@@ -613,14 +613,14 @@ export default function GamePage() {
       }));
     });
     addNotification(`Você comprou ${property.name}.`);
-    addLogEntry('property', `<strong>${loggedInPlayer.name}</strong> comprou <strong>${property.name}</strong>.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> comprou <span class="font-bold text-blue-300">${property.name}</span>.`);
     setSelectedSpace(null);
   };
   
     const handleAuctionProperty = (property: Property) => {
         if (!gameData || !allPlayers) return;
         addNotification(`Leilão iniciado para ${property.name}!`);
-        addLogEntry('auction', `Leilão iniciado para <strong>${property.name}</strong>.`);
+        addLogEntry('auction', `Leilão iniciado para <span class="font-bold text-blue-300">${property.name}</span>.`);
         const auction: Auction = {
             propertyId: property.id,
             status: 'active',
@@ -636,7 +636,7 @@ export default function GamePage() {
     const handleAuctionBid = (amount: number) => {
         if (!gameData?.auction || !loggedInPlayer) return;
 
-        addLogEntry('auction', `<strong>${loggedInPlayer.name}</strong> deu um lance de R$${amount}.`);
+        addLogEntry('auction', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> deu um lance de <span class="font-bold text-green-400">R$${amount}</span>.`);
 
         const updatedAuction: Auction = {
             ...gameData.auction,
@@ -650,7 +650,7 @@ export default function GamePage() {
 
     const handleAuctionPass = () => {
         if (!gameData?.auction || !loggedInPlayer) return;
-        addLogEntry('auction', `<strong>${loggedInPlayer.name}</strong> desistiu do leilão.`);
+        addLogEntry('auction', `<span class="font-bold text-red-400">${loggedInPlayer.name}</span> desistiu do leilão.`);
 
         const remainingPlayers = gameData.auction.participatingPlayerIds.filter(id => id !== loggedInPlayer.id);
 
@@ -688,7 +688,7 @@ export default function GamePage() {
                     
                     const message = `${winner.name} venceu o leilão de ${property.name} por R$${freshAuction.currentBid}!`;
                     addNotification(message);
-                    addLogEntry('auction', `<strong>${winner.name}</strong> venceu o leilão de <strong>${property.name}</strong> por R$${freshAuction.currentBid}.`);
+                    addLogEntry('auction', `<span class="font-bold text-yellow-300">${winner.name}</span> venceu o leilão de <span class="font-bold text-blue-300">${property.name}</span> por <span class="font-bold text-green-400">R$${freshAuction.currentBid}</span>.`);
                     
                     const playerRef = doc(firestore, `games/${gameId}/players`, winnerId);
                     const playerUpdates = {
@@ -700,7 +700,7 @@ export default function GamePage() {
                     const propertyName = boardSpaces.find(s => 'id' in s && s.id === freshAuction.propertyId)?.name || 'a propriedade';
                     const message = `Ninguém deu lance. O leilão para ${propertyName} terminou.`;
                     addNotification(message);
-                    addLogEntry('auction', `Leilão para <strong>${propertyName}</strong> terminou sem lances.`);
+                    addLogEntry('auction', `Leilão para <span class="font-bold text-blue-300">${propertyName}</span> terminou sem lances.`);
                 }
 
                 transaction.update(gameRef, { auction: deleteField() });
@@ -735,7 +735,7 @@ export default function GamePage() {
     if (await makePayment(50, loggedInPlayer.id)) {
         updatePlayerInFirestore(loggedInPlayer.id, { inJail: false });
         addNotification("Você pagou a fiança e está livre!");
-        addLogEntry('jail', `<strong>${loggedInPlayer.name}</strong> pagou a fiança e saiu da prisão.`);
+        addLogEntry('jail', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> pagou a fiança e saiu da prisão.`);
         setHasRolled(true);
     }
   }
@@ -773,7 +773,7 @@ export default function GamePage() {
       houses: { ...loggedInPlayer.houses, [propertyId]: currentHouses + amount }
     });
     addNotification(`Você construiu em ${property.name}.`);
-    addLogEntry('property', `<strong>${loggedInPlayer.name}</strong> construiu ${amount > 1 ? `${amount} casas` : '1 casa'} em <strong>${property.name}</strong>.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> construiu ${amount > 1 ? `${amount} casas` : '1 casa'} em <span class="font-bold text-blue-300">${property.name}</span>.`);
   };
 
   const handleSell = (propertyId: string, amount: number) => {
@@ -808,7 +808,7 @@ export default function GamePage() {
 
     updatePlayerInFirestore(loggedInPlayer.id, { money: loggedInPlayer.money + saleValue, houses: newHousesState });
     addNotification(`Você vendeu construções em ${property.name}.`);
-    addLogEntry('property', `<strong>${loggedInPlayer.name}</strong> vendeu ${amount > 1 ? `${amount} casas` : '1 casa'} em <strong>${property.name}</strong>.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> vendeu ${amount > 1 ? `${amount} casas` : '1 casa'} em <span class="font-bold text-blue-300">${property.name}</span>.`);
   };
 
   const handleMortgage = (propertyId: string, isMortgaging: boolean) => {
@@ -822,7 +822,7 @@ export default function GamePage() {
             mortgagedProperties: [...loggedInPlayer.mortgagedProperties, propertyId]
         });
         addNotification(`Você hipotecou ${property.name}.`);
-        addLogEntry('property', `<strong>${loggedInPlayer.name}</strong> hipotecou <strong>${property.name}</strong>.`);
+        addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> hipotecou <span class="font-bold text-blue-300">${property.name}</span>.`);
     } else {
         const unmortgageCost = (property.price / 2) * 1.1;
         if (loggedInPlayer.money < unmortgageCost) { addNotification(`Dinheiro insuficiente para pagar a hipoteca.`, "destructive"); return; }
@@ -831,7 +831,7 @@ export default function GamePage() {
             mortgagedProperties: loggedInPlayer.mortgagedProperties.filter(id => id !== propertyId)
         });
         addNotification(`Você pagou a hipoteca de ${property.name}.`);
-        addLogEntry('property', `<strong>${loggedInPlayer.name}</strong> pagou a hipoteca de <strong>${property.name}</strong>.`);
+        addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> pagou a hipoteca de <span class="font-bold text-blue-300">${property.name}</span>.`);
     }
   };
 
@@ -877,7 +877,7 @@ export default function GamePage() {
              <DialogTitle>{selectedSpace?.name}</DialogTitle>
              <DialogDescription>Detalhes da propriedade {selectedSpace?.name}</DialogDescription>
            </DialogHeader>
-          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onAuction={() => handleAuctionProperty(selectedSpace)} onModalClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
+          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onAuction={handleAuctionProperty} onModalClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>

@@ -36,13 +36,13 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
       
       <div className="flex flex-col flex-1 min-h-0">
         {/* Seção Superior: Propriedades e Saldo */}
-        <div className="flex flex-col p-3 border-b border-slate-700 max-h-1/2">
+        <div className="shrink-0 p-3 border-b border-slate-700">
             <div className="flex justify-between items-center mb-2 px-1">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meu Saldo</h3>
               <span className="text-base font-bold text-green-400">R$ {loggedInPlayer?.money.toLocaleString() || 0}</span>
             </div>
             <h3 className="text-xs font-semibold text-slate-400 mb-2 px-1 uppercase tracking-wider">Propriedades ({ownedProperties.length})</h3>
-            <ScrollArea className="flex-1 pr-2">
+            <ScrollArea className="max-h-40 pr-2">
                <div className="space-y-1">
                   {ownedProperties.length > 0 ? ownedProperties.map(prop => (
                       <div key={prop.id} className="flex items-center gap-2 p-1.5 bg-slate-700/50 rounded-md text-xs">
@@ -70,7 +70,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
                   <TabsTrigger value="log" className="rounded-none text-xs h-full"><ScrollText className="h-3.5 w-3.5 mr-1.5" />Log</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="players" className="flex-1 overflow-y-auto p-2">
+              <TabsContent value="players" className="flex-1 p-2 min-h-0">
                    <ScrollArea className="h-full">
                       <div className="space-y-2 pr-2">
                           {allPlayers.map(player => (

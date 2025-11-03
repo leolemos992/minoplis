@@ -21,10 +21,12 @@ service cloud.firestore {
       // Criação: Qualquer utilizador autenticado pode criar um jogo, desde que se defina como anfitrião.
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
 
-      // Atualização: Apenas o jogador do turno atual, o anfitrião (para iniciar/terminar) ou um jogador a entrar podem atualizar o jogo.
+      // Atualização: Permitida se for o jogador do turno, ou se for uma ação de leilão válida,
+      // ou se for o anfitrião a gerir o estado do jogo, ou um jogador a entrar.
       allow update: if isSignedIn() &&
         (
           isCurrentPlayer(gameId) ||
+          isBiddingInAuction(request, resource) ||
           (isHost(gameId) && (isStartingGame(request, resource) || isFinishingGame(request, resource))) ||
           isJoiningWaitingGame(request, resource)
         );
@@ -79,6 +81,14 @@ service cloud.firestore {
       // Garante que o jogador está apenas a adicionar-se a si mesmo e não a outros ou a remover jogadores.
       let isAddingSelf = req.resource.data.playerOrder.size() == res.data.playerOrder.size() + 1 && req.auth.uid in req.resource.data.playerOrder;
       return isWaiting && isAddingSelf;
+    }
+    
+    function isBiddingInAuction(req, res) {
+        let isAuctionActive = res.data.auction.status == 'active' && req.resource.data.auction.status == 'active';
+        let isParticipant = request.auth.uid in res.data.auction.participatingPlayerIds;
+        // Apenas o campo do leilão pode ser modificado
+        let onlyAuctionIsModified = req.resource.data.diff(res.data).affectedKeys().hasOnly(['auction']);
+        return isAuctionActive && isParticipant && onlyAuctionIsModified;
     }
   }
 }

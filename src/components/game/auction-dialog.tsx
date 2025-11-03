@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Gavel, Minus, Plus } from 'lucide-react';
@@ -16,6 +17,8 @@ import { PropertyCard } from './property-card';
 import { Badge } from '../ui/badge';
 
 interface AuctionDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
   game: Game;
   allPlayers: Player[];
   loggedInPlayer: Player;
@@ -25,7 +28,7 @@ interface AuctionDialogProps {
 
 const BID_INCREMENT = 10;
 
-export function AuctionDialog({ game, allPlayers, loggedInPlayer, onBid, onPass }: AuctionDialogProps) {
+export function AuctionDialog({ isOpen, onOpenChange, game, allPlayers, loggedInPlayer, onBid, onPass }: AuctionDialogProps) {
   const auction = game.auction;
   const property = useMemo(() => {
     if (!auction?.propertyId) return null;
@@ -60,16 +63,21 @@ export function AuctionDialog({ game, allPlayers, loggedInPlayer, onBid, onPass 
   const handlePlaceBid = () => {
       onBid(nextBid);
   }
+  
+  const handlePass = () => {
+      onPass();
+      onOpenChange(false); // Close dialog for player who passed
+  }
 
   const isParticipating = auction?.participatingPlayerIds.includes(loggedInPlayer.id) || false;
   const canBid = isParticipating && nextBid > (auction?.currentBid || 0) && nextBid <= loggedInPlayer.money;
 
-  if (!auction || auction.status !== 'active' || !property) {
+  if (!auction || !property) {
     return null;
   }
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -110,11 +118,16 @@ export function AuctionDialog({ game, allPlayers, loggedInPlayer, onBid, onPass 
                         </div>
                         <div className="flex flex-col gap-2">
                             <Button onClick={handlePlaceBid} disabled={!canBid}>Dar Lance (R$ {nextBid})</Button>
-                            <Button variant="destructive-outline" onClick={onPass}>Desistir</Button>
+                            <Button variant="destructive-outline" onClick={handlePass}>Desistir</Button>
                         </div>
                     </div>
                 ) : (
-                    <p className="mt-6 text-center text-muted-foreground">Você desistiu deste leilão.</p>
+                    <div className='flex flex-col items-center justify-center text-center'>
+                      <p className="mt-6 text-muted-foreground">Você desistiu deste leilão.</p>
+                      <DialogClose asChild>
+                          <Button variant="outline" className="mt-4">Fechar</Button>
+                      </DialogClose>
+                    </div>
                 )}
             </div>
         </div>

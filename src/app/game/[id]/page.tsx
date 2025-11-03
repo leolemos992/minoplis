@@ -213,6 +213,7 @@ export default function GamePage() {
   const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
   const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
   const [isManageOpen, setManageOpen] = useState(false);
+  const [isAuctionOpen, setAuctionOpen] = useState(false);
   const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
@@ -592,39 +593,46 @@ export default function GamePage() {
     };
 
     const handleAuctionCompletion = useCallback(async (auction: Auction) => {
-        if (!allPlayers || !firestore || !gameRef || !gameId) return;
-
-        let winnerId: string | null = null;
-        if (auction.participatingPlayerIds.length === 1 && auction.lastBidderId === auction.participatingPlayerIds[0]) {
-             winnerId = auction.participatingPlayerIds[0];
-        } else if (auction.participatingPlayerIds.length === 0 && auction.lastBidderId) {
-             winnerId = auction.lastBidderId;
-        }
-
-        const batch = writeBatch(firestore);
-
-        if (winnerId) {
-            const winner = allPlayers.find(p => p.id === winnerId);
-            const property = boardSpaces.find(s => 'id' in s && s.id === auction.propertyId) as Property | undefined;
-            if (!winner || !property) return;
-            
-            addNotification(`${winner.name} venceu o leilão de ${property.name} por R$${auction.currentBid}!`);
-
-            const playerRef = doc(firestore, `games/${gameId}/players`, winnerId!);
-            const playerUpdates = {
-                money: winner.money - auction.currentBid,
-                properties: [...winner.properties, auction.propertyId],
-            };
-            batch.update(playerRef, playerUpdates);
-        } else {
-             const propertyName = boardSpaces.find(s => 'id' in s && s.id === auction.propertyId)?.name || 'a propriedade';
-             addNotification(`Ninguém deu lance. O leilão para ${propertyName} terminou.`);
-        }
-        
-        batch.update(gameRef, { auction: undefined });
+        if (!allPlayers || !firestore || !gameRef || !gameId || auction.status !== 'active') return;
 
         try {
-            await batch.commit();
+            await runTransaction(firestore, async (transaction) => {
+                const freshGameDoc = await transaction.get(gameRef);
+                if (!freshGameDoc.exists()) throw "Game not found!";
+                const freshAuction = freshGameDoc.data().auction;
+
+                // Double check inside transaction to prevent race conditions
+                if (!freshAuction || freshAuction.status !== 'active') return;
+
+                let winnerId: string | null = null;
+                const participants = freshAuction.participatingPlayerIds;
+                
+                if (participants.length === 1 && freshAuction.lastBidderId === participants[0]) {
+                    winnerId = participants[0];
+                } else if (participants.length === 0 && freshAuction.lastBidderId) {
+                    winnerId = freshAuction.lastBidderId;
+                }
+
+                if (winnerId) {
+                    const winner = allPlayers.find(p => p.id === winnerId);
+                    const property = boardSpaces.find(s => 'id' in s && s.id === freshAuction.propertyId) as Property | undefined;
+                    if (!winner || !property) return;
+                    
+                    addNotification(`${winner.name} venceu o leilão de ${property.name} por R$${freshAuction.currentBid}!`);
+                    
+                    const playerRef = doc(firestore, `games/${gameId}/players`, winnerId);
+                    const playerUpdates = {
+                        money: winner.money - freshAuction.currentBid,
+                        properties: [...winner.properties, freshAuction.propertyId],
+                    };
+                    transaction.update(playerRef, playerUpdates);
+                } else {
+                    const propertyName = boardSpaces.find(s => 'id' in s && s.id === freshAuction.propertyId)?.name || 'a propriedade';
+                    addNotification(`Ninguém deu lance. O leilão para ${propertyName} terminou.`);
+                }
+
+                transaction.update(gameRef, { auction: undefined });
+            });
         } catch (e) {
             console.error("Auction completion transaction failed: ", e);
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -635,8 +643,12 @@ export default function GamePage() {
 
     useEffect(() => {
         const auction = gameData?.auction;
-        if (!auction || auction.status !== 'active') return;
+        if (!auction || auction.status !== 'active') {
+            setAuctionOpen(false);
+            return;
+        };
 
+        setAuctionOpen(true);
         const hasEnded = (auction.participatingPlayerIds.length === 1 && auction.lastBidderId === auction.participatingPlayerIds[0]) ||
                          (auction.participatingPlayerIds.length === 0 && auction.lastBidderId);
 
@@ -798,7 +810,7 @@ export default function GamePage() {
         <DialogFooter><Button onClick={() => { setCardToExecute(drawnCard); setDrawnCard(null); }}>Ok</Button></DialogFooter>
       </>}</DialogContent></Dialog>
        {loggedInPlayer && <ManagePropertiesDialog isOpen={isManageOpen} onOpenChange={setManageOpen} player={loggedInPlayer} allPlayers={allPlayers} onBuild={handleBuild} onSell={handleSell} onMortgage={handleMortgage} />}
-       {loggedInPlayer && gameData.auction && <AuctionDialog game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
+       {loggedInPlayer && <AuctionDialog isOpen={isAuctionOpen} onOpenChange={setAuctionOpen} game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
     </div>
   );
 }

@@ -7,7 +7,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow update, delete: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId && request.resource.data.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
     }
 
     // Jogos:
@@ -62,8 +62,8 @@ service cloud.firestore {
     }
 
     function isPlayerInGame(gameId, userId) {
-      let game = get(/databases/$(database)/documents/games/$(gameId)).data;
-      return userId in game.playerOrder;
+      let gameData = get(/databases/$(database)/documents/games/$(gameId)).data;
+      return userId in gameData.playerOrder;
     }
 
     function isStartingGame(req, res) {

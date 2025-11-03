@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { PlayerToken } from './player-token';
 
 const propertyColorClasses: { [key: string]: string } = {
   brown: 'bg-[#955436]', lightblue: 'bg-[#aae0fa]', pink: 'bg-[#d93a96]',
@@ -27,7 +28,7 @@ const playerBgColors: { [key: string]: string } = {
 };
 
 
-export function PlayerSidebar({ allPlayers, loggedInPlayer }: { allPlayers: Player[], loggedInPlayer: Player | undefined }) {
+export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { allPlayers: Player[], loggedInPlayer: Player | undefined, currentUserId: string | undefined }) {
     
   const ownedProperties = useMemo(() => {
     if (!loggedInPlayer) return [];
@@ -84,15 +85,11 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer }: { allPlayers: Play
                 <div className="space-y-2">
                     {allPlayers.map(player => (
                          <div key={player.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700/50">
-                            <Avatar className="h-8 w-8">
-                                <AvatarFallback className={cn("font-bold text-xs", playerBgColors[player.color])}>
-                                    {player.name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
+                            <PlayerToken player={player} size={8} />
                             <div className="flex-1 text-left">
                                 <p className="font-semibold flex items-center gap-2 text-sm">
                                     {player.name}
-                                    {player.id === loggedInPlayer?.id && <span className="text-[10px] text-green-400">(Você)</span>}
+                                    {player.id === currentUserId && <span className="text-[10px] text-green-400">(Você)</span>}
                                 </p>
                                 <div className="flex items-center text-xs text-slate-400">
                                     <Banknote className="mr-1 h-3 w-3" />

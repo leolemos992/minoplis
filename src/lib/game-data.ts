@@ -10,7 +10,7 @@ export const totems = [
   { id: 'cat', name: 'Gato', icon: Cat },
 ];
 
-export const boardSpaces: (Property | { type: string; name: string, id?:string, price?: number })[] = [
+export const boardSpaces: (Property | { type: string; name: string, id?:string, tax?: number })[] = [
   { type: 'go', name: 'Início', id: 'go' },
   { id: 'poco-fundo', name: 'Poço Fundo', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'brown', houseCost: 50, type: 'property' },
   { type: 'community-chest', name: 'Caixinha da Prefeitura', id: 'cc1' },
@@ -49,7 +49,7 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string, 
   { id: 'railroad-4', name: 'Nosso Brusque - Centro', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { type: 'chance', name: 'Sorte / Revés', id: 'chance3' },
   { id: 'havan', name: 'Avenida da Havan', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: 'darkblue', houseCost: 200, type: 'property' },
-  { type: 'luxury-tax', name: 'Taxa das Blusinhas', id: 'luxury-tax', price: 100 },
+  { type: 'luxury-tax', name: 'Taxa das Blusinhas', id: 'luxury-tax', tax: 250 },
   { id: 'centro-ii', name: 'Centro II', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: 'darkblue', houseCost: 200, type: 'property' },
 ];
 

@@ -119,6 +119,8 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
                 {('price' in space && space.price > 0) &&
                     <span className="font-normal mt-1">R$ {space.price}</span>}
+                {('tax' in space && space.tax > 0) &&
+                    <span className="font-normal mt-1">Pague R$ {space.tax}</span>}
             </div>
             <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{playersOnSpace.map(p => <PlayerToken key={p.id} player={p} size={6}/>)}</div>
          </div>
@@ -172,9 +174,9 @@ const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }:
                 </div>
                 {boardSpaces.map((space, index) => {
                     const playerOnSpace = getPlayerForSpace(index);
-                    const propertyData = allPlayers.find(p => 'id' in space && p.properties.includes(space.id));
-                    const houses = propertyData && 'id' in space ? propertyData.houses[space.id] : undefined;
-                    const isMortgaged = propertyData && 'id' in space ? propertyData.mortgagedProperties.includes(space.id) : false;
+                    const propertyData = allPlayers.find(p => 'id' in space && p.properties.includes(space.id!));
+                    const houses = propertyData && 'id' in space ? propertyData.houses[space.id!] : undefined;
+                    const isMortgaged = propertyData && 'id' in space ? propertyData.mortgagedProperties.includes(space.id!) : false;
 
                     return (
                         <BoardSpace 
@@ -418,13 +420,13 @@ export default function GamePage() {
     if (space.type === 'income-tax') {
         const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
         await makePayment(taxAmount, player.id);
-        return; // End of action for this space
+        return;
     } else if (space.type === 'luxury-tax') {
-        const taxAmount = 100;
+        const taxAmount = (space as any).tax || 100;
         await makePayment(taxAmount, player.id);
-        return; // End of action for this space
+        return;
     } else if ('price' in space) { // Is a property
-        const owner = allPlayers?.find(p => 'id' in space && p.properties.includes(space.id));
+        const owner = allPlayers?.find(p => 'id' in space && p.properties.includes(space.id!));
         if (owner && owner.id !== player.id) {
             // Pay Rent
             // TODO: Implement full rent logic (sets, railroads, utilities)

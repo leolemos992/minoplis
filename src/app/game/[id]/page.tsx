@@ -744,7 +744,7 @@ export default function GamePage() {
         </div>
       </main>
 
-      <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">{winner ? `Parabéns, ${winner.name} venceu!` : "O jogo terminou."}</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/lobby">Voltar ao Lobby</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
+      <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">{winner ? `Parabéns, ${winner.name} venceu!` : "O jogo terminou."}</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/">Voltar ao Início</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
       <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
         <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
             <DialogHeader className="sr-only">
@@ -768,3 +768,4 @@ export default function GamePage() {
 }
 
     
+

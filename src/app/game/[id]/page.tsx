@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
-import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star } from 'lucide-react';
+import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star, Fence } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Player, Property, GameCard, Notification, Game, Auction } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
@@ -85,7 +85,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
     const playersOnSpace = allPlayers.filter(p => p.position === index);
 
     // Corners
-    if ([0, 10, 20, 30].includes(index)) {
+    if ([0, 20, 30].includes(index)) {
         return (
             <div className="border border-black flex items-center justify-center text-center text-xs p-1 relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-${index}` }} onClick={() => onSpaceClick(space, index)}>
                  <div className={cn("flex flex-col items-center justify-center h-full w-full", cornerTextRotation[index] )}>
@@ -95,6 +95,31 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
                  <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{playersOnSpace.map(p => <PlayerToken key={p.id} player={p} size={6} />)}</div>
             </div>
         )
+    }
+
+    if (index === 10) { // Special rendering for Jail
+        const jailedPlayers = playersOnSpace.filter(p => p.inJail);
+        const visitingPlayers = playersOnSpace.filter(p => !p.inJail);
+
+        return (
+            <div className="border border-black flex flex-col text-center text-xs relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-10` }} onClick={() => onSpaceClick(space, index)}>
+                <div className="w-full h-3/4 flex items-center justify-center p-1">
+                    <span className={cn('font-bold transform-gpu', cornerTextRotation[index])}>Apenas Visitando</span>
+                     <div className="absolute top-8 left-1 grid grid-cols-2 grid-rows-2 gap-1 pointer-events-none">
+                        {visitingPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
+                    </div>
+                </div>
+                <div className="w-1/2 h-full absolute top-0 right-0 border-l border-black bg-orange-400/50 flex flex-col items-center justify-center">
+                    <div className={cn("flex flex-col items-center justify-center text-black", cornerTextRotation[index] )}>
+                        <Fence className="w-8 h-8"/>
+                        <span className="font-bold">Prisão</span>
+                    </div>
+                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-2 pointer-events-none">
+                        {jailedPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -117,7 +142,7 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
             <div className={cn("relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full", textRotation[index], isMortgaged && 'opacity-50')}>
                  {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {('price' in space && space.price > 0) &&
+                {('price' in space && space.price > 0 && space.type !== 'income-tax') &&
                     <span className="font-normal mt-1">R$ {space.price}</span>}
                 {('tax' in space && space.tax > 0) &&
                     <span className="font-normal mt-1">Pague R$ {space.tax}</span>}
@@ -819,3 +844,5 @@ export default function GamePage() {
     </div>
   );
 }
+
+    

@@ -62,9 +62,8 @@ service cloud.firestore {
     }
 
     function isPlayerInGame(gameId, userId) {
-      // Use exists instead of `in` for lists
       let game = get(/databases/$(database)/documents/games/$(gameId)).data;
-      return game.playerOrder.hasAny([userId]);
+      return userId in game.playerOrder;
     }
 
     function isStartingGame(req, res) {
@@ -95,8 +94,11 @@ service cloud.firestore {
     function isManagingAuction(gameId, req, res) {
         let authId = request.auth.uid;
         let game = get(/databases/$(database)/documents/games/$(gameId)).data;
-        // O jogador do turno atual pode iniciar um leilão se não houver um ativo.
-        let isStartingAuction = res.data.auction == null && req.resource.data.auction.status == 'active' && authId == game.currentPlayerId;
+        
+        // O jogador do turno atual pode iniciar um leilão.
+        let isStartingAuction = res.data.auction == null && 
+                                req.resource.data.auction.status == 'active' && 
+                                authId == game.currentPlayerId;
         
         // Qualquer participante pode dar um lance.
         let isBidding = res.data.auction != null && res.data.auction.status == 'active' &&

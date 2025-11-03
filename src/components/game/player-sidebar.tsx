@@ -24,6 +24,9 @@ const logIcons = {
     property: <LandPlot className="h-4 w-4 text-yellow-400" />,
     jail: <UserX className="h-4 w-4 text-red-400" />,
     turn: <UserCheck className="h-4 w-4 text-purple-400" />,
+    card: <Info className="h-4 w-4 text-gray-400" />,
+    system: <Info className="h-4 w-4 text-gray-400" />,
+    auction: <Banknote className="h-4 w-4 text-yellow-500" />,
     default: <Info className="h-4 w-4 text-gray-400" />,
 }
 

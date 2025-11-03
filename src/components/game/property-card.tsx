@@ -29,6 +29,7 @@ interface PropertyCardProps {
 
 export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTurn }: PropertyCardProps) {
   const owner = allPlayers?.find(p => p.properties.includes(space.id));
+  const isAuctionable = space.type === 'property' || space.type === 'railroad' || space.type === 'utility';
 
   return (
     <Card className="w-full max-w-sm">
@@ -75,7 +76,7 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTu
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}
         <Button variant="ghost" className="w-full" onClick={onClose}>
-          { !owner && isMyTurn ? "Leiloar" : "Fechar" }
+          { !owner && isMyTurn && isAuctionable ? "Leiloar" : "Fechar" }
         </Button>
       </CardFooter>
     </Card>

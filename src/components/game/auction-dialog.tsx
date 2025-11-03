@@ -12,13 +12,13 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Gavel, Minus, Plus } from 'lucide-react';
+import { Gavel, Minus, Plus, X } from 'lucide-react';
 import { PropertyCard } from './property-card';
 import { Badge } from '../ui/badge';
 
 interface AuctionDialogProps {
   isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
+  onClose: () => void;
   game: Game;
   allPlayers: Player[];
   loggedInPlayer: Player;
@@ -28,7 +28,7 @@ interface AuctionDialogProps {
 
 const BID_INCREMENT = 10;
 
-export function AuctionDialog({ isOpen, onOpenChange, game, allPlayers, loggedInPlayer, onBid, onPass }: AuctionDialogProps) {
+export function AuctionDialog({ isOpen, onClose, game, allPlayers, loggedInPlayer, onBid, onPass }: AuctionDialogProps) {
   const auction = game.auction;
   const property = useMemo(() => {
     if (!auction?.propertyId) return null;
@@ -66,7 +66,7 @@ export function AuctionDialog({ isOpen, onOpenChange, game, allPlayers, loggedIn
   
   const handlePass = () => {
       onPass();
-      onOpenChange(false); // Close dialog for player who passed
+      onClose(); // Close dialog for player who passed
   }
 
   const isParticipating = auction?.participatingPlayerIds.includes(loggedInPlayer.id) || false;
@@ -77,8 +77,13 @@ export function AuctionDialog({ isOpen, onOpenChange, game, allPlayers, loggedIn
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
+         <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="absolute right-4 top-4">
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogClose>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gavel /> Leilão de Propriedade!

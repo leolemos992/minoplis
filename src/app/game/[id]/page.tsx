@@ -418,9 +418,11 @@ export default function GamePage() {
     if (space.type === 'income-tax') {
         const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
         await makePayment(taxAmount, player.id);
+        return; // End of action for this space
     } else if (space.type === 'luxury-tax') {
         const taxAmount = 100;
         await makePayment(taxAmount, player.id);
+        return; // End of action for this space
     } else if ('price' in space) { // Is a property
         const owner = allPlayers?.find(p => 'id' in space && p.properties.includes(space.id));
         if (owner && owner.id !== player.id) {
@@ -811,7 +813,7 @@ export default function GamePage() {
         <DialogFooter><Button onClick={() => { setCardToExecute(drawnCard); setDrawnCard(null); }}>Ok</Button></DialogFooter>
       </>}</DialogContent></Dialog>
        {loggedInPlayer && <ManagePropertiesDialog isOpen={isManageOpen} onOpenChange={setManageOpen} player={loggedInPlayer} allPlayers={allPlayers} onBuild={handleBuild} onSell={handleSell} onMortgage={handleMortgage} />}
-       {loggedInPlayer && <AuctionDialog isOpen={isAuctionOpen} onOpenChange={setAuctionOpen} game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
+       {loggedInPlayer && <AuctionDialog isOpen={isAuctionOpen} onClose={() => setAuctionOpen(false)} game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
     </div>
   );
 }

@@ -273,11 +273,16 @@ export default function GamePage() {
                   let isWinner = p.userId === winnerId;
                   if (isWinner) xpGained += 50; // Bonus XP for winning
 
-                  transaction.update(userRef, {
+                  // Use set with merge to create or update the user document.
+                  transaction.set(userRef, {
                       gamesPlayed: increment(1),
                       wins: increment(isWinner ? 1 : 0),
                       xp: increment(xpGained),
-                  });
+                      // Include fields that should be set on creation
+                      displayName: p.name,
+                      email: p.userId, // Using userId as a placeholder
+                      uid: p.userId,
+                  }, { merge: true });
               }
           });
           if (winnerId && winnerId !== 'none') {
@@ -774,7 +779,3 @@ export default function GamePage() {
     </div>
   );
 }
-
-    
-
-

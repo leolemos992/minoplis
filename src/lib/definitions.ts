@@ -41,8 +41,8 @@ export type Auction = {
 // Represents a user profile with game statistics.
 export type UserProfile = {
     uid: string;
-    displayName: string;
-    email: string;
+    displayName: string | null;
+    email: string | null;
     xp: number;
     level: number;
     wins: number;

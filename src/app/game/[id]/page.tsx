@@ -261,7 +261,7 @@ export default function GamePage() {
     if (!firestore || !gameId || !gameRef) return;
     
     // Update game status and winner
-    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: null });
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: undefined });
 
     // Award XP and update stats
     if (allPlayers && allPlayers.length > 0) {
@@ -592,14 +592,16 @@ export default function GamePage() {
     };
 
     const handleAuctionCompletion = useCallback(async (auction: Auction) => {
-        if (!allPlayers || !firestore || !gameRef) return;
-        
+        if (!allPlayers || !firestore || !gameRef || !gameId) return;
+
         let winnerId: string | null = null;
-        if (auction.participatingPlayerIds.length === 1 && auction.currentBidderId === auction.participatingPlayerIds[0]) {
+        if (auction.participatingPlayerIds.length === 1 && auction.lastBidderId === auction.participatingPlayerIds[0]) {
              winnerId = auction.participatingPlayerIds[0];
         } else if (auction.participatingPlayerIds.length === 0 && auction.lastBidderId) {
              winnerId = auction.lastBidderId;
         }
+
+        const batch = writeBatch(firestore);
 
         if (winnerId) {
             const winner = allPlayers.find(p => p.id === winnerId);
@@ -608,34 +610,28 @@ export default function GamePage() {
             
             addNotification(`${winner.name} venceu o leilão de ${property.name} por R$${auction.currentBid}!`);
 
-            try {
-                await runTransaction(firestore, async (transaction) => {
-                    const playerRef = doc(firestore, `games/${gameId}/players`, winnerId!);
-                    const playerDoc = await transaction.get(playerRef);
-                    if (!playerDoc.exists()) throw "Winner not found";
-
-                    // CRITICAL: First, nullify the auction field to stop the loop
-                    transaction.update(gameRef, { auction: null });
-
-                    // Then, update the player
-                    transaction.update(playerRef, {
-                        money: playerDoc.data().money - auction.currentBid,
-                        properties: [...playerDoc.data().properties, auction.propertyId],
-                    });
-                });
-            } catch (e) {
-                console.error("Auction completion transaction failed: ", e);
-                 errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: gameRef.path, operation: 'update', requestResourceData: { auction: null }
-                }));
-            }
+            const playerRef = doc(firestore, `games/${gameId}/players`, winnerId!);
+            const playerUpdates = {
+                money: winner.money - auction.currentBid,
+                properties: [...winner.properties, auction.propertyId],
+            };
+            batch.update(playerRef, playerUpdates);
         } else {
-            // No winner, just end the auction
              const propertyName = boardSpaces.find(s => 'id' in s && s.id === auction.propertyId)?.name || 'a propriedade';
              addNotification(`Ninguém deu lance. O leilão para ${propertyName} terminou.`);
-             updateGameInFirestore({ auction: null });
         }
-    }, [allPlayers, firestore, gameId, gameRef, addNotification, updateGameInFirestore]);
+        
+        batch.update(gameRef, { auction: undefined });
+
+        try {
+            await batch.commit();
+        } catch (e) {
+            console.error("Auction completion transaction failed: ", e);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: gameRef.path, operation: 'update', requestResourceData: { auction: null }
+            }));
+        }
+    }, [allPlayers, firestore, gameId, gameRef, addNotification]);
 
     useEffect(() => {
         const auction = gameData?.auction;
@@ -806,5 +802,3 @@ export default function GamePage() {
     </div>
   );
 }
-
-    

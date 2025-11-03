@@ -601,7 +601,6 @@ export default function GamePage() {
                 if (!freshGameDoc.exists()) throw "Game not found!";
                 const freshAuction = freshGameDoc.data().auction;
 
-                // Double check inside transaction to prevent race conditions
                 if (!freshAuction || freshAuction.status !== 'active') return;
 
                 let winnerId: string | null = null;

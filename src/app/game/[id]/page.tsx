@@ -117,8 +117,8 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
             <div className={cn("relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full", textRotation[index], isMortgaged && 'opacity-50')}>
                  {getIcon(space, "w-6 h-6")}
                 <span className="font-bold px-1 leading-tight">{space.name}</span>
-                {(isProperty || ['income-tax', 'luxury-tax'].includes(space.type)) && 
-                    <span className="font-normal mt-1">R$ {space.price || (space.type === 'luxury-tax' ? 100 : '')}</span>}
+                {('price' in space && space.price > 0) &&
+                    <span className="font-normal mt-1">R$ {space.price}</span>}
             </div>
             <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{playersOnSpace.map(p => <PlayerToken key={p.id} player={p} size={6}/>)}</div>
          </div>
@@ -414,9 +414,15 @@ export default function GamePage() {
         addNotification("Você está apenas visitando a prisão.");
         return;
     }
-
-    if ('price' in space) { // Is a property
-        const owner = allPlayers?.find(p => p.properties.includes(space.id));
+    
+    if (space.type === 'income-tax') {
+        const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
+        await makePayment(taxAmount, player.id);
+    } else if (space.type === 'luxury-tax') {
+        const taxAmount = 100;
+        await makePayment(taxAmount, player.id);
+    } else if ('price' in space) { // Is a property
+        const owner = allPlayers?.find(p => 'id' in space && p.properties.includes(space.id));
         if (owner && owner.id !== player.id) {
             // Pay Rent
             // TODO: Implement full rent logic (sets, railroads, utilities)
@@ -436,11 +442,6 @@ export default function GamePage() {
             setDrawnCard(first);
             setAnimateCardPile(null);
         }, 500);
-    } else if (space.type === 'income-tax') {
-        const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
-        await makePayment(taxAmount, player.id);
-    } else if (space.type === 'luxury-tax') {
-        await makePayment(100, player.id);
     } else if (space.type === 'go-to-jail') {
         goToJail(player.id);
     }

@@ -10,12 +10,12 @@ export const totems = [
   { id: 'cat', name: 'Gato', icon: Cat },
 ];
 
-export const boardSpaces: (Property | { type: string; name: string, id?:string })[] = [
+export const boardSpaces: (Property | { type: string; name: string, id?:string, price?: number })[] = [
   { type: 'go', name: 'Início', id: 'go' },
   { id: 'poco-fundo', name: 'Poço Fundo', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'brown', houseCost: 50, type: 'property' },
   { type: 'community-chest', name: 'Caixinha da Prefeitura', id: 'cc1' },
   { id: 'guarani', name: 'Zantão', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'brown', houseCost: 50, type: 'property' },
-  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax', price: 200 },
+  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax' },
   { id: 'railroad-1', name: 'Nosso Brusque - Poço Fundo', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { id: 'azambuja', name: 'Azambuja', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', houseCost: 50, type: 'property' },
   { type: 'chance', name: 'Sorte / Revés', id: 'chance1' },

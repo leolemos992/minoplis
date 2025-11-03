@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Palette, User as UserIcon, Copy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Palette, User as UserIcon, Copy } from 'lucide-react';
 import { useUser, useFirestore, FirestorePermissionError, errorEmitter, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, writeBatch, arrayUnion, updateDoc, collection } from 'firebase/firestore';
 import type { Player, Game } from '@/lib/definitions';
@@ -255,20 +255,26 @@ export default function CharacterSelectionPage() {
                     </div>
                 </div>
                 </CardContent>
-                <CardFooter className="flex justify-end">
-                    {!hasJoined ? (
-                         <Button className="group" disabled={!playerName.trim() || !gameId} onClick={handleJoinGame}>
-                            Entrar no Jogo
-                            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                    ) : (
-                        isHost && (
-                             <Button className="group" disabled={!allPlayers || allPlayers.length < 1} onClick={handleStartGame}>
-                                Iniciar Jogo para Todos
+                <CardFooter className="flex justify-between items-center">
+                    <Button variant="outline" onClick={() => router.push('/')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Voltar
+                    </Button>
+                    <div className="flex justify-end gap-4">
+                        {!hasJoined ? (
+                            <Button className="group" disabled={!playerName.trim() || !gameId} onClick={handleJoinGame}>
+                                Entrar no Jogo
                                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                             </Button>
-                        )
-                    )}
+                        ) : (
+                            isHost && (
+                                <Button className="group" disabled={!allPlayers || allPlayers.length < 1} onClick={handleStartGame}>
+                                    Iniciar Jogo para Todos
+                                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                </Button>
+                            )
+                        )}
+                    </div>
                 </CardFooter>
             </Card>
       </div>

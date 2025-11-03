@@ -16,7 +16,7 @@ import { ManagePropertiesDialog } from '@/components/game/manage-properties-dial
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameNotifications } from '@/components/game/game-notifications';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove, increment, serverTimestamp, deleteField } from 'firebase/firestore';
 import { PlayerSidebar } from '@/components/game/player-sidebar';
 import { GameHeader } from '@/components/game/game-header';
 import { AuctionDialog } from '@/components/game/auction-dialog';
@@ -262,7 +262,7 @@ export default function GamePage() {
     if (!firestore || !gameId || !gameRef) return;
     
     // Update game status and winner
-    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: undefined });
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: deleteField() });
 
     // Award XP and update stats
     if (allPlayers && allPlayers.length > 0) {
@@ -631,12 +631,13 @@ export default function GamePage() {
                     addNotification(`Ninguém deu lance. O leilão para ${propertyName} terminou.`);
                 }
 
-                transaction.update(gameRef, { auction: undefined });
+                transaction.update(gameRef, { auction: deleteField() });
             });
-        } catch (e) {
-            console.error("Auction completion transaction failed: ", e);
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: gameRef.path, operation: 'update', requestResourceData: { auction: null }
+        } catch (e: any) {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: gameRef.path,
+                operation: 'update',
+                requestResourceData: { auction: '<deleted>' }
             }));
         }
     }, [allPlayers, firestore, gameId, gameRef, addNotification]);

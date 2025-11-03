@@ -94,24 +94,25 @@ service cloud.firestore {
 
     function isManagingAuction(gameId, req, res) {
         let authId = request.auth.uid;
-        // Anyone in the game can start an auction if there isn't one active.
-        let isStartingAuction = res.data.auction == null && req.resource.data.auction.status == 'active' && isPlayerInGame(gameId, authId);
+        let game = get(/databases/$(database)/documents/games/$(gameId)).data;
+        // O jogador do turno atual pode iniciar um leilão se não houver um ativo.
+        let isStartingAuction = res.data.auction == null && req.resource.data.auction.status == 'active' && authId == game.currentPlayerId;
         
-        // Anyone participating can bid.
-        let isBidding = res.data.auction.status == 'active' &&
+        // Qualquer participante pode dar um lance.
+        let isBidding = res.data.auction != null && res.data.auction.status == 'active' &&
                         req.resource.data.auction.currentBid > res.data.auction.currentBid &&
                         req.resource.data.auction.currentBidderId == authId &&
                         authId in res.data.auction.participatingPlayerIds;
 
-        // Anyone participating can pass.
-        let isPassing = res.data.auction.status == 'active' &&
+        // Qualquer participante pode desistir.
+        let isPassing = res.data.auction != null && res.data.auction.status == 'active' &&
                         !(authId in req.resource.data.auction.participatingPlayerIds) &&
                         (authId in res.data.auction.participatingPlayerIds);
 
-        // Anyone in the game can finish an auction (e.g., when the last bidder is confirmed).
-        let isFinishingAuction = res.data.auction.status == 'active' &&
+        // O jogador do turno atual pode finalizar um leilão.
+        let isFinishingAuction = res.data.auction != null && res.data.auction.status == 'active' &&
                                   req.resource.data.auction.status == 'finished' &&
-                                  isPlayerInGame(gameId, authId);
+                                  authId == game.currentPlayerId;
 
         return isStartingAuction || isBidding || isPassing || isFinishingAuction;
     }

@@ -94,7 +94,16 @@ export function AuctionDialog({ isOpen, onClose, game, allPlayers, loggedInPlaye
         <div className="grid md:grid-cols-2 gap-6 mt-4">
             {/* Column 1: Property Info */}
             <div>
-                <PropertyCard space={property} player={loggedInPlayer} allPlayers={allPlayers} onBuy={() => {}} onClose={() => {}} isMyTurn={false} />
+                <PropertyCard 
+                    space={property} 
+                    player={loggedInPlayer} 
+                    allPlayers={allPlayers} 
+                    onBuy={() => {}} 
+                    onAuction={() => {}} 
+                    onModalClose={() => {}}
+                    isMyTurn={false} 
+                    isDisplayOnly={true}
+                />
             </div>
 
             {/* Column 2: Bidding Info & Actions */}

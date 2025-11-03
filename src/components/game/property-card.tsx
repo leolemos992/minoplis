@@ -27,11 +27,12 @@ interface PropertyCardProps {
   onAuction: () => void;
   onModalClose: () => void;
   isMyTurn: boolean;
+  isDisplayOnly?: boolean;
 }
 
-export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onModalClose, isMyTurn }: PropertyCardProps) {
+export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onModalClose, isMyTurn, isDisplayOnly = false }: PropertyCardProps) {
   const owner = allPlayers?.find(p => p.properties.includes(space.id));
-  const isAuctionable = space.type === 'property' || space.type === 'railroad' || space.type === 'utility';
+  const isOwnable = space.type === 'property' || space.type === 'railroad' || space.type === 'utility';
 
   return (
     <Card className="w-full max-w-sm">
@@ -45,9 +46,11 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onMo
           { (space.type === 'railroad' || space.type === 'utility') && <div className="text-black">{getIcon(space)}</div> }
           <CardTitle className={cn("text-xl", (space.color === 'lightblue' || space.color === 'yellow') ? 'text-black' : 'text-white')}>{space.name}</CardTitle>
         </div>
-        <div className="p-4">
-          <CardDescription className="text-lg font-bold text-center">Preço: R$ {space.price}</CardDescription>
-        </div>
+        {isOwnable && (
+          <div className="p-4">
+            <CardDescription className="text-lg font-bold text-center">Preço: R$ {space.price}</CardDescription>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-4 pt-0">
         {space.type === 'property' && space.rent && (
@@ -65,35 +68,35 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onMo
              <p className="text-sm text-muted-foreground text-center">O aluguel depende do número de propriedades do mesmo tipo que o proprietário possui.</p>
          )}
       </CardContent>
-      <CardFooter className="flex flex-col gap-2 p-4">
-        {/* Actions for unowned properties */}
-        {!owner && isMyTurn && (
-          <>
-            {player.money >= space.price && (
-              <Button className="w-full" onClick={() => onBuy(space)}>Comprar Propriedade</Button>
-            )}
-            {player.money < space.price && (
-              <Button className="w-full" disabled>Dinheiro insuficiente</Button>
-            )}
-            {isAuctionable && (
-              <Button variant="ghost" className="w-full" onClick={onAuction}>Leiloar</Button>
-            )}
-          </>
-        )}
 
-        {/* Display owner info */}
-        {owner && (
-          <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
-            <User className="h-4 w-4" /><span>Proprietário: {owner.id === player.id ? "Você" : owner.name}</span>
-          </div>
-        )}
+      {!isDisplayOnly && (
+        <CardFooter className="flex flex-col gap-2 p-4">
+            {/* Actions for unowned properties */}
+            {!owner && isMyTurn && isOwnable && (
+            <>
+                {player.money >= space.price && (
+                <Button className="w-full" onClick={() => onBuy(space)}>Comprar Propriedade</Button>
+                )}
+                {player.money < space.price && (
+                <Button className="w-full" disabled>Dinheiro insuficiente</Button>
+                )}
+                <Button variant="ghost" className="w-full" onClick={onAuction}>Leiloar</Button>
+            </>
+            )}
 
-        {/* Close button - always visible */}
-        <DialogClose asChild>
-           <Button variant="ghost" className="w-full">Fechar</Button>
-        </DialogClose>
+            {/* Display owner info */}
+            {owner && (
+            <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
+                <User className="h-4 w-4" /><span>Proprietário: {owner.id === player.id ? "Você" : owner.name}</span>
+            </div>
+            )}
 
-      </CardFooter>
+            {/* Close button - always visible */}
+            <DialogClose asChild>
+                <Button variant="ghost" className="w-full" onClick={onModalClose}>Fechar</Button>
+            </DialogClose>
+        </CardFooter>
+      )}
     </Card>
   );
 }

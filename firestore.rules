@@ -25,7 +25,7 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         (
           (isHost(gameId) && isStartingGame(request, resource)) ||
-          (isHost(gameId) && isFinishingGame(request)) ||
+          (isHost(gameId) && isFinishingGame(request, resource)) ||
           (isJoiningWaitingGame(request, resource)) ||
           isPassingTurn(gameId, request, resource) ||
           isManagingAuction(gameId, request, resource)
@@ -70,8 +70,11 @@ service cloud.firestore {
       return res.data.status == 'waiting' && req.resource.data.status == 'active' && req.resource.data.playerOrder.size() > 0;
     }
     
-    function isFinishingGame(req) {
-      return req.resource.data.status == 'finished' && req.resource.data.winnerId != null;
+    function isFinishingGame(req, res) {
+      let isFinishing = req.resource.data.status == 'finished';
+      let hasWinner = req.resource.data.winnerId != null;
+      let noWinner = res.data.playerOrder.size() <= 1;
+      return isFinishing && (hasWinner || noWinner);
     }
 
     function isJoiningWaitingGame(req, res) {
@@ -83,7 +86,8 @@ service cloud.firestore {
 
     function isPassingTurn(gameId, req, res) {
       let game = get(/databases/$(database)/documents/games/$(gameId)).data;
-      let nextPlayerIndex = (game.turn + 1) % game.playerOrder.size();
+      let currentTurnIndex = game.playerOrder.indexOf(game.currentPlayerId);
+      let nextPlayerIndex = (currentTurnIndex + 1) % game.playerOrder.size();
       let nextPlayerId = game.playerOrder[nextPlayerIndex];
 
       return req.auth.uid == game.currentPlayerId && 
@@ -97,6 +101,7 @@ service cloud.firestore {
         
         // O jogador do turno atual pode iniciar um leilão.
         let isStartingAuction = res.data.auction == null && 
+                                req.resource.data.auction != null &&
                                 req.resource.data.auction.status == 'active' && 
                                 authId == game.currentPlayerId;
         
@@ -111,10 +116,10 @@ service cloud.firestore {
                         !(authId in req.resource.data.auction.participatingPlayerIds) &&
                         (authId in res.data.auction.participatingPlayerIds);
 
-        // O jogador do turno atual pode finalizar um leilão.
+        // O anfitrião ou o jogador do turno atual pode finalizar um leilão que terminou (e.g. limpar o estado do leilão).
         let isFinishingAuction = res.data.auction != null && res.data.auction.status == 'active' &&
                                   req.resource.data.auction.status == 'finished' &&
-                                  authId == game.currentPlayerId;
+                                  (authId == game.currentPlayerId || isHost(gameId));
 
         return isStartingAuction || isBidding || isPassing || isFinishingAuction;
     }

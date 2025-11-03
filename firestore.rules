@@ -16,20 +16,19 @@ service cloud.firestore {
       allow list: if isSignedIn();
       
       // Um utilizador pode ler os dados de um jogo se ele for um jogador na partida OU se o jogo estiver à espera.
-      allow get: if isSignedIn() && (request.auth.uid in resource.data.playerOrder || resource.data.status == 'waiting');
+      allow get: if isSignedIn() && (isPlayerInGame(gameId) || resource.data.status == 'waiting');
 
       // Criação: Qualquer utilizador autenticado pode criar um jogo, desde que se defina como anfitrião.
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
 
-      // Atualização: Permitida se for o jogador do turno, ou se for uma ação de leilão válida,
-      // ou se for o anfitrião a gerir o estado do jogo, ou um jogador a entrar.
-      allow update: if isSignedIn() &&
-        (
-          isCurrentPlayer(gameId) ||
-          isBiddingInAuction(request, resource) ||
-          (isHost(gameId) && (isStartingGame(request, resource) || isFinishingGame(request, resource))) ||
+      // Atualização: Permitida se for o jogador do turno, se for o anfitrião a gerir o estado, 
+      // se um jogador estiver a entrar, ou se um leilão estiver ativo.
+      allow update: if isSignedIn() && (
+          isCurrentPlayer(gameId) || 
+          isAuctionInProgress(resource) ||
+          (isHost(gameId) && isManagingGame(request, resource)) ||
           isJoiningWaitingGame(request, resource)
-        );
+      );
 
       // Eliminar: Apenas o anfitrião pode eliminar um jogo que ainda está em espera.
       allow delete: if isSignedIn() && isHost(gameId) && resource.data.status == 'waiting';
@@ -37,10 +36,10 @@ service cloud.firestore {
       // Subcoleção de Jogadores
       match /players/{playerId} {
         // Leitura: Um jogador pode ler os dados de qualquer jogador na partida, OU pode ler os seus próprios dados (essencial para entrar no jogo).
-        allow get: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder || request.auth.uid == playerId);
+        allow get: if isSignedIn() && (isPlayerInGame(gameId) || request.auth.uid == playerId);
 
         // Listar: Só os jogadores da partida podem ver a lista de todos os jogadores, OU qualquer um pode ver a lista se o jogo estiver à espera.
-        allow list: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder || get(/databases/$(database)/documents/games/$(gameId)).data.status == 'waiting');
+        allow list: if isSignedIn() && (isPlayerInGame(gameId) || get(/databases/$(database)/documents/games/$(gameId)).data.status == 'waiting');
         
         // Criação: Um utilizador pode criar o seu próprio documento de jogador, desde que se adicione ao jogo correspondente.
         allow create: if isSignedIn() && request.auth.uid == playerId && request.resource.data.userId == playerId;
@@ -62,18 +61,17 @@ service cloud.firestore {
     }
     
     function isCurrentPlayer(gameId) {
-        return get(/databases/$(database)/documents/games/$(gameId)).data.currentPlayerId == request.auth.uid;
+      return get(/databases/$(database)/documents/games/$(gameId)).data.currentPlayerId == request.auth.uid;
     }
 
-    function isStartingGame(req, res) {
-      return res.data.status == 'waiting' && req.resource.data.status == 'active' && req.resource.data.playerOrder.size() > 0;
+    function isPlayerInGame(gameId) {
+        return request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder;
     }
     
-    function isFinishingGame(req, res) {
+    function isManagingGame(req, res) {
+      let isStarting = res.data.status == 'waiting' && req.resource.data.status == 'active';
       let isFinishing = req.resource.data.status == 'finished';
-      let hasWinner = req.resource.data.winnerId != null;
-      let noWinner = res.data.playerOrder.size() <= 1;
-      return isFinishing && (hasWinner || noWinner);
+      return isStarting || isFinishing;
     }
 
     function isJoiningWaitingGame(req, res) {
@@ -83,12 +81,10 @@ service cloud.firestore {
       return isWaiting && isAddingSelf;
     }
     
-    function isBiddingInAuction(req, res) {
-        let isAuctionActive = res.data.auction.status == 'active' && req.resource.data.auction.status == 'active';
-        let isParticipant = request.auth.uid in res.data.auction.participatingPlayerIds;
-        // Apenas o campo do leilão pode ser modificado
-        let onlyAuctionIsModified = req.resource.data.diff(res.data).affectedKeys().hasOnly(['auction']);
-        return isAuctionActive && isParticipant && onlyAuctionIsModified;
+    function isAuctionInProgress(res) {
+      // Permite atualizações se um leilão estava ativo no documento existente.
+      // Cobre lances e a finalização do leilão (que apaga o campo 'auction').
+      return 'auction' in res.data && res.data.auction.status == 'active';
     }
   }
 }

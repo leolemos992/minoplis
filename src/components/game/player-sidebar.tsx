@@ -53,7 +53,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
             <span className="text-base font-bold text-green-400">R$ {loggedInPlayer?.money.toLocaleString() || 0}</span>
           </div>
           <h3 className="text-xs font-semibold text-slate-400 mb-2 px-1 uppercase tracking-wider">Propriedades ({ownedProperties.length})</h3>
-          <ScrollArea className="h-56">
+          <ScrollArea className="max-h-56">
              <div className="pr-2 space-y-1">
                 {ownedProperties.length > 0 ? ownedProperties.map(prop => (
                     <div key={prop.id} className="flex items-center gap-2 p-1.5 bg-slate-700/50 rounded-md text-xs">
@@ -64,7 +64,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
                         </div>
                     </div>
                 )) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+                    <div className="flex items-center justify-center h-full text-slate-500 text-xs p-4">
                         <p>Nenhuma propriedade ainda.</p>
                     </div>
                 )}
@@ -82,23 +82,25 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
             </TabsList>
             
             <TabsContent value="players" className="flex-1 overflow-y-auto p-2">
-                <div className="space-y-2">
-                    {allPlayers.map(player => (
-                         <div key={player.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700/50">
-                            <PlayerToken player={player} size={8} />
-                            <div className="flex-1 text-left">
-                                <p className="font-semibold flex items-center gap-2 text-sm">
-                                    {player.name}
-                                    {player.id === currentUserId && <span className="text-[10px] text-green-400">(Você)</span>}
-                                </p>
-                                <div className="flex items-center text-xs text-slate-400">
-                                    <Banknote className="mr-1 h-3 w-3" />
-                                    <span>R$ {player.money.toLocaleString()}</span>
+                 <ScrollArea className="h-full">
+                    <div className="space-y-2 pr-2">
+                        {allPlayers.map(player => (
+                            <div key={player.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700/50">
+                                <PlayerToken player={player} size={8} />
+                                <div className="flex-1 text-left">
+                                    <p className="font-semibold flex items-center gap-2 text-sm">
+                                        {player.name}
+                                        {player.id === currentUserId && <span className="text-[10px] text-green-400">(Você)</span>}
+                                    </p>
+                                    <div className="flex items-center text-xs text-slate-400">
+                                        <Banknote className="mr-1 h-3 w-3" />
+                                        <span>R$ {player.money.toLocaleString()}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                 </ScrollArea>
             </TabsContent>
             <TabsContent value="chat" className="flex-1 overflow-y-auto p-4 flex items-center justify-center text-slate-500 text-sm">
                 <p>Chat em breve...</p>

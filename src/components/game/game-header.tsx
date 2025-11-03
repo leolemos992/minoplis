@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dices, Landmark, Wallet } from 'lucide-react';
+import { Dices, Landmark, Wallet, MoreVertical, LogOut, RefreshCw, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import Link from 'next/link';
 
 interface GameHeaderProps {
   currentPlayerName: string;
@@ -15,6 +23,8 @@ interface GameHeaderProps {
   hasRolled: boolean;
   diceValue: [number, number];
   playerInJail: boolean;
+  isHost: boolean;
+  onEndGame: () => void;
 }
 
 function DiceIcon({ value }: { value: number }) {
@@ -51,7 +61,7 @@ function DiceIcon({ value }: { value: number }) {
   );
 }
 
-export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, onManageProperties, onPayBail, isTurnActive, hasRolled, diceValue, playerInJail }: GameHeaderProps) {
+export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, onManageProperties, onPayBail, isTurnActive, hasRolled, diceValue, playerInJail, isHost, onEndGame }: GameHeaderProps) {
   const [dice, setDice] = useState<[number, number]>(diceValue);
   const [isRolling, setIsRolling] = useState(false);
 
@@ -115,6 +125,30 @@ export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, onManageP
         <Button variant="outline" onClick={onEndTurn} disabled={!canEndTurn}>
           Terminar Turno
         </Button>
+
+         <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-5 w-5" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                    <Link href="/"><RefreshCw className="mr-2 h-4 w-4"/>Novo Jogo</Link>
+                </DropdownMenuItem>
+                 <DropdownMenuItem asChild>
+                    <Link href="/"><LogOut className="mr-2 h-4 w-4"/>Sair da Partida</Link>
+                </DropdownMenuItem>
+                {isHost && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onClick={() => onEndGame()}>
+                            <XCircle className="mr-2 h-4 w-4"/> Encerrar Jogo
+                        </DropdownMenuItem>
+                    </>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

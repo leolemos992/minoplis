@@ -6,7 +6,7 @@ import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
 import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Player, Property, GameCard, Notification, Game } from '@/lib/definitions';
+import type { Player, Property, GameCard, Notification, Game, Auction } from '@/lib/definitions';
 import { Logo } from '@/components/logo';
 import { PlayerToken } from '@/components/game/player-token';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -19,6 +19,7 @@ import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, Firestor
 import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove, increment } from 'firebase/firestore';
 import { PlayerSidebar } from '@/components/game/player-sidebar';
 import { GameHeader } from '@/components/game/game-header';
+import { AuctionDialog } from '@/components/game/auction-dialog';
 
 
 const colorClasses: { [key: string]: string } = {
@@ -409,7 +410,7 @@ export default function GamePage() {
             const rentAmount = (space as Property).rent[0]; // Simple rent for now
             await makePayment(rentAmount, player.id, owner.id);
         } else if (!owner && player.id === user?.uid) {
-          // If it's my turn and the property is unowned, show buy dialog
+          // If it's my turn and the unowned property, show buy dialog
           setSelectedSpace(space);
         }
     } else if (space.type === 'chance' || space.type === 'community-chest') {
@@ -537,6 +538,78 @@ export default function GamePage() {
     addNotification(`Você comprou ${property.name}.`);
     setSelectedSpace(null);
   };
+  
+    const handleAuctionProperty = (property: Property) => {
+        if (!gameData || !allPlayers) return;
+        addNotification(`Leilão iniciado para ${property.name}!`);
+        const auction: Auction = {
+            propertyId: property.id,
+            status: 'active',
+            currentBid: 1,
+            currentBidderId: null,
+            participatingPlayerIds: gameData.playerOrder.filter(pId => allPlayers.find(p => p.id === pId)!.money > 1),
+            lastBidderId: null,
+        };
+        updateGameInFirestore({ auction });
+        setSelectedSpace(null);
+    };
+
+    const handleAuctionBid = (amount: number) => {
+        if (!gameData?.auction || !loggedInPlayer) return;
+
+        const updatedAuction: Auction = {
+            ...gameData.auction,
+            currentBid: amount,
+            currentBidderId: loggedInPlayer.id,
+            lastBidderId: loggedInPlayer.id,
+        };
+
+        updateGameInFirestore({ auction: updatedAuction });
+    };
+
+    const handleAuctionPass = () => {
+        if (!gameData?.auction || !loggedInPlayer) return;
+
+        const remainingPlayers = gameData.auction.participatingPlayerIds.filter(id => id !== loggedInPlayer.id);
+
+        const updatedAuction: Auction = {
+            ...gameData.auction,
+            participatingPlayerIds: remainingPlayers,
+        };
+        updateGameInFirestore({ auction: updatedAuction });
+    };
+
+    // Effect to handle auction completion
+    useEffect(() => {
+        const auction = gameData?.auction;
+        if (auction && auction.status === 'active' && allPlayers) {
+            const participants = auction.participatingPlayerIds;
+            if (participants.length === 1 && auction.currentBidderId === participants[0]) {
+                // Winner found
+                const winnerId = participants[0];
+                const winner = allPlayers.find(p => p.id === winnerId);
+                if (winner) {
+                    addNotification(`${winner.name} venceu o leilão de ${boardSpaces.find(s => 'id' in s && s.id === auction.propertyId)?.name} por R$${auction.currentBid}!`);
+
+                    const playerRef = doc(firestore!, `games/${gameId}/players`, winnerId);
+                    const gameUpdates: Partial<Game> = { auction: { ...auction, status: 'finished' } };
+                    const playerUpdates = {
+                        money: winner.money - auction.currentBid,
+                        properties: [...winner.properties, auction.propertyId],
+                    };
+                    
+                    const batch = writeBatch(firestore!);
+                    batch.update(gameRef!, gameUpdates);
+                    batch.update(playerRef, playerUpdates);
+                    batch.commit();
+                }
+            } else if (participants.length === 0) {
+                 // All players passed
+                addNotification(`Ninguém deu lance. O leilão para ${boardSpaces.find(s => 'id' in s && s.id === auction.propertyId)?.name} terminou.`);
+                updateGameInFirestore({ auction: { ...auction, status: 'finished' }});
+            }
+        }
+    }, [gameData?.auction, allPlayers, gameId, firestore, gameRef, addNotification, updateGameInFirestore]);
 
   const handlePayBail = async () => {
     if (!loggedInPlayer || !loggedInPlayer.inJail) return;
@@ -659,7 +732,7 @@ export default function GamePage() {
           currentPlayerName={currentPlayer.name}
           onDiceRoll={handleDiceRoll}
           onEndTurn={handleEndTurn}
-          isTurnActive={isMyTurn && !isGameOver}
+          isTurnActive={isMyTurn && !isGameOver && !gameData.auction}
           hasRolled={hasRolled}
           diceValue={dice}
           onManageProperties={() => setManageOpen(true)}
@@ -678,7 +751,7 @@ export default function GamePage() {
              <DialogTitle>{selectedSpace?.name}</DialogTitle>
              <DialogDescription>Detalhes da propriedade {selectedSpace?.name}</DialogDescription>
            </DialogHeader>
-          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
+          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onClose={() => handleAuctionProperty(selectedSpace)} isMyTurn={isMyTurn} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>
@@ -689,6 +762,7 @@ export default function GamePage() {
         <DialogFooter><Button onClick={() => { setCardToExecute(drawnCard); setDrawnCard(null); }}>Ok</Button></DialogFooter>
       </>}</DialogContent></Dialog>
        {loggedInPlayer && <ManagePropertiesDialog isOpen={isManageOpen} onOpenChange={setManageOpen} player={loggedInPlayer} allPlayers={allPlayers} onBuild={handleBuild} onSell={handleSell} onMortgage={handleMortgage} />}
+       {loggedInPlayer && gameData.auction && <AuctionDialog game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
     </div>
   );
 }

@@ -25,7 +25,18 @@ export type Game = {
   createdAt: any; // Firestore ServerTimestamp.
   playerOrder: string[];
   turn: number;
+  auction?: Auction;
 };
+
+// Represents the state of an auction.
+export type Auction = {
+    propertyId: string;
+    status: 'active' | 'finished';
+    currentBid: number;
+    currentBidderId: string | null;
+    participatingPlayerIds: string[];
+    lastBidderId: string | null; // Tracks the last player to bid to determine when to end
+}
 
 // Represents a user profile with game statistics.
 export type UserProfile = {

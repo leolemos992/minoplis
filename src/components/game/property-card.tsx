@@ -75,7 +75,7 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTu
             <Button className="w-full" disabled>Dinheiro insuficiente</Button>
          )}
         <Button variant="ghost" className="w-full" onClick={onClose}>
-          { !owner && isMyTurn ? "Não comprar" : "Fechar" }
+          { !owner && isMyTurn ? "Leiloar" : "Fechar" }
         </Button>
       </CardFooter>
     </Card>

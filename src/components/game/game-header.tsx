@@ -102,7 +102,7 @@ export function GameHeader({ currentPlayerName, onDiceRoll, onEndTurn, onManageP
            <span className="font-bold text-slate-600">+</span>
            <DiceIcon value={dice[1]} />
         </div>
-        <Button onClick={onManageProperties} variant="outline">
+        <Button onClick={onManageProperties} variant="outline" disabled={!isTurnActive}>
             <Wallet className="mr-2 h-4 w-4" /> Gerir
         </Button>
         {playerInJail ? (

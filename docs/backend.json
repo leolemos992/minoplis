@@ -39,6 +39,18 @@
         "turn": {
             "type": "number",
             "description": "O índice do jogador atual em playerOrder."
+        },
+        "auction": {
+            "type": "object",
+            "description": "Detalhes de um leilão em andamento.",
+            "properties": {
+                "propertyId": { "type": "string" },
+                "status": { "type": "string", "enum": ["active", "finished"] },
+                "currentBid": { "type": "number" },
+                "currentBidderId": { "type": "string" },
+                "participatingPlayerIds": { "type": "array", "items": { "type": "string" } },
+                "lastBidderId": { "type": "string" }
+            }
         }
       },
       "required": ["name", "status", "hostId", "createdAt", "playerOrder"]
@@ -75,6 +87,25 @@
         "inJail": {
           "type": "boolean",
           "description": "Indica se o jogador está na prisão."
+        },
+        "properties": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Array de IDs de propriedades que o jogador possui."
+        },
+        "mortgagedProperties": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Array de IDs de propriedades hipotecadas."
+        },
+        "houses": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Mapa de propertyId para número de casas (5 para hotel)."
+        },
+        "getOutOfJailFreeCards": {
+            "type": "number",
+            "description": "Número de cartas 'Saia Livre da Prisão' que o jogador possui."
         }
       },
       "required": ["userId", "name", "money", "position", "color", "totem"]

@@ -22,16 +22,13 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
 
       // Atualização:
-      // 1. O anfitrião pode iniciar um jogo ('active') se houver jogadores.
-      // 2. O anfitrião pode terminar um jogo ('finished').
-      // 3. Qualquer jogador pode entrar num jogo em espera ('waiting') adicionando-se a `playerOrder`.
-      // 4. O jogador atual pode passar o turno para o próximo.
       allow update: if isSignedIn() &&
         (
           (isHost(gameId) && isStartingGame(request, resource)) ||
           (isHost(gameId) && isFinishingGame(request)) ||
           (isJoiningWaitingGame(request, resource)) ||
-          isPassingTurn(gameId, request, resource)
+          isPassingTurn(gameId, request, resource) ||
+          isManagingAuction(gameId, request, resource)
         );
 
       // Eliminar: Apenas o anfitrião pode eliminar um jogo que ainda está em espera.
@@ -66,8 +63,8 @@ service cloud.firestore {
 
     function isPlayerInGame(gameId, userId) {
       // Use exists instead of `in` for lists
-      return exists(/databases/$(database)/documents/games/$(gameId)) &&
-             get(/databases/$(database)/documents/games/$(gameId)).data.playerOrder.hasAny([userId]);
+      let game = get(/databases/$(database)/documents/games/$(gameId)).data;
+      return game.playerOrder.hasAny([userId]);
     }
 
     function isStartingGame(req, res) {
@@ -93,6 +90,31 @@ service cloud.firestore {
       return req.auth.uid == game.currentPlayerId && 
              req.resource.data.currentPlayerId == nextPlayerId &&
              req.resource.data.turn == nextPlayerIndex;
+    }
+
+    function isManagingAuction(gameId, req, res) {
+        let game = get(/databases/$(database)/documents/games/$(gameId)).data;
+        let authId = request.auth.uid;
+
+        // Starting an auction: can be initiated by the current player
+        let isStartingAuction = res.data.auction == null && req.resource.data.auction.status == 'active';
+        
+        // Bidding in an auction
+        let isBidding = res.data.auction.status == 'active' &&
+                        req.resource.data.auction.currentBid > res.data.auction.currentBid &&
+                        req.resource.data.auction.currentBidderId == authId &&
+                        authId in res.data.auction.participatingPlayerIds;
+
+        // Passing in an auction
+        let isPassing = res.data.auction.status == 'active' &&
+                        !(authId in req.resource.data.auction.participatingPlayerIds) &&
+                        (authId in res.data.auction.participatingPlayerIds);
+
+        // Finishing an auction
+        let isFinishingAuction = res.data.auction.status == 'active' &&
+                                  req.resource.data.auction.status == 'finished';
+
+        return (isPlayerInGame(gameId, authId) && (isStartingAuction || isBidding || isPassing || isFinishingAuction));
     }
   }
 }

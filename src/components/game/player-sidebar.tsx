@@ -74,7 +74,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
                    <ScrollArea className="h-full">
                       <div className="space-y-2 pr-2">
                           {allPlayers.map(player => (
-                              <div key={player.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-700/50">
+                              <div key={player.id} className="flex items-center gap-3 p-1.5 rounded-md hover:bg-slate-700/50">
                                   <PlayerToken player={player} size={8} />
                                   <div className="flex-1 text-left">
                                       <p className="font-semibold flex items-center gap-2 text-sm">

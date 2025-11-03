@@ -98,23 +98,21 @@ const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged,
     }
 
     if (index === 10) { // Special rendering for Jail
-        const jailedPlayers = playersOnSpace.filter(p => p.inJail);
-        const visitingPlayers = playersOnSpace.filter(p => !p.inJail);
+        const jailedPlayers = allPlayers.filter(p => p.position === index && p.inJail);
+        const visitingPlayers = allPlayers.filter(p => p.position === index && !p.inJail);
 
         return (
             <div className="border border-black flex flex-col text-center text-xs relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-10` }} onClick={() => onSpaceClick(space, index)}>
-                 <div className="w-full h-3/4 flex items-end justify-center pb-1 relative">
-                    <span className="font-bold text-base">VISITANTES</span>
+                 <div className="w-full h-3/4 flex items-center justify-center relative">
+                    <span className="font-bold text-lg absolute top-4 -rotate-45">VISITANTES</span>
                      <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1 p-1 pointer-events-none">
                         {visitingPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
                     </div>
                 </div>
                 <div className="w-3/4 h-1/4 absolute bottom-0 right-0 border-t border-l border-black bg-orange-400/50 flex flex-col items-center justify-center">
-                    <div className="flex flex-col items-center justify-center text-black relative h-full w-full">
-                        <span className="font-bold text-base">PRISÃO</span>
-                         <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-1 pointer-events-none">
-                            {jailedPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
-                        </div>
+                     <span className="font-bold text-lg absolute bottom-4 rotate-45">PRISÃO</span>
+                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-1 pointer-events-none">
+                        {jailedPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
                     </div>
                 </div>
             </div>
@@ -665,7 +663,7 @@ export default function GamePage() {
              errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: gameRef.path,
                 operation: 'update',
-                requestResourceData: { auction: '<deleted>' }
+                requestResourceData: { auction: deleteField() }
             }));
         }
     }, [allPlayers, firestore, gameId, gameRef, addNotification]);
@@ -828,7 +826,7 @@ export default function GamePage() {
              <DialogTitle>{selectedSpace?.name}</DialogTitle>
              <DialogDescription>Detalhes da propriedade {selectedSpace?.name}</DialogDescription>
            </DialogHeader>
-          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onClose={() => handleAuctionProperty(selectedSpace)} isMyTurn={isMyTurn} />}
+          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onAuction={() => handleAuctionProperty(selectedSpace)} onModalClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
         </DialogContent>
       </Dialog>
       <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>

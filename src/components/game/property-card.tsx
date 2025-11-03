@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Home, Zap, Hotel, User, Bus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DialogClose } from '../ui/dialog';
 
 const colorClasses: { [key: string]: string } = {
   brown: 'bg-[#955436]', lightblue: 'bg-[#aae0fa]', pink: 'bg-[#d93a96]',
@@ -23,11 +24,12 @@ interface PropertyCardProps {
   player: Player;
   allPlayers?: Player[];
   onBuy: (property: Property) => void;
-  onClose: () => void;
+  onAuction: () => void;
+  onModalClose: () => void;
   isMyTurn: boolean;
 }
 
-export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTurn }: PropertyCardProps) {
+export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onModalClose, isMyTurn }: PropertyCardProps) {
   const owner = allPlayers?.find(p => p.properties.includes(space.id));
   const isAuctionable = space.type === 'property' || space.type === 'railroad' || space.type === 'utility';
 
@@ -64,20 +66,33 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onClose, isMyTu
          )}
       </CardContent>
       <CardFooter className="flex flex-col gap-2 p-4">
-        {!owner && isMyTurn && player.money >= space.price && (
-            <Button className="w-full" onClick={() => onBuy(space)}>Comprar Propriedade</Button>
+        {/* Actions for unowned properties */}
+        {!owner && isMyTurn && (
+          <>
+            {player.money >= space.price && (
+              <Button className="w-full" onClick={() => onBuy(space)}>Comprar Propriedade</Button>
+            )}
+            {player.money < space.price && (
+              <Button className="w-full" disabled>Dinheiro insuficiente</Button>
+            )}
+            {isAuctionable && (
+              <Button variant="ghost" className="w-full" onClick={onAuction}>Leiloar</Button>
+            )}
+          </>
         )}
-         {owner && (
-             <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
-                <User className="h-4 w-4" /><span>Proprietário: {owner.id === player.id ? "Você" : owner.name}</span>
-             </div>
-         )}
-         {!owner && isMyTurn && player.money < space.price && (
-            <Button className="w-full" disabled>Dinheiro insuficiente</Button>
-         )}
-        <Button variant="ghost" className="w-full" onClick={onClose}>
-          { !owner && isMyTurn && isAuctionable ? "Leiloar" : "Fechar" }
-        </Button>
+
+        {/* Display owner info */}
+        {owner && (
+          <div className="w-full text-center p-2 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium flex items-center justify-center gap-2">
+            <User className="h-4 w-4" /><span>Proprietário: {owner.id === player.id ? "Você" : owner.name}</span>
+          </div>
+        )}
+
+        {/* Close button - always visible */}
+        <DialogClose asChild>
+           <Button variant="ghost" className="w-full">Fechar</Button>
+        </DialogClose>
+
       </CardFooter>
     </Card>
   );

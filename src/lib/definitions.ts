@@ -80,3 +80,11 @@ export type Notification = {
     message: string;
     variant: 'default' | 'destructive';
 }
+
+// Represents an entry in the game log.
+export type LogEntry = {
+    id: string;
+    message: string;
+    timestamp: any; // Firestore ServerTimestamp
+    type: 'roll' | 'payment' | 'property' | 'card' | 'system' | 'jail' | 'auction' | 'turn';
+};

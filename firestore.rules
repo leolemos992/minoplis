@@ -53,6 +53,13 @@ service cloud.firestore {
         // Eliminar: Um jogador pode ser eliminado (ex: falência). A lógica é gerida por transações.
         allow delete: if isSignedIn(); 
       }
+       // Subcoleção de Logs
+      match /logs/{logId} {
+        // Leitura: Qualquer jogador na partida pode ler os logs.
+        allow get, list: if isSignedIn() && isPlayerInGame(gameId);
+        // Escrita: O jogador do turno pode criar uma entrada no log.
+        allow create: if isSignedIn() && isCurrentPlayer(gameId);
+      }
     }
 
     function isSignedIn() {

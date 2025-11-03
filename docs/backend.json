@@ -124,7 +124,29 @@
         "gamesPlayed": { "type": "number", "description": "Número de partidas jogadas." }
       },
       "required": ["uid", "displayName", "email", "xp", "level", "wins", "gamesPlayed"]
-    }
+    },
+    "LogEntry": {
+        "title": "Log Entry",
+        "type": "object",
+        "description": "Uma única entrada no registo de eventos da partida.",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "A mensagem do evento."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp de quando o evento ocorreu."
+          },
+          "type": {
+              "type": "string",
+              "description": "Tipo de evento para estilização (ex: 'roll', 'payment', 'system').",
+              "enum": ["roll", "payment", "property", "card", "system", "jail", "auction", "turn"]
+          }
+        },
+        "required": ["message", "timestamp", "type"]
+      }
   },
   "auth": {
     "providers": ["password"]
@@ -137,6 +159,10 @@
           "/players/{playerId}": {
               "schema": { "$ref": "#/entities/Player"},
               "description": "Armazena os dados de cada jogador na partida. Um jogador só pode se adicionar ou atualizar a si mesmo."
+          },
+          "/logs/{logId}": {
+              "schema": { "$ref": "#/entities/LogEntry" },
+              "description": "Armazena o registo de eventos da partida."
           }
       }
     },

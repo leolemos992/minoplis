@@ -2,13 +2,15 @@
 
 import { useMemo } from 'react';
 import { Logo } from '@/components/logo';
-import type { Player } from '@/lib/definitions';
-import { Banknote, MessageSquare, Users, ScrollText } from 'lucide-react';
+import type { LogEntry, Player } from '@/lib/definitions';
+import { Banknote, MessageSquare, Users, ScrollText, Dices, LandPlot, HandCoins, UserX, UserCheck, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { boardSpaces } from '@/lib/game-data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlayerToken } from './player-token';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 
 const propertyColorClasses: { [key: string]: string } = {
   brown: 'bg-[#955436]', lightblue: 'bg-[#aae0fa]', pink: 'bg-[#d93a96]',
@@ -16,7 +18,16 @@ const propertyColorClasses: { [key: string]: string } = {
   green: 'bg-[#1fb25a]', darkblue: 'bg-[#0072bb]',
 };
 
-export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { allPlayers: Player[], loggedInPlayer: Player | undefined, currentUserId: string | undefined }) {
+const logIcons = {
+    roll: <Dices className="h-4 w-4 text-blue-400" />,
+    payment: <HandCoins className="h-4 w-4 text-green-400" />,
+    property: <LandPlot className="h-4 w-4 text-yellow-400" />,
+    jail: <UserX className="h-4 w-4 text-red-400" />,
+    turn: <UserCheck className="h-4 w-4 text-purple-400" />,
+    default: <Info className="h-4 w-4 text-gray-400" />,
+}
+
+export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameId, firestore }: { allPlayers: Player[], loggedInPlayer: Player | undefined, currentUserId: string | undefined, gameId: string, firestore: any }) {
     
   const ownedProperties = useMemo(() => {
     if (!loggedInPlayer) return [];
@@ -28,6 +39,10 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
       }));
   }, [loggedInPlayer]);
     
+  const logsRef = useMemoFirebase(() => gameId && firestore ? collection(firestore, 'games', gameId, 'logs') : null, [gameId, firestore]);
+  const logsQuery = useMemoFirebase(() => logsRef ? query(logsRef, orderBy('timestamp', 'desc'), limit(50)) : null, [logsRef]);
+  const { data: logs } = useCollection<LogEntry>(logsQuery);
+
   return (
     <aside className="w-72 flex-col border-r bg-slate-800 text-white hidden md:flex">
       <div className="flex h-14 shrink-0 items-center border-b border-slate-700 px-4">
@@ -94,8 +109,18 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId }: { a
               <TabsContent value="chat" className="flex-1 p-4 flex items-center justify-center text-slate-500 text-sm">
                   <p>Chat em breve...</p>
               </TabsContent>
-              <TabsContent value="log" className="flex-1 p-4 flex items-center justify-center text-slate-500 text-sm">
-                  <p>Log do jogo em breve...</p>
+               <TabsContent value="log" className="flex-1 p-2 min-h-0">
+                   <ScrollArea className="h-full">
+                      <div className="space-y-2 pr-2 text-xs">
+                          {logs?.map(log => (
+                              <div key={log.id} className="flex items-start gap-2 p-1.5 rounded-md text-slate-300">
+                                  <div className="mt-0.5">{logIcons[log.type as keyof typeof logIcons] || logIcons.default}</div>
+                                  <p className="flex-1" dangerouslySetInnerHTML={{ __html: log.message }} />
+                              </div>
+                          ))}
+                           {!logs && <p className="text-center text-slate-500">Nenhum evento ainda.</p>}
+                      </div>
+                   </ScrollArea>
               </TabsContent>
           </Tabs>
         </div>

@@ -81,14 +81,14 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameI
 
         {/* Seção Inferior: Abas (expansível) */}
         <div className="flex flex-col flex-1 min-h-0">
-           <Tabs defaultValue="players" className="w-full flex-1 flex flex-col">
+           <Tabs defaultValue="players" className="w-full flex-1 flex flex-col overflow-hidden">
               <TabsList className="grid w-full grid-cols-3 bg-slate-900 rounded-none h-10 shrink-0">
                   <TabsTrigger value="players" className="rounded-none text-xs h-full"><Users className="h-3.5 w-3.5 mr-1.5" />Jogadores</TabsTrigger>
                   <TabsTrigger value="chat" className="rounded-none text-xs h-full"><MessageSquare className="h-3.5 w-3.5 mr-1.5" />Chat</TabsTrigger>
                   <TabsTrigger value="log" className="rounded-none text-xs h-full"><ScrollText className="h-3.5 w-3.5 mr-1.5" />Log</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="players" className="flex-1 p-2 min-h-0">
+              <TabsContent value="players" className="flex-1 p-2 overflow-y-auto">
                    <ScrollArea className="h-full">
                       <div className="space-y-2 pr-2">
                           {allPlayers.map(player => (
@@ -112,7 +112,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameI
               <TabsContent value="chat" className="flex-1 p-4 flex items-center justify-center text-slate-500 text-sm">
                   <p>Chat em breve...</p>
               </TabsContent>
-               <TabsContent value="log" className="flex-1 p-2 min-h-0">
+               <TabsContent value="log" className="flex-1 p-2 overflow-y-auto">
                    <ScrollArea className="h-full">
                       <div className="space-y-2 pr-2 text-xs">
                           {logs?.map(log => (

@@ -54,13 +54,13 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameI
       
       <div className="flex flex-col flex-1 min-h-0">
         {/* Seção Superior: Propriedades e Saldo */}
-        <div className="shrink-0 p-3 border-b border-slate-700 max-h-1/2 flex flex-col">
+        <div className="shrink-0 p-3 border-b border-slate-700 flex flex-col">
             <div className="flex justify-between items-center mb-2 px-1">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Meu Saldo</h3>
               <span className="text-base font-bold text-green-400">R$ {loggedInPlayer?.money.toLocaleString() || 0}</span>
             </div>
             <h3 className="text-xs font-semibold text-slate-400 mb-2 px-1 uppercase tracking-wider">Propriedades ({ownedProperties.length})</h3>
-            <ScrollArea className="pr-2">
+            <ScrollArea className="pr-2 max-h-48">
                <div className="space-y-1">
                   {ownedProperties.length > 0 ? ownedProperties.map(prop => (
                       <div key={prop.id} className="flex items-center gap-2 p-1.5 bg-slate-700/50 rounded-md text-xs">

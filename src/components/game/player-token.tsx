@@ -1,6 +1,6 @@
 'use client';
 import type { Player } from '@/lib/definitions';
-import { totems } from '@/lib/game-data.tsx';
+import { totems } from '@/lib/game-data';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 

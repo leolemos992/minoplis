@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data.tsx';
+import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data';
 import Link from 'next/link';
 import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star, Fence } from 'lucide-react';
 import { cn } from '@/lib/utils';

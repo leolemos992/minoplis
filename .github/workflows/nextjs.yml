@@ -62,6 +62,8 @@ jobs:
           #
           # You may remove this line if you want to manage the configuration yourself.
           static_site_generator: next
+          # This will enable Pages in the repository if it's not already enabled.
+          enablement: true
       - name: Restore cache
         uses: actions/cache@v4
         with:

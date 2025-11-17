@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { totems } from '@/lib/game-data';
+import { totems } from '@/lib/game-data.tsx';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Palette, User as UserIcon, Copy } from 'lucide-react';
 import { useUser, useFirestore, FirestorePermissionError, errorEmitter, useDoc, useCollection, useMemoFirebase } from '@/firebase';

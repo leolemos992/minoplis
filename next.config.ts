@@ -5,8 +5,8 @@ const isGithubActions = process.env.GITHUB_ACTIONS === 'true'
 const nextConfig: NextConfig = {
   output: 'export',
   // Configure basePath e assetPrefix para o GitHub Pages
-  basePath: isGithubActions ? '/minoplis' : '',
-  assetPrefix: isGithubActions ? '/minoplis/' : '',
+  basePath: isGithubActions ? '/minopolis-monopoly' : '',
+  assetPrefix: isGithubActions ? '/minopolis-monopoly/' : '',
   
   typescript: {
     ignoreBuildErrors: true,

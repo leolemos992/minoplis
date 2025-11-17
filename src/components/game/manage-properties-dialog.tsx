@@ -28,7 +28,7 @@ const propertyColorClasses: { [key: string]: string } = {
 
 export function ManagePropertiesDialog({ isOpen, onOpenChange, player, allPlayers, onBuild, onSell, onMortgage }: ManagePropertiesDialogProps) {
   const ownedProperties = useMemo(() => {
-    return boardSpaces.filter(p => 'id' in p && player.properties.includes(p.id)) as Property[];
+    return boardSpaces.filter(p => p.id && player.properties.includes(p.id)) as Property[];
   }, [player.properties]);
 
   const groupedProperties = useMemo(() => {

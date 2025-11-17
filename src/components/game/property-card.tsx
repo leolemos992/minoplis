@@ -24,7 +24,7 @@ interface PropertyCardProps {
   player: Player;
   allPlayers?: Player[];
   onBuy: (property: Property) => void;
-  onAuction: () => void;
+  onAuction: (property: Property) => void;
   onModalClose: () => void;
   isMyTurn: boolean;
   isDisplayOnly?: boolean;
@@ -80,7 +80,7 @@ export function PropertyCard({ space, player, allPlayers, onBuy, onAuction, onMo
                 {player.money < space.price && (
                 <Button className="w-full" disabled>Dinheiro insuficiente</Button>
                 )}
-                <Button variant="ghost" className="w-full" onClick={onAuction}>Leiloar</Button>
+                <Button variant="ghost" className="w-full" onClick={() => onAuction(space)}>Leiloar</Button>
             </>
             )}
 

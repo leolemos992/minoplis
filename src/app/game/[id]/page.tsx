@@ -513,11 +513,11 @@ export default function GamePage() {
   
     switch (action.type) {
       case 'money':
-        await makePayment(Math.abs(action.amount), loggedInPlayer.id, action.amount > 0 ? undefined : 'bank');
+        await makePayment(Math.abs(action.amount || 0), loggedInPlayer.id, (action.amount || 0) > 0 ? undefined : 'bank');
         break;
       case 'move_to':
         let newPosition = (typeof action.position === 'string') ? boardSpaces.findIndex(s => 'id' in s && s.id === action.position) : action.position;
-        if (newPosition !== -1) {
+        if (newPosition !== -1 && newPosition !== undefined) {
             if (action.collectGo && newPosition < loggedInPlayer.position) updates.money = (updates.money || loggedInPlayer.money) + 200;
             updates.position = newPosition;
         }

@@ -35,7 +35,7 @@ export function PlayerSidebar({ allPlayers, loggedInPlayer, currentUserId, gameI
   const ownedProperties = useMemo(() => {
     if (!loggedInPlayer) return [];
     return boardSpaces
-      .filter(p => 'id' in p && loggedInPlayer.properties.includes(p.id))
+      .filter(p => typeof p.id === 'string' && loggedInPlayer.properties.includes(p.id))
       .map(p => ({
           ...p,
           isMortgaged: loggedInPlayer.mortgagedProperties.includes(p.id as string)

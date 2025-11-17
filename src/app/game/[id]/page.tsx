@@ -525,8 +525,8 @@ export default function GamePage() {
       case 'go_to_jail': goToJail(loggedInPlayer.id); return; // Return to avoid double updates
       case 'get_out_of_jail': updates.getOutOfJailFreeCards = (loggedInPlayer.getOutOfJailFreeCards || 0) + 1; break;
       case 'repairs':
-           const houseCost = (Object.values(loggedInPlayer.houses).filter(c => c < 5).reduce((s, c) => s + c, 0)) * action.perHouse!;
-           const hotelCost = (Object.values(loggedInPlayer.houses).filter(c => c === 5).length) * action.perHotel!;
+           const houseCost = (Object.values(loggedInPlayer.houses).filter(c => c < 5).reduce((s, c) => s + c, 0)) * (action.perHouse ?? 0);
+           const hotelCost = (Object.values(loggedInPlayer.houses).filter(c => c === 5).length) * (action.perHotel ?? 0);
            await makePayment(houseCost + hotelCost, loggedInPlayer.id);
            break;
     }

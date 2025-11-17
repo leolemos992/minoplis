@@ -1,5 +1,26 @@
 import type { Property, GameCard } from '@/lib/definitions';
-import { Car, Dog, Ship, Rocket, Bot, Cat } from 'lucide-react';
+import React from 'react';
+
+// Ícones SVG inline para compatibilidade com a exportação estática do Next.js
+const Car = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h3.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>
+);
+const Dog = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 5.2a2 2 0 0 1 2-2.2h.4a2 2 0 0 1 2 2.2v.3a2 2 0 0 1-2 2.2h-.4a2 2 0 0 1-2-2.2v-.3Z"/><path d="M8.5 12.5a2.5 2.5 0 1 1 5 0 .5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5Z"/><path d="M12 18v-5"/><path d="M19.5 14.5a2.5 2.5 0 1 1-5 0 .5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5Z"/><path d="M15 18v-3.5"/></svg>
+);
+const Ship = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 1.3 0 1.9-.5 2.5-1 .6-.5 1.2-1 2.5-1 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 1.3 0 1.9-.5 2.5-1 .6-.5 1.2-1 2.5-1 1.3 0 1.9.5 2.5 1"/><path d="M6.3 15.5a4 4 0 0 0 3.7 0l2-1a4 4 0 0 1 3.7 0l2 1a4 4 0 0 0 3.7 0"/><path d="M9 10V4h6v6"/><path d="M10 4V2h4v2"/></svg>
+);
+const Rocket = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.3.5-3.3s-.34-1.99-.5-2.7c-.23-1.02-.5-2.43-.5-3.3 0-.82.35-1.56.9-2.06.55-.5.95-1.22.9-2.06 0-.82-.35-1.56-.9-2.06-.55-.5-1.3-.5-1.8 0-.55.5-.9 1.24-.9 2.06 0 .82.35 1.56.9 2.06.55.5.95 1.22.9 2.06 0 .82-.27 2.28-.5 3.3-.16.71-.3 1.7-.5 2.7-.2.99-.01 2.46.5 3.3Z"/><path d="m9.5 12.5 1-1"/><path d="m11 11 1-1"/><path d="m12.5 9.5 1-1"/><path d="m14 8 1-1"/><path d="m16 6 3-3"/><path d="M18.5 3.5c1.1 0 2.2.4 3 1.2.8.8 1.2 1.8 1.2 3 0 1.2-.4 2.2-1.2 3-.8.8-1.8 1.2-3 1.2-.5 0-1-.1-1.5-.3-1.1-.4-2.2-1-3.1-1.7-2.1-1.9-4.2-4.2-6.1-6.1-.8-.9-1.3-2-1.7-3.1C2.1 6.5 2 6 2 5.5c0-1.2.4-2.2 1.2-3 .8-.8 1.8-1.2 3-1.2Z"/></svg>
+);
+const Bot = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 5.2a2 2 0 0 1 2-2.2h.4a2 2 0 0 1 2 2.2v.3a2 2 0 0 1-2 2.2h-.4a2 2 0 0 1-2-2.2v-.3Z"/><path d="M8.5 12.5a2.5 2.5 0 1 1 5 0 .5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5Z"/><path d="M12 18v-5"/><path d="M19.5 14.5a2.5 2.5 0 1 1-5 0 .5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5Z"/><path d="M15 18v-3.5"/></svg>
+);
+const Cat = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4c-1.3 0-2.5.5-3.4 1.4A5 5 0 0 0 5.2 9V9a3 3 0 0 0-3 3v2c0 1.1.9 2 2 2h1.2a5.5 5.5 0 0 0 10.6 0H19c1.1 0 2-.9 2-2v-2a3 3 0 0 0-3.3-3H18a5 5 0 0 0-3.4-3.6C13.5 4.5 12.3 4 11 4Z"/><path d="M21 12a4 4 0 0 0-4-4"/><path d="M3 12a4 4 0 0 1 4-4"/><path d="M12 16v4"/><path d="M12 20h.01"/></svg>
+);
+
 
 export const totems = [
   { id: 'car', name: 'Carro', icon: Car },
@@ -15,7 +36,7 @@ export const boardSpaces: (Property | { type: string; name: string, id?:string, 
   { id: 'poco-fundo', name: 'Poço Fundo', price: 60, rent: [2, 10, 30, 90, 160, 250], color: 'brown', houseCost: 50, type: 'property' },
   { type: 'community-chest', name: 'Caixinha da Prefeitura', id: 'cc1' },
   { id: 'guarani', name: 'Zantão', price: 60, rent: [4, 20, 60, 180, 320, 450], color: 'brown', houseCost: 50, type: 'property' },
-  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax' },
+  { type: 'income-tax', name: 'Imposto de Renda', id: 'income-tax', tax: 200 },
   { id: 'railroad-1', name: 'Nosso Brusque - Poço Fundo', price: 200, rent: [25, 50, 100, 200], color: 'railroad', type: 'railroad' },
   { id: 'azambuja', name: 'Azambuja', price: 100, rent: [6, 30, 90, 270, 400, 550], color: 'lightblue', houseCost: 50, type: 'property' },
   { type: 'chance', name: 'Sorte / Revés', id: 'chance1' },

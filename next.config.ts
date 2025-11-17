@@ -1,7 +1,13 @@
 import type {NextConfig} from 'next';
 
+const isGithubActions = process.env.GITHUB_ACTIONS === 'true'
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'export',
+  // Configure basePath e assetPrefix para o GitHub Pages
+  basePath: isGithubActions ? '/minoplis' : '',
+  assetPrefix: isGithubActions ? '/minoplis/' : '',
+  
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -9,6 +15,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: true, // Necessário para exportação estática
     remotePatterns: [
       {
         protocol: 'https',

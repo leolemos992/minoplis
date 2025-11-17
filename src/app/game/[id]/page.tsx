@@ -300,7 +300,7 @@ export default function GamePage() {
     if (!firestore || !gameId || !gameRef) return;
     
     // Update game status and winner
-    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: deleteField() });
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: undefined });
     addLogEntry('system', 'A partida terminou.');
 
     // Award XP and update stats

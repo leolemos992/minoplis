@@ -1,7 +1,8 @@
+// Forçando a recompilação para resolver o erro de generateStaticParams.
 import ClientPage from './client-page';
 
-// This function is required for static export of dynamic routes.
-// It tells Next.js not to pre-render any game pages at build time.
+// Esta função é necessária para a exportação estática de rotas dinâmicas.
+// Ela informa o Next.js para não pré-renderizar nenhuma página de jogo durante a compilação.
 export async function generateStaticParams() {
   return [];
 }

@@ -1,0 +1,894 @@
+'use client';
+
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { boardSpaces, chanceCards, communityChestCards } from '@/lib/game-data';
+import Link from 'next/link';
+import { Home, Zap, HelpCircle, Box, CircleDollarSign, Bus, Crown, Landmark, Briefcase, Hotel, Star, Fence } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { Player, Property, GameCard, Notification, Game, Auction, LogEntry } from '@/lib/definitions';
+import { Logo } from '@/components/logo';
+import { PlayerToken } from '@/components/game/player-token';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { PropertyCard } from '@/components/game/property-card';
+import { ManagePropertiesDialog } from '@/components/game/manage-properties-dialog';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GameNotifications } from '@/components/game/game-notifications';
+import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { doc, collection, updateDoc, writeBatch, runTransaction, arrayRemove, increment, serverTimestamp, deleteField, addDoc } from 'firebase/firestore';
+import { PlayerSidebar } from '@/components/game/player-sidebar';
+import { GameHeader } from '@/components/game/game-header';
+import { AuctionDialog } from '@/components/game/auction-dialog';
+
+
+const colorClasses: { [key: string]: string } = {
+  black: 'bg-black',
+  brown: 'bg-[#955436]',
+  lightblue: 'bg-[#aae0fa]',
+  pink: 'bg-[#d93a96]',
+  orange: 'bg-[#f7941d]',
+  red: 'bg-[#ed1b24]',
+  yellow: 'bg-[#fef200]',
+  green: 'bg-[#1fb25a]',
+  darkblue: 'bg-[#0072bb]',
+  railroad: 'bg-transparent',
+  utility: 'bg-transparent',
+  mortgaged: 'bg-gray-400'
+};
+
+const getIcon = (space: any, size = "w-8 h-8") => {
+    switch(space.type) {
+        case 'go': return <Home className={size} />;
+        case 'jail': return <Landmark className={size} />;
+        case 'free-parking': return <Briefcase className={size}/>;
+        case 'go-to-jail': return <Zap className={size} />;
+        case 'community-chest': return <Box className={cn(size, "text-yellow-600")} />;
+        case 'chance': return <HelpCircle className={cn(size, "text-blue-600")} />;
+        case 'income-tax': return <CircleDollarSign className={size} />;
+        case 'luxury-tax': return <CircleDollarSign className={size} />;
+        case 'railroad': return <Bus className={size} />
+        case 'utility': return <Zap className={size} />;
+        default: return null;
+    }
+}
+
+const BoardSpace = ({ space, index, children, onSpaceClick, houses, isMortgaged, allPlayers }: { space: any, index: number, children?: React.ReactNode, onSpaceClick: (space: any, index: number) => void, houses?: number, isMortgaged?: boolean, allPlayers: Player[] }) => {
+    const isProperty = 'price' in space;
+    
+    const textRotation: { [key: number]: string } = {
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, '-rotate-90'])),
+        ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'rotate-90'])),
+    }
+
+    const cornerTextRotation: { [key: number]: string } = {
+        0: 'rotate-[135deg]', 20: 'rotate-[-45deg]', 30: 'rotate-[45deg]',
+    }
+
+    const houseContainerClasses: { [key: number]: string } = {
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 'top-0 h-5 w-full flex-row'])),
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 11, 'right-0 w-5 h-full flex-col'])),
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 21, 'bottom-0 h-5 w-full flex-row-reverse'])),
+       ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 31, 'left-0 w-5 h-full flex-col-reverse'])),
+    }
+
+    const HouseDisplay = ({ count }: { count: number}) => {
+        if (count === 0) return null;
+        if (count === 5) return <Hotel className="w-4 h-4 text-red-600 bg-white/80 rounded-sm p-0.5" />;
+        return (
+            <div className="flex gap-px">
+                {Array.from({ length: count }).map((_, i) => <Home key={i} className="w-3 h-3 text-green-600 bg-white/80 rounded-sm p-0.5" />)}
+            </div>
+        )
+    };
+
+    const playersOnSpace = allPlayers.filter(p => p.position === index);
+
+    // Corners
+    if ([0, 20, 30].includes(index)) {
+        return (
+            <div className="border border-black flex items-center justify-center text-center text-xs p-1 relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-${index}` }} onClick={() => onSpaceClick(space, index)}>
+                 <div className={cn("flex flex-col items-center justify-center h-full w-full", cornerTextRotation[index] )}>
+                    <div className="transform-gpu">{getIcon(space, "w-10 h-10")}</div>
+                    <span className="font-bold block w-20">{space.name}</span>
+                </div>
+                 <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{playersOnSpace.map(p => <PlayerToken key={p.id} player={p} size={6} />)}</div>
+            </div>
+        )
+    }
+
+    if (index === 10) { // Special rendering for Jail
+        const jailedPlayers = allPlayers.filter(p => p.position === index && p.inJail);
+        const visitingPlayers = allPlayers.filter(p => p.position === index && !p.inJail);
+
+        return (
+            <div className="border border-black flex flex-col text-center text-xs relative z-10 cursor-pointer bg-slate-50" style={{ gridArea: `space-10` }} onClick={() => onSpaceClick(space, index)}>
+                 <div className="w-full h-3/4 flex flex-col items-center justify-center pt-2 relative">
+                    <span className="font-bold text-lg absolute top-2">VISITANTES</span>
+                     <div className="absolute inset-0 top-1/3 grid grid-cols-3 grid-rows-2 gap-1 p-1 pointer-events-none">
+                        {visitingPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
+                    </div>
+                </div>
+                <div className="w-full h-1/4 absolute bottom-0 right-0 border-t border-black bg-orange-400/50 flex flex-col items-center justify-center">
+                     <span className="font-bold text-lg">PRISÃO</span>
+                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-1 p-1 pointer-events-none">
+                        {jailedPlayers.map(p => <PlayerToken key={p.id} player={p} size={6} />)}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+         <div style={{ gridArea: `space-${index}`}} className="border border-black flex items-center justify-center text-center text-xs p-1 relative cursor-pointer hover:bg-yellow-200/50 transition-colors bg-slate-50" onClick={() => onSpaceClick(space, index)}>
+             {isProperty && (space.type === 'property' || space.type === 'railroad' || space.type === 'utility') && (
+                 <div className={cn(
+                    "absolute",
+                    index > 0 && index < 10 && "top-0 h-5 w-full",
+                    index > 10 && index < 20 && "right-0 w-5 h-full",
+                    index > 20 && index < 30 && "bottom-0 h-5 w-full",
+                    index > 30 && index < 40 && "left-0 w-5 h-full",
+                    colorClasses[isMortgaged ? 'mortgaged' : (space as Property).color]
+                )} />
+            )}
+             {houses !== undefined && houses > 0 && (
+                <div className={cn("absolute z-10 flex items-center justify-center p-px", houseContainerClasses[index])}>
+                    <HouseDisplay count={houses} />
+                </div>
+            )}
+            <div className={cn("relative flex-1 flex flex-col justify-center items-center text-center p-1 text-[9px] h-full w-full", textRotation[index], isMortgaged && 'opacity-50')}>
+                 {getIcon(space, "w-6 h-6")}
+                <span className="font-bold px-1 leading-tight">{space.name}</span>
+                {('price' in space && space.price > 0 && space.type !== 'income-tax') &&
+                    <span className="font-normal mt-1">R$ {space.price}</span>}
+                {('tax' in space && space.tax > 0) &&
+                    <span className="font-normal mt-1">Pague R$ {space.tax}</span>}
+            </div>
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 items-center justify-center gap-0 p-1 pointer-events-none">{playersOnSpace.map(p => <PlayerToken key={p.id} player={p} size={6}/>)}</div>
+         </div>
+    )
+};
+
+const GameBoard = ({ allPlayers, onSpaceClick, animateCardPile, notifications }: { allPlayers: Player[]; onSpaceClick: (space: any, index: number) => void; animateCardPile: 'chance' | 'community-chest' | null; notifications: Notification[]; }) => {
+    const gridTemplateAreas = `
+        "space-20 space-21 space-22 space-23 space-24 space-25 space-26 space-27 space-28 space-29 space-30"
+        "space-19 center center center center center center center center center space-31"
+        "space-18 center center center center center center center center center space-32"
+        "space-17 center center center center center center center center center space-33"
+        "space-16 center center center center center center center center center space-34"
+        "space-15 center center center center center center center center center space-35"
+        "space-14 center center center center center center center center center space-36"
+        "space-13 center center center center center center center center center space-37"
+        "space-12 center center center center center center center center center space-38"
+        "space-11 center center center center center center center center center space-39"
+        "space-10 space-9 space-8 space-7 space-6 space-5 space-4 space-3 space-2 space-1 space-0"
+    `;
+
+    const getPlayerForSpace = (index: number) => allPlayers.find(p => p.position === index);
+
+    return (
+        <div className="bg-slate-200/40 p-2 md:p-4 aspect-square max-w-[900px] mx-auto">
+            <div 
+                className="grid h-full w-full relative"
+                style={{ gridTemplateAreas, gridTemplateRows: '1.6fr repeat(9, 1fr) 1.6fr', gridTemplateColumns: '1.6fr repeat(9, 1fr) 1.6fr' }}
+            >
+                <div className="bg-[#cad0d8] flex flex-col items-center justify-between border-black border-[1.5px] relative p-4 py-8" style={{ gridArea: 'center'}}>
+                    <div className="w-full flex justify-center items-start">
+                         <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline text-slate-800">
+                           MINOPLIS
+                         </h1>
+                    </div>
+                    <div className="flex justify-center items-center gap-2 sm:gap-8 w-full px-4">
+                        <motion.div
+                            className="w-40 h-24 bg-blue-300 border-2 border-blue-800 rounded-lg flex items-center justify-center -rotate-12 shadow-lg"
+                            animate={animateCardPile === 'chance' ? { scale: 1.1, y: -5 } : {}}
+                            transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                        ><span className="font-bold text-blue-900">Sorte / Revés</span></motion.div>
+                         <motion.div
+                            className="w-40 h-24 bg-orange-300 border-2 border-orange-800 rounded-lg flex items-center justify-center rotate-12 shadow-lg"
+                            animate={animateCardPile === 'community-chest' ? { scale: 1.1, y: -5 } : {}}
+                            transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                         ><span className="font-bold text-orange-900">Caixinha da Prefeitura</span></motion.div>
+                    </div>
+                    <div className="w-full max-w-sm px-4">
+                        <GameNotifications notifications={notifications} />
+                    </div>
+                </div>
+                {boardSpaces.map((space, index) => {
+                    const playerOnSpace = getPlayerForSpace(index);
+                    const propertyData = allPlayers.find(p => 'id' in space && p.properties.includes(space.id!));
+                    const houses = propertyData && 'id' in space ? propertyData.houses[space.id!] : undefined;
+                    const isMortgaged = propertyData && 'id' in space ? propertyData.mortgagedProperties.includes(space.id!) : false;
+
+                    return (
+                        <BoardSpace 
+                            key={space.name + index} 
+                            space={space} 
+                            index={index} 
+                            onSpaceClick={onSpaceClick} 
+                            houses={houses}
+                            isMortgaged={isMortgaged}
+                            allPlayers={allPlayers}
+                        />
+                    )
+                })}
+            </div>
+        </div>
+    );
+};
+
+export default function GameClientPage() {
+  const params = useParams();
+  const router = useRouter();
+  const gameId = params.id as string;
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const gameRef = useMemoFirebase(() => firestore && gameId ? doc(firestore, 'games', gameId) : null, [firestore, gameId]);
+  const { data: gameData } = useDoc<Game>(gameRef);
+  
+  const playersRef = useMemoFirebase(() => firestore && gameId ? collection(firestore, 'games', gameId, 'players') : null, [firestore, gameId]);
+  const { data: allPlayers } = useCollection<Player>(playersRef);
+  
+  const [dice, setDice] = useState<[number, number]>([1, 1]);
+  const [hasRolled, setHasRolled] = useState(false);
+  const [doublesCount, setDoublesCount] = useState(0);
+  const [selectedSpace, setSelectedSpace] = useState<any | null>(null);
+  const [drawnCard, setDrawnCard] = useState<GameCard | null>(null);
+  const [cardToExecute, setCardToExecute] = useState<GameCard | null>(null);
+  const [isManageOpen, setManageOpen] = useState(false);
+  const [isAuctionOpen, setAuctionOpen] = useState(false);
+  const [animateCardPile, setAnimateCardPile] = useState<'chance' | 'community-chest' | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  const [chanceDeck, setChanceDeck] = useState<GameCard[]>([]);
+  const [communityChestDeck, setCommunityChestDeck] = useState<GameCard[]>([]);
+
+  useEffect(() => {
+    // This should only run once when the component mounts
+    setChanceDeck([...chanceCards].sort(() => Math.random() - 0.5));
+    setCommunityChestDeck([...communityChestCards].sort(() => Math.random() - 0.5));
+  }, []);
+  
+  const currentPlayer = useMemo(() => allPlayers?.find(p => p.id === gameData?.currentPlayerId), [gameData?.currentPlayerId, allPlayers]);
+  const loggedInPlayer = useMemo(() => allPlayers?.find(p => p.id === user?.uid), [user?.uid, allPlayers]);
+  const isMyTurn = useMemo(() => gameData?.currentPlayerId === user?.uid, [gameData, user]);
+  const isHost = useMemo(() => gameData?.hostId === user?.uid, [gameData, user]);
+
+  const JAIL_POSITION = useMemo(() => boardSpaces.findIndex(s => s.type === 'jail'), []);
+
+  const addNotification = useCallback((message: string, variant: Notification['variant'] = 'default') => {
+    const id = `${Date.now()}-${Math.random()}`;
+    setNotifications(prev => [...prev.slice(-4), { id, message, variant }]);
+  }, []);
+  
+  const addLogEntry = useCallback(async (type: LogEntry['type'], message: string) => {
+    if (!firestore || !gameId) return;
+    const logsCollection = collection(firestore, 'games', gameId, 'logs');
+    const logEntry: Omit<LogEntry, 'id'> = {
+        message,
+        type,
+        timestamp: serverTimestamp(),
+    };
+    await addDoc(logsCollection, logEntry).catch(error => {
+        // This might fail if the current player isn't allowed to write, but we don't want to show an error to the user for a log entry.
+        console.warn("Could not write to log:", error);
+    });
+  }, [firestore, gameId]);
+
+  const updatePlayerInFirestore = useCallback((playerId: string, updates: Partial<Player>) => {
+    if (!firestore || !gameId) return;
+    const playerDocRef = doc(firestore, `games/${gameId}/players`, playerId);
+    updateDoc(playerDocRef, updates).catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: playerDocRef.path, operation: 'update', requestResourceData: updates,
+      }));
+    });
+  }, [firestore, gameId]);
+  
+  const updateGameInFirestore = useCallback((updates: Partial<Game>) => {
+     if (!firestore || !gameId) return;
+     const gameDocRef = doc(firestore, `games/${gameId}`);
+     updateDoc(gameDocRef, updates).catch(error => {
+       errorEmitter.emit('permission-error', new FirestorePermissionError({
+         path: gameDocRef.path, operation: 'update', requestResourceData: updates,
+       }));
+     });
+  }, [firestore, gameId]);
+  
+  const handleEndGame = useCallback(async (winnerId?: string) => {
+    if (!firestore || !gameId || !gameRef) return;
+    
+    // Update game status and winner
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: undefined });
+    addLogEntry('system', 'A partida terminou.');
+
+    // Award XP and update stats
+    if (allPlayers && allPlayers.length > 0) {
+      try {
+          await runTransaction(firestore, async (transaction) => {
+              for (const p of allPlayers!) {
+                  const userRef = doc(firestore, 'users', p.userId);
+                  let xpGained = 10; // Base XP for participation
+                  let isWinner = p.userId === winnerId;
+                  if (isWinner) xpGained += 50; // Bonus XP for winning
+
+                  // Use set with merge to create or update the user document.
+                  transaction.set(userRef, {
+                      gamesPlayed: increment(1),
+                      wins: increment(isWinner ? 1 : 0),
+                      xp: increment(xpGained),
+                      // Include fields that should be set on creation
+                      displayName: p.name,
+                      email: p.userId, // Using userId as a placeholder
+                      uid: p.userId,
+                      level: 1, // Default level
+                  }, { merge: true });
+              }
+          });
+          if (winnerId && winnerId !== 'none') {
+            const winnerName = allPlayers?.find(p=>p.id === winnerId)?.name || 'Alguém';
+            addNotification(`${winnerName} venceu o jogo!`, 'default');
+            addLogEntry('system', `<span class="font-bold text-yellow-300">${winnerName}</span> venceu a partida!`);
+          } else {
+            addNotification('O jogo terminou.', 'default');
+          }
+      } catch (e) {
+          console.error("Transaction failed: ", e);
+      }
+    }
+  }, [firestore, gameId, gameRef, allPlayers, updateGameInFirestore, addNotification, addLogEntry]);
+
+  const handleBankruptcy = useCallback(async (bankruptPlayerId: string) => {
+    if (!firestore || !gameId || !gameRef || !allPlayers) return;
+
+    const bankruptPlayer = allPlayers.find(p => p.id === bankruptPlayerId);
+    if (!bankruptPlayer) return;
+
+    addNotification(`${bankruptPlayer.name} foi à falência!`, 'destructive');
+    addLogEntry('jail', `<span class="font-bold text-red-400">${bankruptPlayer.name}</span> foi à falência!`);
+    
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw "Game not found!";
+            
+            const remainingPlayerIds = gameDoc.data().playerOrder.filter((pid: string) => pid !== bankruptPlayer.id);
+
+            if (remainingPlayerIds.length <= 1) {
+                 handleEndGame(remainingPlayerIds[0]);
+            } else {
+                 // If the bankrupt player was the current player, move to the next
+                 if(gameDoc.data().currentPlayerId === bankruptPlayer.id) {
+                     const currentTurnIndex = gameDoc.data().playerOrder.indexOf(bankruptPlayer.id);
+                     const nextTurn = currentTurnIndex % remainingPlayerIds.length;
+                     const nextPlayerId = remainingPlayerIds[nextTurn];
+                     transaction.update(gameRef, { playerOrder: remainingPlayerIds, currentPlayerId: nextPlayerId, turn: nextTurn });
+                 } else {
+                     transaction.update(gameRef, { playerOrder: remainingPlayerIds });
+                 }
+            }
+            
+            const playerDocRef = doc(firestore, `games/${gameId}/players`, bankruptPlayer.id);
+            transaction.delete(playerDocRef);
+        });
+
+    } catch (e: any) {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+           path: gameRef.path, operation: 'update', requestResourceData: { status: 'finished' }
+         }));
+    }
+
+  }, [addNotification, firestore, gameId, gameRef, allPlayers, handleEndGame, addLogEntry]);
+
+  const makePayment = useCallback(async (amount: number, fromPlayerId: string, toPlayerId?: string): Promise<boolean> => {
+      if (!firestore || !gameId || !allPlayers) return false;
+      const payer = allPlayers.find(p => p.id === fromPlayerId);
+      if (!payer) return false;
+
+      if (payer.money < amount) {
+          addNotification(`${payer.name} não tem R$${amount} para pagar!`, 'destructive');
+          await handleBankruptcy(payer.id);
+          return false;
+      }
+      
+      const payerRef = doc(firestore, 'games', gameId, 'players', payer.id);
+      updateDoc(payerRef, { money: increment(-amount) }).catch((e) => {
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+             path: payerRef.path, operation: 'update', requestResourceData: {money: increment(-amount)}
+           }));
+           return false;
+      });
+
+      if (toPlayerId) {
+          const recipient = allPlayers.find(p => p.id === toPlayerId);
+          if (recipient) {
+            const recipientRef = doc(firestore, 'games', gameId, 'players', recipient.id);
+            updateDoc(recipientRef, { money: increment(amount) }).catch((e) => {
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({
+                     path: recipientRef.path, operation: 'update', requestResourceData: {money: increment(amount)}
+                 }));
+                 return false;
+            });
+            addNotification(`${payer.name} pagou R$${amount} a ${recipient.name}.`, 'default');
+            addLogEntry('payment', `<span class="font-bold text-yellow-300">${payer.name}</span> pagou <span class="font-bold text-green-400">R$${amount}</span> a <span class="font-bold text-yellow-300">${recipient.name}</span>.`);
+          }
+      } else {
+         addNotification(`${payer.name} pagou R$${amount} ao banco.`, 'destructive');
+         addLogEntry('payment', `<span class="font-bold text-yellow-300">${payer.name}</span> pagou <span class="font-bold text-red-400">R$${amount}</span> ao banco.`);
+      }
+
+      return Promise.resolve(true);
+  }, [allPlayers, handleBankruptcy, firestore, gameId, addNotification, addLogEntry]);
+  
+  const handleEndTurn = useCallback(() => {
+    if (!gameData || !isMyTurn || doublesCount > 0) return; // Can't end turn if you rolled doubles
+    setDoublesCount(0);
+    setHasRolled(false);
+    
+    const currentTurnIndex = gameData.playerOrder.indexOf(gameData.currentPlayerId);
+    const nextTurn = (currentTurnIndex + 1) % gameData.playerOrder.length;
+    const nextPlayerId = gameData.playerOrder[nextTurn];
+    const nextPlayerName = allPlayers?.find(p => p.id === nextPlayerId)?.name || 'Próximo jogador';
+
+    updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
+    addNotification(`Turno de ${nextPlayerName}.`);
+    addLogEntry('turn', `É o turno de <span class="font-bold text-yellow-300">${nextPlayerName}</span>.`);
+
+  }, [gameData, isMyTurn, updateGameInFirestore, addNotification, allPlayers, doublesCount, addLogEntry]);
+
+  const goToJail = useCallback((playerId: string) => {
+    if (!allPlayers) return;
+    const player = allPlayers.find(p => p.id === playerId);
+    if (!player) return;
+
+    addNotification(`${player.name} foi para a prisão!`, 'destructive');
+    addLogEntry('jail', `<span class="font-bold text-red-400">${player.name}</span> foi para a prisão!`);
+    updatePlayerInFirestore(playerId, { position: JAIL_POSITION, inJail: true });
+    setDoublesCount(0);
+    if (player.id === gameData?.currentPlayerId) { // Only current player's turn ends
+        setHasRolled(false);
+        const currentTurnIndex = gameData.playerOrder.indexOf(gameData.currentPlayerId);
+        const nextTurn = (currentTurnIndex + 1) % gameData.playerOrder.length;
+        const nextPlayerId = gameData.playerOrder[nextTurn];
+        const nextPlayerName = allPlayers?.find(p => p.id === nextPlayerId)?.name || 'Próximo jogador';
+        updateGameInFirestore({ turn: nextTurn, currentPlayerId: nextPlayerId });
+        addLogEntry('turn', `É o turno de <span class="font-bold text-yellow-300">${nextPlayerName}</span>.`);
+    }
+  }, [JAIL_POSITION, addNotification, allPlayers, updatePlayerInFirestore, gameData, addLogEntry]);
+  
+  const handleLandedOnSpace = useCallback(async (spaceIndex: number, playerId: string) => {
+    const space = boardSpaces[spaceIndex];
+    const player = allPlayers?.find(p => p.id === playerId);
+    if (!space || !player) return;
+    addNotification(`${player.name} parou em ${space.name}.`);
+    addLogEntry('system', `<span class="font-bold text-yellow-300">${player.name}</span> parou em <span class="font-bold text-blue-300">${space.name}</span>.`);
+
+    if (space.type === 'jail' && !player.inJail) {
+        addNotification("Você está apenas visitando a prisão.");
+        return;
+    }
+    
+    if (space.type === 'income-tax') {
+        const taxAmount = Math.min(200, Math.floor(player.money * 0.1));
+        await makePayment(taxAmount, player.id);
+        return;
+    } else if (space.type === 'luxury-tax') {
+        const taxAmount = (space as any).tax || 100;
+        await makePayment(taxAmount, player.id);
+        return;
+    } else if ('price' in space) { // Is a property
+        const owner = allPlayers?.find(p => 'id' in space && p.properties.includes(space.id!));
+        if (owner && owner.id !== player.id) {
+            // Pay Rent
+            // TODO: Implement full rent logic (sets, railroads, utilities)
+            const rentAmount = (space as Property).rent[0]; // Simple rent for now
+            await makePayment(rentAmount, player.id, owner.id);
+        } else if (!owner && player.id === user?.uid) {
+          // If it's my turn and the unowned property, show buy dialog
+          if (space.type === 'property' || space.type === 'railroad' || space.type === 'utility') {
+              setSelectedSpace(space);
+          }
+        }
+    } else if (space.type === 'chance' || space.type === 'community-chest') {
+        setAnimateCardPile(space.type);
+        setTimeout(() => {
+            const isChance = space.type === 'chance';
+            const [deck, setDeck, allCards] = isChance ? [chanceDeck, setChanceDeck, chanceCards] : [communityChestDeck, setCommunityChestDeck, communityChestCards];
+            const [first, ...rest] = deck.length > 0 ? deck : [...allCards].sort(() => Math.random() - 0.5);
+            setDeck(rest.length > 0 ? rest : [...allCards].sort(() => Math.random() - 0.5));
+            setDrawnCard(first);
+            setAnimateCardPile(null);
+        }, 500);
+    } else if (space.type === 'go-to-jail') {
+        goToJail(player.id);
+    }
+  }, [allPlayers, addNotification, goToJail, chanceDeck, communityChestDeck, makePayment, user?.uid, setChanceDeck, setCommunityChestDeck, addLogEntry]);
+  
+  const applyCardAction = useCallback(async (card: GameCard) => {
+    if (!loggedInPlayer) return;
+    addLogEntry('card', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> tirou a carta: "${card.description}"`);
+    const { action } = card;
+    let updates: Partial<Player> = {};
+  
+    switch (action.type) {
+      case 'money':
+        const amount = action.amount || 0;
+        await makePayment(Math.abs(amount), loggedInPlayer.id, amount > 0 ? undefined : 'bank');
+        break;
+      case 'move_to':
+        let newPosition = (typeof action.position === 'string') ? boardSpaces.findIndex(s => 'id' in s && s.id === action.position) : action.position;
+        if (newPosition !== -1 && newPosition !== undefined) {
+            if (action.collectGo && newPosition < loggedInPlayer.position) updates.money = (updates.money || loggedInPlayer.money) + 200;
+            updates.position = newPosition;
+        }
+        break;
+      case 'go_to_jail': goToJail(loggedInPlayer.id); return; // Return to avoid double updates
+      case 'get_out_of_jail': updates.getOutOfJailFreeCards = (loggedInPlayer.getOutOfJailFreeCards || 0) + 1; break;
+      case 'repairs':
+           const houseCost = (Object.values(loggedInPlayer.houses).filter(c => c < 5).reduce((s, c) => s + c, 0)) * (action.perHouse ?? 0);
+           const hotelCost = (Object.values(loggedInPlayer.houses).filter(c => c === 5).length) * (action.perHotel ?? 0);
+           await makePayment(houseCost + hotelCost, loggedInPlayer.id);
+           break;
+    }
+    if (Object.keys(updates).length > 0) updatePlayerInFirestore(loggedInPlayer.id, updates);
+    if (updates.position !== undefined) handleLandedOnSpace(updates.position, loggedInPlayer.id);
+  }, [loggedInPlayer, handleLandedOnSpace, makePayment, goToJail, updatePlayerInFirestore, addLogEntry]);
+
+  useEffect(() => {
+    if (!cardToExecute || !isMyTurn) return;
+    addNotification(cardToExecute.description, cardToExecute.type === 'chance' ? 'default' : 'default');
+    applyCardAction(cardToExecute);
+    setCardToExecute(null);
+  }, [cardToExecute, applyCardAction, addNotification, isMyTurn]);
+
+  const handleDiceRoll = async (d1: number, d2: number) => {
+    if (!loggedInPlayer || !isMyTurn || hasRolled) return;
+    setDice([d1, d2]);
+    addNotification(`Você rolou ${d1} e ${d2}.`);
+    addLogEntry('roll', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> rolou ${d1} e ${d2}.`);
+    const isDoubles = d1 === d2;
+
+    if (loggedInPlayer.inJail) {
+        if (isDoubles) {
+            updatePlayerInFirestore(loggedInPlayer.id, { inJail: false });
+            addNotification("Você rolou dados duplos e saiu da prisão!");
+            addLogEntry('jail', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> saiu da prisão rolando dados duplos.`);
+        } else {
+            addNotification("Você não rolou dados duplos. Tente na próxima rodada.");
+            handleEndTurn(); // This is correct, turn ends if you fail to roll doubles
+        }
+        setHasRolled(true); // You've used your roll for the turn
+        return;
+    }
+
+    const currentDoublesCount = isDoubles ? doublesCount + 1 : 0;
+    setDoublesCount(currentDoublesCount);
+
+    if (currentDoublesCount === 3) {
+        addNotification("Você tirou 3 duplos seguidos e foi para a prisão!", "destructive");
+        goToJail(loggedInPlayer.id);
+        return;
+    }
+
+    setHasRolled(true);
+    
+    const total = d1 + d2;
+    const newPosition = (loggedInPlayer.position + total) % 40;
+    const playerUpdate: Partial<Player> = { position: newPosition };
+    if (newPosition < loggedInPlayer.position) {
+        playerUpdate.money = loggedInPlayer.money + 200;
+        addNotification(`Você passou pelo Início e coletou R$200.`);
+        addLogEntry('payment', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> passou pelo início e coletou <span class="font-bold text-green-400">R$200</span>.`);
+    }
+    updatePlayerInFirestore(loggedInPlayer.id, playerUpdate);
+    
+    // Use a timeout to ensure the player piece moves before the next action happens
+    setTimeout(() => handleLandedOnSpace(newPosition, loggedInPlayer.id), 500);
+
+    if (isDoubles) {
+        addNotification("Dados duplos! Você joga de novo.");
+        addLogEntry('roll', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> tirou dados duplos e joga de novo.`);
+        setHasRolled(false); // Allow another roll
+    }
+  };
+
+  const handleBuyProperty = (property: Property) => {
+    if (!loggedInPlayer || !user?.uid || !firestore || !gameId) return;
+    if (loggedInPlayer.money < property.price) {
+        addNotification(`Você não tem dinheiro para comprar ${property.name}.`, 'destructive');
+        return;
+    }
+    const batch = writeBatch(firestore);
+    const playerRef = doc(firestore, `games/${gameId}/players`, user.uid);
+    batch.update(playerRef, {
+        money: loggedInPlayer.money - property.price,
+        properties: [...loggedInPlayer.properties, property.id],
+    });
+    batch.commit().catch(error => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: playerRef.path, operation: 'update', requestResourceData: {
+          money: loggedInPlayer.money - property.price,
+          properties: [...loggedInPlayer.properties, property.id],
+        },
+      }));
+    });
+    addNotification(`Você comprou ${property.name}.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> comprou <span class="font-bold text-blue-300">${property.name}</span>.`);
+    setSelectedSpace(null);
+  };
+  
+    const handleAuctionProperty = (property: Property) => {
+        if (!gameData || !allPlayers) return;
+        addNotification(`Leilão iniciado para ${property.name}!`);
+        addLogEntry('auction', `Leilão iniciado para <span class="font-bold text-blue-300">${property.name}</span>.`);
+        const auction: Auction = {
+            propertyId: property.id,
+            status: 'active',
+            currentBid: 1,
+            currentBidderId: null,
+            participatingPlayerIds: gameData.playerOrder.filter(pId => allPlayers.find(p => p.id === pId)!.money > 1),
+            lastBidderId: null,
+        };
+        updateGameInFirestore({ auction });
+        setSelectedSpace(null);
+    };
+
+    const handleAuctionBid = (amount: number) => {
+        if (!gameData?.auction || !loggedInPlayer) return;
+
+        addLogEntry('auction', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> deu um lance de <span class="font-bold text-green-400">R$${amount}</span>.`);
+
+        const updatedAuction: Auction = {
+            ...gameData.auction,
+            currentBid: amount,
+            currentBidderId: loggedInPlayer.id,
+            lastBidderId: loggedInPlayer.id,
+        };
+
+        updateGameInFirestore({ auction: updatedAuction });
+    };
+
+    const handleAuctionPass = () => {
+        if (!gameData?.auction || !loggedInPlayer) return;
+        addLogEntry('auction', `<span class="font-bold text-red-400">${loggedInPlayer.name}</span> desistiu do leilão.`);
+
+        const remainingPlayers = gameData.auction.participatingPlayerIds.filter(id => id !== loggedInPlayer.id);
+
+        const updatedAuction: Auction = {
+            ...gameData.auction,
+            participatingPlayerIds: remainingPlayers,
+        };
+        updateGameInFirestore({ auction: updatedAuction });
+    };
+
+    const handleAuctionCompletion = useCallback(async (auction: Auction) => {
+        if (!allPlayers || !firestore || !gameRef || !gameId || auction.status !== 'active') return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const freshGameDoc = await transaction.get(gameRef);
+                if (!freshGameDoc.exists()) throw "Game not found!";
+                const freshAuction = freshGameDoc.data().auction;
+
+                if (!freshAuction || freshAuction.status !== 'active') return;
+
+                let winnerId: string | null = null;
+                const participants = freshAuction.participatingPlayerIds;
+                
+                if (participants.length === 1 && freshAuction.lastBidderId === participants[0]) {
+                    winnerId = participants[0];
+                } else if (participants.length === 0 && freshAuction.lastBidderId) {
+                    winnerId = freshAuction.lastBidderId;
+                }
+
+                if (winnerId) {
+                    const winner = allPlayers.find(p => p.id === winnerId);
+                    const property = boardSpaces.find(s => 'id' in s && s.id === freshAuction.propertyId) as Property | undefined;
+                    if (!winner || !property) return;
+                    
+                    const message = `${winner.name} venceu o leilão de ${property.name} por R$${freshAuction.currentBid}!`;
+                    addNotification(message);
+                    addLogEntry('auction', `<span class="font-bold text-yellow-300">${winner.name}</span> venceu o leilão de <span class="font-bold text-blue-300">${property.name}</span> por <span class="font-bold text-green-400">R$${freshAuction.currentBid}</span>.`);
+                    
+                    const playerRef = doc(firestore, `games/${gameId}/players`, winnerId);
+                    const playerUpdates = {
+                        money: winner.money - freshAuction.currentBid,
+                        properties: [...winner.properties, freshAuction.propertyId],
+                    };
+                    transaction.update(playerRef, playerUpdates);
+                } else {
+                    const propertyName = boardSpaces.find(s => 'id' in s && s.id === freshAuction.propertyId)?.name || 'a propriedade';
+                    const message = `Ninguém deu lance. O leilão para ${propertyName} terminou.`;
+                    addNotification(message);
+                    addLogEntry('auction', `Leilão para <span class="font-bold text-blue-300">${propertyName}</span> terminou sem lances.`);
+                }
+
+                transaction.update(gameRef, { auction: deleteField() });
+            });
+        } catch (e: any) {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: gameRef.path,
+                operation: 'update',
+                requestResourceData: { auction: deleteField() }
+            }));
+        }
+    }, [allPlayers, firestore, gameId, gameRef, addNotification, addLogEntry]);
+
+    useEffect(() => {
+        const auction = gameData?.auction;
+        if (!auction || auction.status !== 'active') {
+            setAuctionOpen(false);
+            return;
+        };
+
+        setAuctionOpen(true);
+        const hasEnded = (auction.participatingPlayerIds.length === 1 && auction.lastBidderId === auction.participatingPlayerIds[0]) ||
+                         (auction.participatingPlayerIds.length === 0 && auction.lastBidderId);
+
+        if (hasEnded) {
+            handleAuctionCompletion(auction);
+        }
+    }, [gameData?.auction, handleAuctionCompletion]);
+
+  const handlePayBail = async () => {
+    if (!loggedInPlayer || !loggedInPlayer.inJail) return;
+    if (await makePayment(50, loggedInPlayer.id)) {
+        updatePlayerInFirestore(loggedInPlayer.id, { inJail: false });
+        addNotification("Você pagou a fiança e está livre!");
+        addLogEntry('jail', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> pagou a fiança e saiu da prisão.`);
+        setHasRolled(true);
+    }
+  }
+
+  const handleBuild = (propertyId: string, amount: number) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property || !property.houseCost || !loggedInPlayer) return;
+
+    const cost = property.houseCost * amount;
+    if (loggedInPlayer.money < cost) {
+      addNotification("Dinheiro insuficiente.", "destructive");
+      return;
+    }
+
+    const currentHouses = loggedInPlayer.houses[propertyId] || 0;
+    if (currentHouses + amount > 5) {
+      addNotification('Máximo de 1 hotel por propriedade.', 'destructive');
+      return;
+    }
+
+    // Balanced building rule
+    const colorGroup = boardSpaces.filter(s => s.type === 'property' && 'color' in s && s.color === property.color) as Property[];
+    for (const propInGroup of colorGroup) {
+      if (propInGroup.id !== propertyId) {
+        const otherHouses = loggedInPlayer.houses[propInGroup.id] || 0;
+        if (currentHouses >= otherHouses) {
+          addNotification('Deve construir uniformemente. Outras propriedades neste grupo têm menos casas.', 'destructive');
+          return;
+        }
+      }
+    }
+
+    updatePlayerInFirestore(loggedInPlayer.id, {
+      money: loggedInPlayer.money - cost,
+      houses: { ...loggedInPlayer.houses, [propertyId]: currentHouses + amount }
+    });
+    addNotification(`Você construiu em ${property.name}.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> construiu ${amount > 1 ? `${amount} casas` : '1 casa'} em <span class="font-bold text-blue-300">${property.name}</span>.`);
+  };
+
+  const handleSell = (propertyId: string, amount: number) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property || !property.houseCost || !loggedInPlayer) return;
+
+    const currentHouses = loggedInPlayer.houses[propertyId] || 0;
+    if (currentHouses < amount) {
+      addNotification('Não há construções suficientes para vender.', 'destructive');
+      return;
+    }
+
+    // Balanced selling rule
+    const colorGroup = boardSpaces.filter(s => s.type === 'property' && 'color' in s && s.color === property.color) as Property[];
+    for (const propInGroup of colorGroup) {
+      if (propInGroup.id !== propertyId) {
+        const otherHouses = loggedInPlayer.houses[propInGroup.id] || 0;
+        if (currentHouses <= otherHouses) {
+          addNotification('Deve vender uniformemente. Outras propriedades neste grupo têm mais casas.', 'destructive');
+          return;
+        }
+      }
+    }
+
+    const saleValue = (property.houseCost / 2) * amount;
+    const newHousesState = { ...loggedInPlayer.houses };
+    if (currentHouses - amount === 0) {
+      delete newHousesState[propertyId];
+    } else {
+      newHousesState[propertyId] = currentHouses - amount;
+    }
+
+    updatePlayerInFirestore(loggedInPlayer.id, { money: loggedInPlayer.money + saleValue, houses: newHousesState });
+    addNotification(`Você vendeu construções em ${property.name}.`);
+    addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> vendeu ${amount > 1 ? `${amount} casas` : '1 casa'} em <span class="font-bold text-blue-300">${property.name}</span>.`);
+  };
+
+  const handleMortgage = (propertyId: string, isMortgaging: boolean) => {
+    const property = boardSpaces.find(p => 'id' in p && p.id === propertyId) as Property | undefined;
+    if (!property || !loggedInPlayer) return;
+    
+    if (isMortgaging) {
+        const mortgageValue = property.price / 2;
+        updatePlayerInFirestore(loggedInPlayer.id, {
+            money: loggedInPlayer.money + mortgageValue,
+            mortgagedProperties: [...loggedInPlayer.mortgagedProperties, propertyId]
+        });
+        addNotification(`Você hipotecou ${property.name}.`);
+        addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> hipotecou <span class="font-bold text-blue-300">${property.name}</span>.`);
+    } else {
+        const unmortgageCost = (property.price / 2) * 1.1;
+        if (loggedInPlayer.money < unmortgageCost) { addNotification(`Dinheiro insuficiente para pagar a hipoteca.`, "destructive"); return; }
+        updatePlayerInFirestore(loggedInPlayer.id, {
+            money: loggedInPlayer.money - unmortgageCost,
+            mortgagedProperties: loggedInPlayer.mortgagedProperties.filter(id => id !== propertyId)
+        });
+        addNotification(`Você pagou a hipoteca de ${property.name}.`);
+        addLogEntry('property', `<span class="font-bold text-yellow-300">${loggedInPlayer.name}</span> pagou a hipoteca de <span class="font-bold text-blue-300">${property.name}</span>.`);
+    }
+  };
+
+  if (!gameData || !allPlayers || !loggedInPlayer || !currentPlayer) {
+    return <div className="flex h-screen w-full items-center justify-center bg-slate-200"><h2 className="text-2xl font-bold">A Carregar Jogo...</h2></div>
+  }
+  
+  if (gameData.status === 'waiting') {
+    router.replace(`/character-selection?gameId=${gameId}`);
+    return <div className="flex h-screen w-full items-center justify-center bg-slate-200"><h2 className="text-2xl font-bold">A redirecionar para a seleção de personagem...</h2></div>
+  }
+
+  const isGameOver = gameData.status === 'finished';
+  const winner = allPlayers.find(p => p.id === gameData.winnerId);
+  
+  return (
+    <div className="flex h-screen w-full bg-slate-200">
+      <PlayerSidebar allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} currentUserId={user?.uid} gameId={gameId} firestore={firestore} />
+
+      <main className="flex flex-1 flex-col">
+        <GameHeader
+          currentPlayerName={currentPlayer.name}
+          onDiceRoll={handleDiceRoll}
+          onEndTurn={handleEndTurn}
+          isTurnActive={isMyTurn && !isGameOver && !gameData?.auction}
+          onManageProperties={() => setManageOpen(true)}
+          playerInJail={loggedInPlayer.inJail}
+          onPayBail={handlePayBail}
+          isHost={isHost}
+          onEndGame={() => handleEndGame()}
+          diceValue={dice}
+        />
+        <div className="flex-1 overflow-auto p-4 lg:p-8">
+            <GameBoard allPlayers={allPlayers} onSpaceClick={(space) => setSelectedSpace(space)} animateCardPile={animateCardPile} notifications={notifications} />
+        </div>
+      </main>
+
+      <AnimatePresence>{isGameOver && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"><Dialog open onOpenChange={() => {}}><DialogContent className="max-w-md text-center p-8"><DialogHeader><motion.div initial={{ scale: 0.5, rotate: -15 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}><Crown className="w-24 h-24 mx-auto text-yellow-400 drop-shadow-lg" /></motion.div><DialogTitle className="text-3xl font-bold mt-4">Fim de Jogo!</DialogTitle><DialogDescription className="text-lg mt-2">{winner && winner.id !== 'none' ? `Parabéns, ${winner.name} venceu!` : "O jogo terminou."}</DialogDescription></DialogHeader><DialogFooter className="mt-6 flex-col sm:flex-col gap-2"><Button size="lg" asChild><Link href="/">Voltar ao Início</Link></Button></DialogFooter></DialogContent></Dialog></motion.div>}</AnimatePresence>
+      <Dialog open={!!selectedSpace} onOpenChange={(open) => !open && setSelectedSpace(null)}>
+        <DialogContent className="p-0 border-0 bg-transparent shadow-none w-auto max-w-sm">
+            <DialogHeader className="sr-only">
+             <DialogTitle>{selectedSpace?.name}</DialogTitle>
+             <DialogDescription>Detalhes da propriedade {selectedSpace?.name}</DialogDescription>
+           </DialogHeader>
+          {selectedSpace && loggedInPlayer && <PropertyCard space={selectedSpace} player={loggedInPlayer} allPlayers={allPlayers} onBuy={handleBuyProperty} onAuction={handleAuctionProperty} onModalClose={() => setSelectedSpace(null)} isMyTurn={isMyTurn} />}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!drawnCard} onOpenChange={(open) => !open && setDrawnCard(null)}><DialogContent>{drawnCard && <>
+        <DialogHeader>
+          <DialogTitle className={cn("flex items-center gap-2", drawnCard.type === 'chance' ? 'text-blue-600' : 'text-orange-700')}>{drawnCard.type === 'chance' ? <HelpCircle/> : <Box/>}{drawnCard.type === 'chance' ? 'Sorte / Revés' : 'Caixinha da Prefeitura'}</DialogTitle>
+          <DialogDescription className="pt-4 text-lg text-foreground text-center">{drawnCard.description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter><Button onClick={() => { setCardToExecute(drawnCard); setDrawnCard(null); }}>Ok</Button></DialogFooter>
+      </>}</DialogContent></Dialog>
+       {loggedInPlayer && <ManagePropertiesDialog isOpen={isManageOpen} onOpenChange={setManageOpen} player={loggedInPlayer} allPlayers={allPlayers} onBuild={handleBuild} onSell={handleSell} onMortgage={handleMortgage} />}
+       {loggedInPlayer && <AuctionDialog isOpen={isAuctionOpen} onClose={() => setAuctionOpen(false)} game={gameData} allPlayers={allPlayers} loggedInPlayer={loggedInPlayer} onBid={handleAuctionBid} onPass={handleAuctionPass} />}
+    </div>
+  );
+}

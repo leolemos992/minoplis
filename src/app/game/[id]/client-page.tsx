@@ -300,7 +300,7 @@ export default function GameClientPage() {
     if (!firestore || !gameId || !gameRef) return;
     
     // Update game status and winner
-    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: undefined });
+    updateGameInFirestore({ status: 'finished', winnerId: winnerId || 'none', auction: deleteField() } as any);
     addLogEntry('system', 'A partida terminou.');
 
     // Award XP and update stats
@@ -857,10 +857,11 @@ export default function GameClientPage() {
           currentPlayerName={currentPlayer.name}
           onDiceRoll={handleDiceRoll}
           onEndTurn={handleEndTurn}
-          isTurnActive={isMyTurn && !isGameOver && !gameData?.auction}
+          isTurnActive={isMyTurn && !isGameOver && !gameData.auction}
           onManageProperties={() => setManageOpen(true)}
           playerInJail={loggedInPlayer.inJail}
           onPayBail={handlePayBail}
+          hasRolled={hasRolled}
           isHost={isHost}
           onEndGame={() => handleEndGame()}
           diceValue={dice}

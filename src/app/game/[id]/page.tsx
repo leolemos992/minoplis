@@ -21,6 +21,7 @@ import { PlayerSidebar } from '@/components/game/player-sidebar';
 import { GameHeader } from '@/components/game/game-header';
 import { AuctionDialog } from '@/components/game/auction-dialog';
 
+export const dynamicParams = false;
 
 const colorClasses: { [key: string]: string } = {
   black: 'bg-black',
@@ -513,7 +514,8 @@ export default function GamePage() {
   
     switch (action.type) {
       case 'money':
-        await makePayment(Math.abs(action.amount || 0), loggedInPlayer.id, (action.amount || 0) > 0 ? undefined : 'bank');
+        const amount = action.amount || 0;
+        await makePayment(Math.abs(amount), loggedInPlayer.id, amount > 0 ? undefined : 'bank');
         break;
       case 'move_to':
         let newPosition = (typeof action.position === 'string') ? boardSpaces.findIndex(s => 'id' in s && s.id === action.position) : action.position;
@@ -856,7 +858,7 @@ export default function GamePage() {
           currentPlayerName={currentPlayer.name}
           onDiceRoll={handleDiceRoll}
           onEndTurn={handleEndTurn}
-          isTurnActive={isMyTurn && !isGameOver && !gameData.auction}
+          isTurnActive={isMyTurn && !isGameOver && !gameData?.auction}
           hasRolled={hasRolled}
           diceValue={dice}
           onManageProperties={() => setManageOpen(true)}

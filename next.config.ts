@@ -3,7 +3,6 @@ import type {NextConfig} from 'next';
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true'
 
 const nextConfig: NextConfig = {
-  output: 'export',
   // Configure basePath e assetPrefix para o GitHub Pages
   basePath: isGithubActions ? '/minoplis' : '',
   assetPrefix: isGithubActions ? '/minoplis/' : '',

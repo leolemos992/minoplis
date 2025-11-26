@@ -115,6 +115,8 @@ export default function CharacterSelectionPage() {
       
     batch.commit()
       .catch((error) => {
+        // Since a batch can fail on either operation, we'll emit an error for both possibilities.
+        // The developer can see from the detailed error which one was the actual cause.
         const playerCreationError = new FirestorePermissionError({ path: playerRef.path, operation: 'create', requestResourceData: player });
         errorEmitter.emit('permission-error', playerCreationError);
         const gameUpdateError = new FirestorePermissionError({ path: gameRef.path, operation: 'update', requestResourceData: gameUpdates });

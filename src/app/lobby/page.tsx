@@ -39,11 +39,11 @@ export default function LobbyPage() {
         
         const gamesCollection = collection(firestore, 'games');
         
-        try {
-            const docRef = await addDoc(gamesCollection, gameData);
-            // Redirect to character selection with the new game ID
+        addDoc(gamesCollection, gameData)
+          .then(docRef => {
             router.replace(`/character-selection?gameId=${docRef.id}`);
-        } catch (error) {
+          })
+          .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: 'games',
                 operation: 'create',
@@ -52,7 +52,7 @@ export default function LobbyPage() {
             errorEmitter.emit('permission-error', permissionError);
             // Optionally, redirect to an error page or show a message
             router.replace('/?error=creation_failed');
-        }
+        });
     };
 
     createAndRedirect();
